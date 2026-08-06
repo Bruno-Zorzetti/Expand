@@ -40,6 +40,7 @@ const FASES: Fase[] = [
     entregas: [
       "Painel Gestão estilo Monday: KPIs (execução, atraso por SLA, aprovações, concluídas), 3 vistas (por conta, kanban por status, por pessoa/agente) e filtros",
       "PIDE cadastrado como produto (modalidades Anual e Semestral, mesma esteira) com processo no banco — 15 fases / 68 etapas editáveis em /expand/produtos/pide/processo",
+      "Todos os 8 produtos com processo próprio no banco (fases → tarefas), no mesmo padrão do PIDE",
       "A operação passa a instanciar a esteira de cada conta a partir do processo do produto",
     ],
     prazo: "Concluído",
@@ -54,9 +55,13 @@ const FASES: Fase[] = [
     prazo: "Concluído",
   },
   {
-    n: "7", titulo: "SaaS, dados e publicação", origem: "Expand", status: "afazer", prog: 10,
-    entregas: ["Contas reais de cliente + níveis de acesso completos", "Chat de IA do Henrique (RAG), métricas reais nos Resultados", "Financeiro (/admin/financas) + agente financeiro", "Billing/LGPD e deploy (VPS/Vercel), domínio próprio"],
-    prazo: "~2 semanas + deploy",
+    n: "7", titulo: "SaaS, dados e publicação", origem: "Expand", status: "andamento", prog: 40,
+    entregas: [
+      "Build de produção validado + repositório e guia de deploy prontos (Vercel + GitHub) — falta só conectar a conta e subir",
+      "Contas reais de cliente + níveis de acesso completos (RLS do portal já entregue)",
+      "Falta: chat de IA do Henrique (RAG), Financeiro (/admin/financas) + agente financeiro, domínio próprio e billing/LGPD",
+    ],
+    prazo: "Deploy nesta semana · restante ~2 semanas",
   },
 ];
 
