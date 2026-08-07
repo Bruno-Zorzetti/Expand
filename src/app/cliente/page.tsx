@@ -77,6 +77,15 @@ export default async function ClienteHome() {
             </Link>
           ) : null}
 
+          <Link href="/cliente/biblioteca" className="hx-glass hx-glass-hover" style={{ display: "flex", alignItems: "center", gap: 16, padding: "18px 22px", textDecoration: "none", color: "inherit", borderLeft: "4px solid var(--dourado, var(--accent))", marginBottom: 22 }}>
+            <div style={{ width: 46, height: 46, borderRadius: 13, display: "grid", placeItems: "center", background: "color-mix(in srgb, var(--accent) 16%, transparent)", color: "var(--accent)", fontSize: 22, flexShrink: 0 }}>📚</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 15, fontWeight: 700 }}>Biblioteca de conhecimento</div>
+              <div style={{ fontSize: 12.5, color: "var(--mut)" }}>Guias práticos da Expand para você aplicar — bio, posicionamento, método.</div>
+            </div>
+            <span className="hx-btn hx-btn-ghost" style={{ padding: "8px 15px", fontSize: 12.5, flexShrink: 0 }}>Abrir ↗</span>
+          </Link>
+
           <div className="ex-grph"><span className="gt">Meus serviços</span><span className="gc">{orders.length}</span><span className="gl" /></div>
 
           {orders.length === 0 ? (

@@ -5,6 +5,16 @@ import { createClient } from "@/lib/supabase/server";
 import { getPessoa } from "@/lib/expand-user";
 import { instanciasParaCliente, instanciasDeProduto, type ProdEtapaRow } from "@/lib/expand-tarefas";
 
+type SB = Awaited<ReturnType<typeof createClient>>;
+// Registra uma ação no log do sistema (expand_log).
+async function logar(supabase: SB, tipo: string, detalhe: string, o?: { cliente_id?: string | null; etapa_id?: string | null; autor?: string | null }) {
+  await supabase.from("expand_log").insert({ tipo, detalhe, cliente_id: o?.cliente_id ?? null, etapa_id: o?.etapa_id ?? null, autor: o?.autor ?? null });
+}
+async function clienteDaEtapa(supabase: SB, etapaId: string): Promise<string | null> {
+  const { data } = await supabase.from("expand_etapas").select("cliente_id").eq("id", etapaId).single();
+  return (data?.cliente_id as string | null) ?? null;
+}
+
 // Instancia a esteira de um cliente (idempotente) a partir do PROCESSO DO PRODUTO
 // que a conta segue (expand_prod_etapas). Cai para a esteira estática se o produto
 // ainda não tiver processo cadastrado.
@@ -16,10 +26,15 @@ export async function garantirEtapas(formData: FormData) {
   if (existe && existe.length) return;
   const { data: c } = await supabase.from("expand_clientes").select("maturidade, produto_slug").eq("id", clienteId).single();
   const maturidade = (c?.maturidade as string | null) ?? null;
-  const slug = (c?.produto_slug as string | null) ?? "pide";
+  // produto escolhido na hora (Board) tem prioridade; persiste no cliente.
+  const escolhido = String(formData.get("produtoSlug") ?? "").trim();
+  const slug = escolhido || (c?.produto_slug as string | null) || "pide";
+  if (escolhido && escolhido !== (c?.produto_slug as string | null)) {
+    await supabase.from("expand_clientes").update({ produto_slug: escolhido }).eq("id", clienteId);
+  }
 
   const { data: proc } = await supabase.from("expand_prod_etapas")
-    .select("fase_ordem, ordem, titulo, area, responsavel, agente, sla, gatilho, criterio, visivel_cliente, qtd_esperada, aprovacao")
+    .select("fase_ordem, ordem, titulo, area, responsavel, agente, sla, gatilho, criterio, visivel_cliente, qtd_esperada, aprovacao, marco, depende_de")
     .eq("produto_slug", slug).order("ordem");
 
   const rows = proc && proc.length
@@ -45,12 +60,13 @@ export async function subirArquivo(formData: FormData) {
   });
   if (error) return;
   await supabase.from("expand_arquivos").insert({
-    etapa_id: etapaId, nome: file.name, path, enviado_por: pessoa.nome, status: "pendente",
+    etapa_id: etapaId, nome: file.name, path, tipo: "arquivo", enviado_por: pessoa.nome, status: "pendente",
   });
   // primeira entrega tira a etapa do "não iniciada"
   await supabase.from("expand_etapas")
     .update({ status: "run", iniciada_em: new Date().toISOString(), responsavel_atual: pessoa.nome })
     .eq("id", etapaId).eq("status", "idle");
+  await logar(supabase, "upload", `Subiu o arquivo "${file.name}"`, { etapa_id: etapaId, cliente_id: await clienteDaEtapa(supabase, etapaId), autor: pessoa.nome });
   revalidatePath(`/expand/etapa/${etapaId}`);
   revalidatePath("/expand/board");
 }
@@ -75,6 +91,262 @@ export async function decidirArquivo(formData: FormData) {
   if (et && count != null && count >= ((et.qtd_esperada as number) ?? 1)) {
     await supabase.from("expand_etapas").update({ status: "done", concluida_em: new Date().toISOString() }).eq("id", etapaId);
   }
+  await logar(supabase, decisao === "aprovado" ? "aprovacao" : "ajuste", decisao === "aprovado" ? "Aprovou um entregável" : "Pediu ajuste num entregável", { etapa_id: etapaId, cliente_id: await clienteDaEtapa(supabase, etapaId), autor: quem });
   revalidatePath(`/expand/etapa/${etapaId}`);
   revalidatePath("/expand/board");
+}
+
+// ---- Contador / ciclo de vida da etapa ----
+export async function iniciarEtapa(formData: FormData) {
+  const etapaId = String(formData.get("etapaId") ?? "");
+  if (!etapaId) return;
+  const supabase = await createClient();
+  const { pessoa } = await getPessoa();
+  const { data: et } = await supabase.from("expand_etapas").select("iniciada_em, cliente_id").eq("id", etapaId).single();
+  await supabase.from("expand_etapas").update({
+    status: "run", responsavel_atual: pessoa.nome, bloqueado: false,
+    ...(et?.iniciada_em ? {} : { iniciada_em: new Date().toISOString() }),
+  }).eq("id", etapaId);
+  await logar(supabase, "iniciar", "Iniciou a execução (contador ligado)", { etapa_id: etapaId, cliente_id: (et?.cliente_id as string | null) ?? null, autor: pessoa.nome });
+  revalidatePath(`/expand/etapa/${etapaId}`);
+  revalidatePath("/expand");
+}
+
+export async function concluirEtapa(formData: FormData) {
+  const etapaId = String(formData.get("etapaId") ?? "");
+  if (!etapaId) return;
+  const supabase = await createClient();
+  const { pessoa } = await getPessoa();
+  const { data: et } = await supabase.from("expand_etapas").select("iniciada_em, cliente_id").eq("id", etapaId).single();
+  const ini = et?.iniciada_em as string | null;
+  const dur = ini ? Math.max(1, Math.round((Date.now() - new Date(ini).getTime()) / 60000)) : null;
+  await supabase.from("expand_etapas").update({ status: "done", concluida_em: new Date().toISOString(), duracao_min: dur }).eq("id", etapaId);
+  await logar(supabase, "concluir", `Concluiu a tarefa${dur != null ? ` em ${dur} min` : ""}`, { etapa_id: etapaId, cliente_id: (et?.cliente_id as string | null) ?? null, autor: pessoa.nome });
+  revalidatePath(`/expand/etapa/${etapaId}`);
+  revalidatePath("/expand");
+}
+
+export async function transferirEtapa(formData: FormData) {
+  const etapaId = String(formData.get("etapaId") ?? "");
+  const para = String(formData.get("para") ?? "").trim();
+  if (!etapaId || !para) return;
+  const supabase = await createClient();
+  const { pessoa } = await getPessoa();
+  const { data: et } = await supabase.from("expand_etapas").select("responsavel_atual, responsavel, cliente_id").eq("id", etapaId).single();
+  const de = (et?.responsavel_atual ?? et?.responsavel ?? "—") as string;
+  await supabase.from("expand_etapas").update({ responsavel_atual: para }).eq("id", etapaId);
+  await logar(supabase, "transferir", `Transferiu de ${de} para ${para}`, { etapa_id: etapaId, cliente_id: (et?.cliente_id as string | null) ?? null, autor: pessoa.nome });
+  revalidatePath(`/expand/etapa/${etapaId}`);
+  revalidatePath("/expand");
+}
+
+export async function abrirChamado(formData: FormData) {
+  const etapaId = String(formData.get("etapaId") ?? "");
+  const msg = String(formData.get("msg") ?? "").trim();
+  if (!etapaId || !msg) return;
+  const supabase = await createClient();
+  const { pessoa } = await getPessoa();
+  await supabase.from("expand_etapas").update({ chamado: true, chamado_msg: msg }).eq("id", etapaId);
+  await logar(supabase, "chamado", `Abriu chamado/dúvida: ${msg}`, { etapa_id: etapaId, cliente_id: await clienteDaEtapa(supabase, etapaId), autor: pessoa.nome });
+  revalidatePath(`/expand/etapa/${etapaId}`);
+  revalidatePath("/expand");
+}
+
+export async function alternarBloqueio(formData: FormData) {
+  const etapaId = String(formData.get("etapaId") ?? "");
+  const motivo = String(formData.get("motivo") ?? "").trim();
+  if (!etapaId) return;
+  const supabase = await createClient();
+  const { pessoa } = await getPessoa();
+  const { data: et } = await supabase.from("expand_etapas").select("bloqueado, cliente_id").eq("id", etapaId).single();
+  const bloquear = !et?.bloqueado;
+  await supabase.from("expand_etapas").update({ bloqueado: bloquear, bloqueio_motivo: bloquear ? (motivo || "Sem motivo informado") : null }).eq("id", etapaId);
+  await logar(supabase, "bloqueio", bloquear ? `Marcou bloqueio: ${motivo || "—"}` : "Desbloqueou a tarefa", { etapa_id: etapaId, cliente_id: (et?.cliente_id as string | null) ?? null, autor: pessoa.nome });
+  revalidatePath(`/expand/etapa/${etapaId}`);
+  revalidatePath("/expand");
+}
+
+// ---- Entregáveis: link + CRUD ----
+export async function adicionarLink(formData: FormData) {
+  const etapaId = String(formData.get("etapaId") ?? "");
+  const nome = String(formData.get("nome") ?? "").trim();
+  const url = String(formData.get("url") ?? "").trim();
+  if (!etapaId || !nome || !url) return;
+  const supabase = await createClient();
+  const { pessoa } = await getPessoa();
+  await supabase.from("expand_arquivos").insert({ etapa_id: etapaId, nome, url, tipo: "link", enviado_por: pessoa.nome, status: "pendente" });
+  await supabase.from("expand_etapas").update({ status: "run", iniciada_em: new Date().toISOString(), responsavel_atual: pessoa.nome }).eq("id", etapaId).eq("status", "idle");
+  await logar(supabase, "link", `Adicionou o link "${nome}"`, { etapa_id: etapaId, cliente_id: await clienteDaEtapa(supabase, etapaId), autor: pessoa.nome });
+  revalidatePath(`/expand/etapa/${etapaId}`);
+}
+
+export async function editarArquivo(formData: FormData) {
+  const arquivoId = String(formData.get("arquivoId") ?? "");
+  const etapaId = String(formData.get("etapaId") ?? "");
+  const nome = String(formData.get("nome") ?? "").trim();
+  if (!arquivoId || !nome) return;
+  const supabase = await createClient();
+  const { pessoa } = await getPessoa();
+  const patch: Record<string, unknown> = { nome };
+  const url = String(formData.get("url") ?? "").trim();
+  const obs = String(formData.get("obs") ?? "").trim();
+  if (formData.has("url")) patch.url = url || null;
+  patch.obs = obs || null;
+  await supabase.from("expand_arquivos").update(patch).eq("id", arquivoId);
+  await logar(supabase, "edicao", `Editou o entregável "${nome}"`, { etapa_id: etapaId, cliente_id: await clienteDaEtapa(supabase, etapaId), autor: pessoa.nome });
+  revalidatePath(`/expand/etapa/${etapaId}`);
+}
+
+export async function removerArquivo(formData: FormData) {
+  const arquivoId = String(formData.get("arquivoId") ?? "");
+  const etapaId = String(formData.get("etapaId") ?? "");
+  if (!arquivoId) return;
+  const supabase = await createClient();
+  const { pessoa } = await getPessoa();
+  const { data: a } = await supabase.from("expand_arquivos").select("nome, path").eq("id", arquivoId).single();
+  if (a?.path) await supabase.storage.from("expand-entregaveis").remove([a.path as string]);
+  await supabase.from("expand_arquivos").delete().eq("id", arquivoId);
+  await logar(supabase, "remocao", `Removeu o entregável "${a?.nome ?? ""}"`, { etapa_id: etapaId, cliente_id: await clienteDaEtapa(supabase, etapaId), autor: pessoa.nome });
+  revalidatePath(`/expand/etapa/${etapaId}`);
+}
+
+// ---- Agenda: data prevista da tarefa (planejamento semanal) ----
+export async function agendarEtapa(formData: FormData) {
+  const etapaId = String(formData.get("etapaId") ?? "");
+  if (!etapaId) return;
+  const supabase = await createClient();
+  const { pessoa } = await getPessoa();
+  const data = String(formData.get("data") ?? "").trim();
+  await supabase.from("expand_etapas").update({ data_prevista: data || null }).eq("id", etapaId);
+  await logar(supabase, "agenda", data ? `Agendou para ${data}` : "Removeu a data prevista", { etapa_id: etapaId, cliente_id: await clienteDaEtapa(supabase, etapaId), autor: pessoa.nome });
+  revalidatePath(`/expand/etapa/${etapaId}`);
+  revalidatePath("/expand/planejamento");
+  revalidatePath("/expand");
+}
+
+// ---- Editar a tarefa (CRUD por cliente): SLA, responsável, o que fazer, etc. ----
+export async function editarEtapa(formData: FormData) {
+  const etapaId = String(formData.get("etapaId") ?? "");
+  if (!etapaId) return;
+  const supabase = await createClient();
+  const { pessoa } = await getPessoa();
+  const str = (k: string) => { const v = String(formData.get(k) ?? "").trim(); return v || null; };
+  const depende = String(formData.get("depende_de") ?? "").trim();
+  const qtd = Number(formData.get("qtd_esperada") ?? 1);
+  const patch = {
+    titulo: String(formData.get("titulo") ?? "").trim() || "Sem título",
+    criterio: str("criterio"),
+    gatilho: str("gatilho"),
+    sla: str("sla"),
+    responsavel: str("responsavel"),
+    agente: str("agente"),
+    qtd_esperada: Number.isFinite(qtd) && qtd > 0 ? Math.round(qtd) : 1,
+    depende_de: depende ? Number(depende) : null,
+    marco: formData.get("marco") === "on",
+    visivel_cliente: formData.get("visivel_cliente") === "on",
+  };
+  const { data: et } = await supabase.from("expand_etapas").select("cliente_id").eq("id", etapaId).single();
+  await supabase.from("expand_etapas").update(patch).eq("id", etapaId);
+  await logar(supabase, "editar", `Editou a tarefa "${patch.titulo}"`, { etapa_id: etapaId, cliente_id: (et?.cliente_id as string | null) ?? null, autor: pessoa.nome });
+  revalidatePath(`/expand/etapa/${etapaId}`);
+  revalidatePath("/expand/board");
+}
+
+// ---- Modelos & exemplos por tarefa (o que fazer aqui) ----
+export async function addModeloEtapa(formData: FormData) {
+  const etapaId = String(formData.get("etapaId") ?? "");
+  const titulo = String(formData.get("titulo") ?? "").trim();
+  if (!etapaId || !titulo) return;
+  const supabase = await createClient();
+  const { pessoa } = await getPessoa();
+  await supabase.from("expand_etapa_modelos").insert({
+    etapa_id: etapaId, titulo,
+    conteudo: String(formData.get("conteudo") ?? "").trim() || null,
+    url: String(formData.get("url") ?? "").trim() || null,
+    criado_por: pessoa.nome,
+  });
+  revalidatePath(`/expand/etapa/${etapaId}`);
+}
+export async function removeModeloEtapa(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+  const etapaId = String(formData.get("etapaId") ?? "");
+  if (!id) return;
+  const supabase = await createClient();
+  await supabase.from("expand_etapa_modelos").delete().eq("id", id);
+  revalidatePath(`/expand/etapa/${etapaId}`);
+}
+
+// ---- PMO: aplicar o squad sugerido (define responsável por área nas tarefas abertas) ----
+export async function aplicarSquad(formData: FormData) {
+  const clienteId = String(formData.get("clienteId") ?? "");
+  if (!clienteId) return;
+  const areas = formData.getAll("alocArea").map(String);
+  const pessoas = formData.getAll("alocPessoa").map(String);
+  const supabase = await createClient();
+  const { pessoa } = await getPessoa();
+  let aplicadas = 0;
+  for (let i = 0; i < areas.length; i++) {
+    const area = areas[i], resp = (pessoas[i] ?? "").trim();
+    if (!area || !resp) continue;
+    // só as tarefas abertas daquela área desta conta
+    const { data: upd } = await supabase.from("expand_etapas")
+      .update({ responsavel: resp }).eq("cliente_id", clienteId).eq("area", area).neq("status", "done").select("id");
+    aplicadas += (upd?.length ?? 0);
+  }
+  await logar(supabase, "squad", `PMO montou o squad: ${aplicadas} tarefa(s) atribuída(s) em ${areas.length} área(s)`, { cliente_id: clienteId, autor: pessoa.nome });
+  revalidatePath(`/expand/board?c=${clienteId}`);
+  revalidatePath(`/expand/board/squad?c=${clienteId}`);
+}
+
+// ---- Disponibilidade: folgas/feriados por pessoa (PJ escolhe quais observa) ----
+export async function marcarFolga(formData: FormData) {
+  const perfilId = String(formData.get("perfilId") ?? "");
+  const data = String(formData.get("data") ?? "").trim();
+  if (!perfilId || !data) return;
+  const supabase = await createClient();
+  await supabase.from("expand_perfil_folga").upsert(
+    { perfil_id: perfilId, data, motivo: String(formData.get("motivo") ?? "").trim() || null },
+    { onConflict: "perfil_id,data" }
+  );
+  revalidatePath(`/expand/equipe/${perfilId}`);
+}
+export async function removerFolga(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+  const perfilId = String(formData.get("perfilId") ?? "");
+  if (!id) return;
+  const supabase = await createClient();
+  await supabase.from("expand_perfil_folga").delete().eq("id", id);
+  revalidatePath(`/expand/equipe/${perfilId}`);
+}
+
+// ---- Justificativa de atraso ----
+export async function justificarAtraso(formData: FormData) {
+  const etapaId = String(formData.get("etapaId") ?? "");
+  const texto = String(formData.get("justificativa") ?? "").trim();
+  if (!etapaId) return;
+  const supabase = await createClient();
+  const { pessoa } = await getPessoa();
+  await supabase.from("expand_etapas").update({ justificativa: texto || null }).eq("id", etapaId);
+  await logar(supabase, "justificativa", texto ? `Justificou atraso: ${texto}` : "Removeu justificativa", { etapa_id: etapaId, cliente_id: await clienteDaEtapa(supabase, etapaId), autor: pessoa.nome });
+  revalidatePath("/expand");
+  revalidatePath(`/expand/etapa/${etapaId}`);
+}
+
+// ---- Sala do time (chat interno) ----
+export async function postarSala(formData: FormData) {
+  const texto = String(formData.get("texto") ?? "").trim();
+  if (!texto) return;
+  const supabase = await createClient();
+  const { pessoa } = await getPessoa();
+  await supabase.from("expand_sala").insert({ autor_id: pessoa.id, autor: pessoa.nome, texto });
+  revalidatePath("/expand/sala");
+}
+
+// ---- Anotações pessoais (Meu Dia) ----
+export async function salvarNota(formData: FormData) {
+  const conteudo = String(formData.get("conteudo") ?? "");
+  const cor = String(formData.get("cor") ?? "amarelo");
+  const supabase = await createClient();
+  const { pessoa } = await getPessoa();
+  await supabase.from("expand_notas").upsert({ membro_id: pessoa.id, conteudo, cor, atualizado_em: new Date().toISOString() }, { onConflict: "membro_id" });
 }

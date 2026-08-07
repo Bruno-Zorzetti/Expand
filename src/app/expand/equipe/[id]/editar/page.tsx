@@ -25,7 +25,8 @@ async function salvar(formData: FormData) {
     interesses: arr("interesses"), hard: arr("hard"), soft: arr("soft"), ferramentas: arr("ferramentas"), linguagens: arr("linguagens"),
     experiencia: parseExp(String(formData.get("experiencia") ?? "")), formacao: parseForm(String(formData.get("formacao") ?? "")),
     portfolio_url: t("portfolio_url"), portfolio_label: t("portfolio_label"),
-    email: t("email"), telefone: t("telefone"), pais: t("pais"), idade: t("idade"),
+    email: t("email"), telefone: t("telefone"), pais: t("pais"), idade: t("idade"), aniversario: t("aniversario"),
+    instagram: t("instagram"), linkedin: t("linkedin"),
     ranking: t("ranking"), nota: nota ? Number(nota) : null,
     prompt: t("prompt"), memoria: t("memoria"),
     superior: t("superior"), chapeus: arr("chapeus"),
@@ -74,7 +75,7 @@ export default async function Editar({ params }: { params: Promise<{ id: string 
             <F n="cor" l="Cor" v={p.cor} tipo="color" />
             <F n="foto_url" l="Foto (URL)" v={p.foto_url} />
             <F n="ranking" l="Selo / ranking" v={p.ranking} />
-            <F n="nota" l="Nota (0–5)" v={p.nota} tipo="number" />
+            <F n="nota" l="Nota (0–10)" v={p.nota} tipo="number" />
           </div>
           <div className="pb" style={{ paddingTop: 0 }}><A n="bio" l="Bio / descrição" v={p.bio ?? ""} /></div>
         </div>
@@ -117,9 +118,12 @@ export default async function Editar({ params }: { params: Promise<{ id: string 
             <F n="portfolio_url" l="Portfólio (URL)" v={p.portfolio_url} />
             <F n="portfolio_label" l="Portfólio (rótulo)" v={p.portfolio_label} />
             <F n="email" l="E-mail" v={p.email} />
-            <F n="telefone" l="Telefone" v={p.telefone} />
+            <F n="telefone" l="WhatsApp" v={p.telefone} />
             <F n="idade" l="Idade" v={p.idade} />
+            <F n="aniversario" l="Aniversário" v={p.aniversario} tipo="date" />
             <F n="pais" l="País" v={p.pais} />
+            <F n="instagram" l="Instagram (@ ou link)" v={p.instagram} />
+            <F n="linkedin" l="LinkedIn (link)" v={p.linkedin} />
           </div>
         </div>
 

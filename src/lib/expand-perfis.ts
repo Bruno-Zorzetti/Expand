@@ -7,10 +7,15 @@ export type Perfil = {
   interesses: string[] | null; hard: string[] | null; soft: string[] | null; ferramentas: string[] | null; linguagens: string[] | null;
   experiencia: Exp[] | null; formacao: Form[] | null;
   portfolio_url: string | null; portfolio_label: string | null;
-  email: string | null; telefone: string | null; pais: string | null; idade: string | null;
+  email: string | null; telefone: string | null; pais: string | null; idade: string | null; aniversario: string | null;
   ranking: string | null; nota: number | null; trabalhos: number | null; ordem: number | null;
   prompt: string | null; memoria: string | null;
+  metodologia: string | null; processos: { t: string; passos: string[] }[] | null;
   superior: string | null; chapeus: string[] | null;
+  disc: Record<string, number> | null; temperamentos: Record<string, number> | null; comportamental_em: string | null;
+  disc_segmento: string | null; temp_segmento: string | null;
+  ics_token: string | null;
+  instagram: string | null; linkedin: string | null;
 };
 
 export const linhas = (s: string) => s.split("\n").map((x) => x.trim()).filter(Boolean);

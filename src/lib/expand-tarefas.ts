@@ -15,6 +15,15 @@ export type EtapaRow = {
   qtd_esperada: number;
   aprovacao: string;
   visivel_cliente: boolean;
+  marco: boolean;
+  depende_de: number | null;
+  bloqueado: boolean;
+  bloqueio_motivo: string | null;
+  duracao_min: number | null;
+  chamado: boolean;
+  chamado_msg: string | null;
+  data_prevista: string | null;
+  justificativa: string | null;
   status: string;
   responsavel_atual: string | null;
   iniciada_em: string | null;
@@ -26,6 +35,8 @@ export type ArquivoRow = {
   etapa_id: string;
   nome: string;
   path: string | null;
+  tipo: string;
+  url: string | null;
   enviado_por: string | null;
   enviado_em: string | null;
   status: string;
@@ -74,6 +85,15 @@ export function instanciasParaCliente(clienteId: string, maturidade: string | nu
         qtd_esperada: s?.qtd ?? 1,
         aprovacao: "qualquer",
         visivel_cliente: t.cli === 1,
+        marco: false,
+        depende_de: null,
+        bloqueado: false,
+        bloqueio_motivo: null,
+        duracao_min: null,
+        chamado: false,
+        chamado_msg: null,
+        data_prevista: null,
+        justificativa: null,
         status,
         responsavel_atual: status === "idle" ? null : t.o,
         iniciada_em: status === "done" ? new Date(now - 18 * 864e5).toISOString() : status === "run" ? new Date(now - 2 * 864e5).toISOString() : null,
@@ -98,6 +118,8 @@ export type ProdEtapaRow = {
   visivel_cliente: boolean;
   qtd_esperada: number;
   aprovacao: string | null;
+  marco?: boolean;
+  depende_de?: number | null;
 };
 
 // Instancia a esteira de um cliente a partir do processo do PRODUTO (banco),
@@ -127,6 +149,15 @@ export function instanciasDeProduto(
         qtd_esperada: t.qtd_esperada ?? 1,
         aprovacao: t.aprovacao ?? "qualquer",
         visivel_cliente: !!t.visivel_cliente,
+        marco: !!t.marco,
+        depende_de: t.depende_de ?? null,
+        bloqueado: false,
+        bloqueio_motivo: null,
+        duracao_min: null,
+        chamado: false,
+        chamado_msg: null,
+        data_prevista: null,
+        justificativa: null,
         status,
         responsavel_atual: status === "idle" ? null : t.responsavel,
         iniciada_em: status === "done" ? new Date(now - 18 * 864e5).toISOString() : status === "run" ? new Date(now - 2 * 864e5).toISOString() : null,

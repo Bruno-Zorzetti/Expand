@@ -28,6 +28,13 @@ export default async function Board({ searchParams }: { searchParams: Promise<{ 
   const { data: etData } = await supabase.from("expand_etapas").select("*").eq("cliente_id", sel.id).order("ordem");
   const etapas = (etData ?? []) as EtapaRow[];
 
+  // produtos com processo cadastrado (para escolher a esteira ao preparar)
+  const { data: prodData } = await supabase.from("expand_prod_etapas").select("produto_slug");
+  const prodSlugs = Array.from(new Set((prodData ?? []).map((p: { produto_slug: string }) => p.produto_slug)));
+  const { data: prodNomes } = await supabase.from("products").select("slug, name").in("slug", prodSlugs.length ? prodSlugs : ["_"]);
+  const nomeProduto = new Map((prodNomes ?? []).map((p: { slug: string; name: string }) => [p.slug, p.name]));
+  const produtos = prodSlugs.map((s) => ({ slug: s, nome: nomeProduto.get(s) ?? s })).sort((a, b) => a.nome.localeCompare(b.nome));
+
   const counts = new Map<string, { total: number; aprovados: number }>();
   if (etapas.length) {
     const ids = etapas.map((e) => e.id);
@@ -52,8 +59,9 @@ export default async function Board({ searchParams }: { searchParams: Promise<{ 
       <div className="ex-chips">
         {clientes.map((c) => (<Link key={c.id} href={`/expand/board?c=${c.id}`} className={`ex-chip2${c.id === sel.id ? " on" : ""}`}>{c.nome}</Link>))}
       </div>
-      <div style={{ marginBottom: 10 }}>
+      <div style={{ marginBottom: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
         <Link href={`/portal/${sel.id}`} className="hx-btn hx-btn-ghost" style={{ padding: "7px 13px", fontSize: 12 }}>Abrir portal de {sel.nome} ↗</Link>
+        {etapas.length ? <Link href={`/expand/board/squad?c=${sel.id}`} className="hx-btn hx-btn-ghost" style={{ padding: "7px 13px", fontSize: 12 }}>🧩 PMO: montar squad</Link> : null}
       </div>
 
       <div className="ex-kpis">
@@ -66,11 +74,20 @@ export default async function Board({ searchParams }: { searchParams: Promise<{ 
       {etapas.length === 0 ? (
         <div className="hx-glass" style={{ padding: "22px 24px" }}>
           <p style={{ marginBottom: 6, fontWeight: 700 }}>A esteira desta conta ainda não foi preparada.</p>
-          <p style={{ color: "var(--mut)", fontSize: 13, marginBottom: 14 }}>Instancia as {FASES.reduce((n, f) => n + f.tasks.length, 0)} etapas do PIDE para {sel.nome}, já com o status pela maturidade. Depois é só subir e aprovar os arquivos de cada tarefa.</p>
-          <form action={garantirEtapas}>
+          <p style={{ color: "var(--mut)", fontSize: 13, marginBottom: 14 }}>Escolha o <b>produto</b> que {sel.nome} contratou — a sequência de trabalho é criada a partir do processo desse produto, já com o status pela maturidade. Depois é só subir e aprovar os arquivos de cada tarefa.</p>
+          <form action={garantirEtapas} style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
             <input type="hidden" name="clienteId" value={sel.id} />
-            <button className="hx-btn hx-btn-primary" type="submit">Preparar esteira desta conta</button>
+            <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <span style={{ fontSize: 10.5, textTransform: "uppercase", letterSpacing: ".06em", color: "var(--dim)", fontWeight: 700 }}>Produto</span>
+              <select name="produtoSlug" defaultValue={(sel as { produto_slug?: string | null }).produto_slug ?? "pide"} style={{ background: "var(--bg)", border: "1px solid var(--line-2)", borderRadius: 8, color: "var(--txt)", padding: "8px 10px", fontSize: 13, minWidth: 200, fontFamily: "inherit" }}>
+                {produtos.map((p) => <option key={p.slug} value={p.slug}>{p.nome}</option>)}
+              </select>
+            </label>
+            <button className="hx-btn hx-btn-primary" type="submit" style={{ alignSelf: "end" }}>Criar sequência de trabalho</button>
           </form>
+          <p style={{ fontSize: 11.5, color: "var(--dim)", marginTop: 12, lineHeight: 1.5, borderTop: "1px solid var(--line)", paddingTop: 10 }}>
+            <b style={{ color: "var(--accent)" }}>Próximo passo (em construção):</b> depois de criar a sequência, o <a href="/expand/equipe/gerente-projetos" style={{ color: "var(--accent)", textDecoration: "none" }}>Gerente de Projetos (PMO)</a> vai sugerir o squad de entrega e distribuir as tarefas conforme a agenda de cada um — sem sufocar quem já está cheio nem deixar ninguém ocioso — para você aprovar.
+          </p>
         </div>
       ) : (
         FASES.map((f) => {

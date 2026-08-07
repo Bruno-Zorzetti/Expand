@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type { ReactNode } from "react";
+import AssistentesDock from "@/components/expand/AssistentesDock";
 
 type Pessoa = { id: string; nome: string; papel: string; ini: string };
 
@@ -13,8 +14,10 @@ const NAV: { sec: string; items: NavItem[] }[] = [
     items: [
       { href: "/expand", label: "Meu Dia", icon: "grid", eyebrow: "Operação · PIDE", badge: 5 },
       { href: "/expand/gestao", label: "Gestão", icon: "kanban", eyebrow: "Painel Monday · tudo" },
+      { href: "/expand/planejamento", label: "Planejamento", icon: "calendar", eyebrow: "Agenda da semana" },
       { href: "/expand/carteira", label: "Carteira", icon: "folder", eyebrow: "Visão geral" },
       { href: "/expand/equipe", label: "Equipe & Agentes", icon: "idcard", eyebrow: "Time único · humanos + IA" },
+      { href: "/expand/biblioteca", label: "Biblioteca", icon: "library", eyebrow: "Conhecimento · equipe & clientes" },
       { href: "/expand/organograma", label: "Organograma", icon: "tree", eyebrow: "Estrutura do time" },
       { href: "/expand/squads", label: "Squads", icon: "squad", eyebrow: "Time por projeto" },
       { href: "/expand/produtos", label: "Produtos", icon: "box", eyebrow: "Catálogo Hashes" },
@@ -33,7 +36,8 @@ const NAV: { sec: string; items: NavItem[] }[] = [
   {
     sec: "Comercial",
     items: [
-      { href: "/expand/comercial", label: "Cockpit", icon: "target", eyebrow: "Comercial · Hoje" },
+      { href: "/expand/comercial", label: "Hoje · Placar", icon: "target", eyebrow: "Gamificação" },
+      { href: "/expand/comercial/meta", label: "A Meta", icon: "activity", eyebrow: "Calculadora" },
       { href: "/expand/comercial/playbook", label: "Playbook 3F", icon: "book", eyebrow: "Método 3F" },
       { href: "/expand/comercial/funis", label: "Funis", icon: "filter", eyebrow: "Prospecção" },
       { href: "/expand/comercial/objecoes", label: "Objeções", icon: "shield", eyebrow: "Contorno" },
@@ -43,6 +47,8 @@ const NAV: { sec: string; items: NavItem[] }[] = [
     sec: "Sistema",
     items: [
       { href: "/expand/roadmap", label: "Roadmap", icon: "map", eyebrow: "Entregas & prazos" },
+      { href: "/expand/financas", label: "Finanças", icon: "coin", eyebrow: "DRE & valuation" },
+      { href: "/expand/log", label: "Log", icon: "list", eyebrow: "Auditoria do sistema" },
       { href: "/expand/integracoes", label: "Integrações", icon: "plug", eyebrow: "Conexões" },
       { href: "/expand/estilo", label: "Estilo", icon: "brush", eyebrow: "Design System" },
     ],
@@ -71,10 +77,13 @@ function Ic({ name }: { name: string }) {
     tree: <><circle cx="12" cy="5" r="2" /><circle cx="6" cy="19" r="2" /><circle cx="18" cy="19" r="2" /><path d="M12 7v3M6 17v-2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2M12 10v3" /></>,
     squad: <><circle cx="9" cy="8" r="3" /><circle cx="17" cy="9" r="2.2" /><path d="M3 20c0-3 2.7-5 6-5s6 2 6 5M15.6 20c0-1.8.7-3 1.9-3.6" /></>,
     kanban: <><rect x="3" y="3" width="6" height="18" rx="1.5" /><rect x="10.5" y="3" width="6" height="12" rx="1.5" /><rect x="18" y="3" width="3" height="8" rx="1.5" /></>,
+    list: <><path d="M8 6h13M8 12h13M8 18h13" /><circle cx="3.5" cy="6" r="1.2" /><circle cx="3.5" cy="12" r="1.2" /><circle cx="3.5" cy="18" r="1.2" /></>,
     search: <><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></>,
     moon: <path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z" />,
     bell: <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.7 21a2 2 0 0 1-3.4 0" /></>,
     menu: <path d="M3 12h18M3 6h18M3 18h18" />,
+    coin: <><circle cx="12" cy="12" r="9" /><path d="M15 9.5a3 3 0 0 0-3-1.5c-1.7 0-3 .9-3 2s1.3 2 3 2 3 .9 3 2-1.3 2-3 2a3 3 0 0 1-3-1.5M12 6.5v11" /></>,
+    library: <><path d="M12 6.5C10.5 5 8 4.5 4 4.8v13C8 17.5 10.5 18 12 19.3M12 6.5C13.5 5 16 4.5 20 4.8v13C16 17.5 13.5 18 12 19.3M12 6.5v12.8" /></>,
   };
   return <svg className="ex-ic" viewBox="0 0 24 24">{paths[name]}</svg>;
 }
@@ -194,9 +203,7 @@ export default function ExpandShell({
         </footer>
       </div>
 
-      <button className="ex-fab" title="Nova ação">
-        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#0A1512" strokeWidth="2.4" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
-      </button>
+      <AssistentesDock pessoaId={pessoa.id} pessoaNome={pessoa.nome} />
     </div>
   );
 }
