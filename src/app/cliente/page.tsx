@@ -36,7 +36,9 @@ export default async function ClienteHome() {
   if (!user) redirect("/login?next=/cliente");
 
   const { data: me } = await supabase.from("profiles").select("role, expand_cliente").eq("id", user.id).single();
-  if (me && ["admin", "equipe"].includes(me.role as string)) redirect("/expand");
+  const role = me?.role as string | undefined;
+  if (role && ["admin", "equipe"].includes(role)) redirect("/expand");
+  if (role !== "cliente") redirect("/aguardando"); // pendente / sem papel aprovado
   const pideId = (me?.expand_cliente as string | null) ?? null;
 
   const { data: oData } = await supabase

@@ -60,7 +60,7 @@ function LoginInner() {
       });
       if (error) setMsg(error.message);
       else {
-        setMsg("Conta criada. Se pedir confirmação, cheque seu e-mail. Agora é só entrar.");
+        setMsg("Conta criada! Por segurança, a equipe da Expand precisa liberar seu acesso antes de entrar. Você é avisado quando aprovarem — aí é só entrar com este e-mail e senha.");
         setMode("login");
       }
     }

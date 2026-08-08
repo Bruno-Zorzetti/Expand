@@ -13,15 +13,17 @@ export default async function ExpandLayout({ children }: { children: ReactNode }
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
   const { data: me } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-  if (!me || !["admin", "equipe"].includes(me.role as string)) redirect("/dashboard");
+  const role = (me?.role as string) ?? "pendente";
+  if (role === "cliente") redirect("/cliente");
+  if (!["admin", "equipe"].includes(role)) redirect("/aguardando"); // pendente / sem papel
 
   const { pessoa, equipe } = await getPessoa();
-  const podeTrocar = me.role === "admin";
+  const isAdmin = role === "admin";
 
   return (
     <div className={`${cinzel.variable} tema-expand`}>
       <ExpandTemaInit />
-      <ExpandShell pessoa={pessoa} equipe={equipe} podeTrocar={podeTrocar}>{children}</ExpandShell>
+      <ExpandShell pessoa={pessoa} equipe={equipe} podeTrocar={isAdmin} isAdmin={isAdmin}>{children}</ExpandShell>
     </div>
   );
 }

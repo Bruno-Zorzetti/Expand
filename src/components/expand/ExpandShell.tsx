@@ -7,51 +7,62 @@ import AssistentesDock from "@/components/expand/AssistentesDock";
 
 type Pessoa = { id: string; nome: string; papel: string; ini: string };
 
-type NavItem = { href: string; label: string; icon: string; eyebrow: string; badge?: number; external?: boolean };
+type NavItem = { href: string; label: string; icon: string; eyebrow: string; badge?: number; external?: boolean; admin?: boolean };
 const NAV: { sec: string; items: NavItem[] }[] = [
   {
-    sec: "Operação",
+    sec: "Meu trabalho",
     items: [
-      { href: "/expand", label: "Meu Dia", icon: "grid", eyebrow: "Operação · PIDE", badge: 5 },
-      { href: "/expand/gestao", label: "Gestão", icon: "kanban", eyebrow: "Painel Monday · tudo" },
+      { href: "/expand", label: "Meu Dia", icon: "grid", eyebrow: "Suas tarefas", badge: 5 },
       { href: "/expand/planejamento", label: "Planejamento", icon: "calendar", eyebrow: "Agenda da semana" },
-      { href: "/expand/carteira", label: "Carteira", icon: "folder", eyebrow: "Visão geral" },
-      { href: "/expand/equipe", label: "Equipe & Agentes", icon: "idcard", eyebrow: "Time único · humanos + IA" },
-      { href: "/expand/biblioteca", label: "Biblioteca", icon: "library", eyebrow: "Conhecimento · equipe & clientes" },
-      { href: "/apresentacoes/", label: "Apresentações", icon: "slides", eyebrow: "Decks · Expand Ouro", external: true },
-      { href: "/expand/organograma", label: "Organograma", icon: "tree", eyebrow: "Estrutura do time" },
-      { href: "/expand/squads", label: "Squads", icon: "squad", eyebrow: "Time por projeto" },
-      { href: "/expand/produtos", label: "Produtos", icon: "box", eyebrow: "Catálogo Hashes" },
-      { href: "/expand/perfis", label: "Perfis de Cliente", icon: "users", eyebrow: "Dossiê comportamental" },
+      { href: "/expand/carteira", label: "Carteira", icon: "folder", eyebrow: "Suas contas" },
     ],
   },
   {
-    sec: "Processo",
+    sec: "Entrega",
     items: [
       { href: "/expand/board", label: "Board de Entrega", icon: "layers", eyebrow: "Estado da conta" },
-      { href: "/expand/fluxo", label: "Fluxograma", icon: "branch", eyebrow: "46 etapas" },
+      { href: "/expand/fluxo", label: "Fluxograma", icon: "branch", eyebrow: "Etapas" },
       { href: "/expand/contrato", label: "Linha do Contrato", icon: "calendar", eyebrow: "12 meses" },
       { href: "/expand/ritmo", label: "Ritmo e Governança", icon: "activity", eyebrow: "Rituais e SLA" },
+      { href: "/expand/produtos", label: "Produtos", icon: "box", eyebrow: "Catálogo" },
+    ],
+  },
+  {
+    sec: "Time & Conteúdo",
+    items: [
+      { href: "/expand/equipe", label: "Equipe & Agentes", icon: "idcard", eyebrow: "Time único · humanos + IA" },
+      { href: "/expand/organograma", label: "Organograma", icon: "tree", eyebrow: "Estrutura do time" },
+      { href: "/expand/squads", label: "Squads", icon: "squad", eyebrow: "Time por projeto" },
+      { href: "/expand/biblioteca", label: "Biblioteca", icon: "library", eyebrow: "Conhecimento" },
+      { href: "/apresentacoes/", label: "Apresentações", icon: "slides", eyebrow: "Decks · Expand Ouro", external: true },
+      { href: "/expand/perfis", label: "Perfis de Cliente", icon: "users", eyebrow: "Dossiê comportamental" },
     ],
   },
   {
     sec: "Comercial",
     items: [
-      { href: "/expand/comercial", label: "Hoje · Placar", icon: "target", eyebrow: "Gamificação" },
-      { href: "/expand/comercial/meta", label: "A Meta", icon: "activity", eyebrow: "Calculadora" },
-      { href: "/expand/comercial/playbook", label: "Playbook 3F", icon: "book", eyebrow: "Método 3F" },
-      { href: "/expand/comercial/funis", label: "Funis", icon: "filter", eyebrow: "Prospecção" },
-      { href: "/expand/comercial/objecoes", label: "Objeções", icon: "shield", eyebrow: "Contorno" },
+      { href: "/expand/comercial", label: "Hoje · Placar", icon: "target", eyebrow: "Gamificação", admin: true },
+      { href: "/expand/comercial/meta", label: "A Meta", icon: "activity", eyebrow: "Calculadora", admin: true },
+      { href: "/expand/comercial/playbook", label: "Playbook 3F", icon: "book", eyebrow: "Método 3F", admin: true },
+      { href: "/expand/comercial/funis", label: "Funis", icon: "filter", eyebrow: "Prospecção", admin: true },
+      { href: "/expand/comercial/objecoes", label: "Objeções", icon: "shield", eyebrow: "Contorno", admin: true },
     ],
   },
   {
-    sec: "Sistema",
+    sec: "Gestão & Dados",
     items: [
-      { href: "/expand/roadmap", label: "Roadmap", icon: "map", eyebrow: "Entregas & prazos" },
-      { href: "/expand/financas", label: "Finanças", icon: "coin", eyebrow: "DRE & valuation" },
-      { href: "/expand/log", label: "Log", icon: "list", eyebrow: "Auditoria do sistema" },
-      { href: "/expand/integracoes", label: "Integrações", icon: "plug", eyebrow: "Conexões" },
-      { href: "/expand/estilo", label: "Estilo", icon: "brush", eyebrow: "Design System" },
+      { href: "/expand/gestao", label: "Gestão", icon: "kanban", eyebrow: "Painel Monday · tudo", admin: true },
+      { href: "/expand/financas", label: "Finanças", icon: "coin", eyebrow: "DRE & valuation", admin: true },
+      { href: "/expand/roadmap", label: "Roadmap", icon: "map", eyebrow: "Entregas & prazos", admin: true },
+      { href: "/expand/log", label: "Log", icon: "list", eyebrow: "Auditoria do sistema", admin: true },
+    ],
+  },
+  {
+    sec: "Configurações",
+    items: [
+      { href: "/expand/acessos", label: "Acessos", icon: "lock", eyebrow: "Aprovações & papéis", admin: true },
+      { href: "/expand/integracoes", label: "Integrações", icon: "plug", eyebrow: "Conexões", admin: true },
+      { href: "/expand/estilo", label: "Estilo", icon: "brush", eyebrow: "Design System", admin: true },
     ],
   },
 ];
@@ -86,6 +97,7 @@ function Ic({ name }: { name: string }) {
     coin: <><circle cx="12" cy="12" r="9" /><path d="M15 9.5a3 3 0 0 0-3-1.5c-1.7 0-3 .9-3 2s1.3 2 3 2 3 .9 3 2-1.3 2-3 2a3 3 0 0 1-3-1.5M12 6.5v11" /></>,
     library: <><path d="M12 6.5C10.5 5 8 4.5 4 4.8v13C8 17.5 10.5 18 12 19.3M12 6.5C13.5 5 16 4.5 20 4.8v13C16 17.5 13.5 18 12 19.3M12 6.5v12.8" /></>,
     slides: <><rect x="3" y="4" width="18" height="12" rx="2" /><path d="M12 16v4M8 20h8" /></>,
+    lock: <><rect x="4" y="11" width="16" height="9" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></>,
   };
   return <svg className="ex-ic" viewBox="0 0 24 24">{paths[name]}</svg>;
 }
@@ -121,11 +133,13 @@ export default function ExpandShell({
   pessoa,
   equipe,
   podeTrocar,
+  isAdmin = false,
   children,
 }: {
   pessoa: Pessoa;
   equipe: Pessoa[];
   podeTrocar: boolean;
+  isAdmin?: boolean;
   children: ReactNode;
 }) {
   const path = usePathname();
@@ -149,10 +163,13 @@ export default function ExpandShell({
           <Logo />
           <div><div className="ex-bn">EXPAND</div><div className="ex-bs">Motor de Trabalho</div></div>
         </div>
-        {NAV.map((s) => (
+        {NAV.map((s) => {
+          const items = s.items.filter((it) => isAdmin || !it.admin);
+          if (!items.length) return null;
+          return (
           <div key={s.sec}>
             <div className="ex-navsec">{s.sec}</div>
-            {s.items.map((it) => it.external ? (
+            {items.map((it) => it.external ? (
               <a
                 key={it.href}
                 href={it.href}
@@ -178,7 +195,8 @@ export default function ExpandShell({
               </Link>
             ))}
           </div>
-        ))}
+          );
+        })}
         <div className="ex-usr">
           <div className="ex-uav">{pessoa.ini}</div>
           <div><div className="ex-un">{pessoa.nome}</div><div className="ex-ur">{pessoa.papel}</div></div>
