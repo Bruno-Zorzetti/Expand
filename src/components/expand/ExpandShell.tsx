@@ -7,7 +7,7 @@ import AssistentesDock from "@/components/expand/AssistentesDock";
 
 type Pessoa = { id: string; nome: string; papel: string; ini: string };
 
-type NavItem = { href: string; label: string; icon: string; eyebrow: string; badge?: number };
+type NavItem = { href: string; label: string; icon: string; eyebrow: string; badge?: number; external?: boolean };
 const NAV: { sec: string; items: NavItem[] }[] = [
   {
     sec: "Operação",
@@ -18,6 +18,7 @@ const NAV: { sec: string; items: NavItem[] }[] = [
       { href: "/expand/carteira", label: "Carteira", icon: "folder", eyebrow: "Visão geral" },
       { href: "/expand/equipe", label: "Equipe & Agentes", icon: "idcard", eyebrow: "Time único · humanos + IA" },
       { href: "/expand/biblioteca", label: "Biblioteca", icon: "library", eyebrow: "Conhecimento · equipe & clientes" },
+      { href: "/apresentacoes/", label: "Apresentações", icon: "slides", eyebrow: "Decks · Expand Ouro", external: true },
       { href: "/expand/organograma", label: "Organograma", icon: "tree", eyebrow: "Estrutura do time" },
       { href: "/expand/squads", label: "Squads", icon: "squad", eyebrow: "Time por projeto" },
       { href: "/expand/produtos", label: "Produtos", icon: "box", eyebrow: "Catálogo Hashes" },
@@ -84,6 +85,7 @@ function Ic({ name }: { name: string }) {
     menu: <path d="M3 12h18M3 6h18M3 18h18" />,
     coin: <><circle cx="12" cy="12" r="9" /><path d="M15 9.5a3 3 0 0 0-3-1.5c-1.7 0-3 .9-3 2s1.3 2 3 2 3 .9 3 2-1.3 2-3 2a3 3 0 0 1-3-1.5M12 6.5v11" /></>,
     library: <><path d="M12 6.5C10.5 5 8 4.5 4 4.8v13C8 17.5 10.5 18 12 19.3M12 6.5C13.5 5 16 4.5 20 4.8v13C16 17.5 13.5 18 12 19.3M12 6.5v12.8" /></>,
+    slides: <><rect x="3" y="4" width="18" height="12" rx="2" /><path d="M12 16v4M8 20h8" /></>,
   };
   return <svg className="ex-ic" viewBox="0 0 24 24">{paths[name]}</svg>;
 }
@@ -150,7 +152,20 @@ export default function ExpandShell({
         {NAV.map((s) => (
           <div key={s.sec}>
             <div className="ex-navsec">{s.sec}</div>
-            {s.items.map((it) => (
+            {s.items.map((it) => it.external ? (
+              <a
+                key={it.href}
+                href={it.href}
+                target="_blank"
+                rel="noreferrer"
+                onClick={() => document.body.classList.remove("ex-nav-open")}
+                className="ex-navi"
+              >
+                <Ic name={it.icon} />
+                {it.label}
+                <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--dim)" }}>↗</span>
+              </a>
+            ) : (
               <Link
                 key={it.href}
                 href={it.href}
