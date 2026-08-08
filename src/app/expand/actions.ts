@@ -344,9 +344,21 @@ export async function postarSala(formData: FormData) {
 
 // ---- Anotações pessoais (Meu Dia) ----
 export async function salvarNota(formData: FormData) {
+  const id = String(formData.get("id") ?? "").trim();
+  if (!id) return;
   const conteudo = String(formData.get("conteudo") ?? "");
   const cor = String(formData.get("cor") ?? "amarelo");
   const supabase = await createClient();
   const { pessoa } = await getPessoa();
-  await supabase.from("expand_notas").upsert({ membro_id: pessoa.id, conteudo, cor, atualizado_em: new Date().toISOString() }, { onConflict: "membro_id" });
+  await supabase.from("expand_notas").upsert(
+    { id, membro_id: pessoa.id, conteudo, cor, atualizado_em: new Date().toISOString() },
+    { onConflict: "id" }
+  );
+}
+export async function excluirNota(formData: FormData) {
+  const id = String(formData.get("id") ?? "").trim();
+  if (!id) return;
+  const supabase = await createClient();
+  const { pessoa } = await getPessoa();
+  await supabase.from("expand_notas").delete().eq("id", id).eq("membro_id", pessoa.id);
 }

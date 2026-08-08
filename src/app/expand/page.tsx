@@ -4,7 +4,7 @@ import { derive, contasDe, type ClienteRow } from "@/lib/expand";
 import { getPessoa } from "@/lib/expand-user";
 import { type EtapaRow } from "@/lib/expand-tarefas";
 import { AREAS, AG_NOME } from "@/lib/expand-esteira";
-import { iniciarEtapa, concluirEtapa, salvarNota, justificarAtraso } from "@/app/expand/actions";
+import { iniciarEtapa, concluirEtapa, salvarNota, excluirNota, justificarAtraso } from "@/app/expand/actions";
 import BlocoNotas from "@/components/expand/BlocoNotas";
 import Timer from "@/components/expand/Timer";
 
@@ -119,7 +119,7 @@ export default async function MeuDia({ searchParams }: { searchParams: Promise<{
 
   const { data: logData } = await supabase.from("expand_log").select("autor, criado_em").gte("criado_em", new Date(Date.now() - 12 * 3600e3).toISOString()).order("criado_em", { ascending: false }).limit(60);
   const ativos = [...new Set((logData ?? []).map((l) => l.autor as string).filter(Boolean))].slice(0, 8);
-  const { data: notaData } = await supabase.from("expand_notas").select("conteudo, cor").eq("membro_id", pessoa.id).maybeSingle();
+  const { data: notasData } = await supabase.from("expand_notas").select("id, conteudo, cor").eq("membro_id", pessoa.id).order("atualizado_em", { ascending: true });
   const { data: perfMe } = await supabase.from("expand_perfis").select("ics_token").eq("id", pessoa.id).maybeSingle();
   const site = process.env.NEXT_PUBLIC_SITE_URL || "";
   const icsUrl = perfMe?.ics_token ? `${site}/api/calendario/${perfMe.ics_token}.ics` : null;
@@ -196,7 +196,7 @@ export default async function MeuDia({ searchParams }: { searchParams: Promise<{
             </div>
           </div>
 
-          <BlocoNotas inicial={(notaData?.conteudo as string) ?? ""} corInicial={(notaData?.cor as string) ?? "amarelo"} salvar={salvarNota} />
+          <BlocoNotas notas={(notasData ?? []) as { id: string; conteudo: string; cor: string }[]} salvar={salvarNota} excluir={excluirNota} />
         </aside>
       </div>
     </>
