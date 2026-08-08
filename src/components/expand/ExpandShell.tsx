@@ -34,7 +34,7 @@ const NAV: { sec: string; items: NavItem[] }[] = [
       { href: "/expand/organograma", label: "Organograma", icon: "tree", eyebrow: "Estrutura do time" },
       { href: "/expand/squads", label: "Squads", icon: "squad", eyebrow: "Time por projeto" },
       { href: "/expand/biblioteca", label: "Biblioteca", icon: "library", eyebrow: "Conhecimento" },
-      { href: "/apresentacoes/", label: "Apresentações", icon: "slides", eyebrow: "Decks · Expand Ouro", external: true },
+      { href: "/expand/apresentacoes", label: "Apresentações", icon: "slides", eyebrow: "Editor de decks" },
       { href: "/expand/perfis", label: "Perfis de Cliente", icon: "users", eyebrow: "Dossiê comportamental" },
     ],
   },
