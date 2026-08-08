@@ -1,7 +1,7 @@
-import { exigirAdmin } from "@/lib/expand-acesso";
+import { exigirComercial } from "@/lib/expand-acesso";
 
-// Rota sensível — só admin (diretoria). O resto é redirecionado ao Meu Dia.
-export default async function AdminGate({ children }: { children: React.ReactNode }) {
-  await exigirAdmin();
+// Comercial — admin OU quem tem acesso 'comercial' (ex.: Luiz/CSO, Pedro/CEO).
+export default async function ComercialGate({ children }: { children: React.ReactNode }) {
+  await exigirComercial();
   return <>{children}</>;
 }

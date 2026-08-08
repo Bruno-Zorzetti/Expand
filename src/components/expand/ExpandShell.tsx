@@ -7,7 +7,7 @@ import AssistentesDock from "@/components/expand/AssistentesDock";
 
 type Pessoa = { id: string; nome: string; papel: string; ini: string };
 
-type NavItem = { href: string; label: string; icon: string; eyebrow: string; badge?: number; external?: boolean; admin?: boolean };
+type NavItem = { href: string; label: string; icon: string; eyebrow: string; badge?: number; external?: boolean; gate?: "admin" | "comercial" };
 const NAV: { sec: string; items: NavItem[] }[] = [
   {
     sec: "Meu trabalho",
@@ -41,28 +41,28 @@ const NAV: { sec: string; items: NavItem[] }[] = [
   {
     sec: "Comercial",
     items: [
-      { href: "/expand/comercial", label: "Hoje · Placar", icon: "target", eyebrow: "Gamificação", admin: true },
-      { href: "/expand/comercial/meta", label: "A Meta", icon: "activity", eyebrow: "Calculadora", admin: true },
-      { href: "/expand/comercial/playbook", label: "Playbook 3F", icon: "book", eyebrow: "Método 3F", admin: true },
-      { href: "/expand/comercial/funis", label: "Funis", icon: "filter", eyebrow: "Prospecção", admin: true },
-      { href: "/expand/comercial/objecoes", label: "Objeções", icon: "shield", eyebrow: "Contorno", admin: true },
+      { href: "/expand/comercial", label: "Hoje · Placar", icon: "target", eyebrow: "Gamificação", gate: "comercial" },
+      { href: "/expand/comercial/meta", label: "A Meta", icon: "activity", eyebrow: "Calculadora", gate: "comercial" },
+      { href: "/expand/comercial/playbook", label: "Playbook 3F", icon: "book", eyebrow: "Método 3F", gate: "comercial" },
+      { href: "/expand/comercial/funis", label: "Funis", icon: "filter", eyebrow: "Prospecção", gate: "comercial" },
+      { href: "/expand/comercial/objecoes", label: "Objeções", icon: "shield", eyebrow: "Contorno", gate: "comercial" },
     ],
   },
   {
     sec: "Gestão & Dados",
     items: [
-      { href: "/expand/gestao", label: "Gestão", icon: "kanban", eyebrow: "Painel Monday · tudo", admin: true },
-      { href: "/expand/financas", label: "Finanças", icon: "coin", eyebrow: "DRE & valuation", admin: true },
-      { href: "/expand/roadmap", label: "Roadmap", icon: "map", eyebrow: "Entregas & prazos", admin: true },
-      { href: "/expand/log", label: "Log", icon: "list", eyebrow: "Auditoria do sistema", admin: true },
+      { href: "/expand/gestao", label: "Gestão", icon: "kanban", eyebrow: "Painel Monday · tudo", gate: "admin" },
+      { href: "/expand/financas", label: "Finanças", icon: "coin", eyebrow: "DRE & valuation", gate: "admin" },
+      { href: "/expand/roadmap", label: "Roadmap", icon: "map", eyebrow: "Entregas & prazos", gate: "admin" },
+      { href: "/expand/log", label: "Log", icon: "list", eyebrow: "Auditoria do sistema", gate: "admin" },
     ],
   },
   {
     sec: "Configurações",
     items: [
-      { href: "/expand/acessos", label: "Acessos", icon: "lock", eyebrow: "Aprovações & papéis", admin: true },
-      { href: "/expand/integracoes", label: "Integrações", icon: "plug", eyebrow: "Conexões", admin: true },
-      { href: "/expand/estilo", label: "Estilo", icon: "brush", eyebrow: "Design System", admin: true },
+      { href: "/expand/acessos", label: "Acessos", icon: "lock", eyebrow: "Aprovações & papéis", gate: "admin" },
+      { href: "/expand/integracoes", label: "Integrações", icon: "plug", eyebrow: "Conexões", gate: "admin" },
+      { href: "/expand/estilo", label: "Estilo", icon: "brush", eyebrow: "Design System", gate: "admin" },
     ],
   },
 ];
@@ -134,14 +134,17 @@ export default function ExpandShell({
   equipe,
   podeTrocar,
   isAdmin = false,
+  acessos = [],
   children,
 }: {
   pessoa: Pessoa;
   equipe: Pessoa[];
   podeTrocar: boolean;
   isAdmin?: boolean;
+  acessos?: string[];
   children: ReactNode;
 }) {
+  const podeVer = (it: NavItem) => !it.gate || (it.gate === "admin" ? isAdmin : isAdmin || acessos.includes(it.gate));
   const path = usePathname();
   const router = useRouter();
   function trocarPessoa(id: string) {
@@ -164,7 +167,7 @@ export default function ExpandShell({
           <div><div className="ex-bn">EXPAND</div><div className="ex-bs">Motor de Trabalho</div></div>
         </div>
         {NAV.map((s) => {
-          const items = s.items.filter((it) => isAdmin || !it.admin);
+          const items = s.items.filter(podeVer);
           if (!items.length) return null;
           return (
           <div key={s.sec}>

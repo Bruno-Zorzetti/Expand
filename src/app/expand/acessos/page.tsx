@@ -4,7 +4,7 @@ import { exigirAdmin } from "@/lib/expand-acesso";
 
 export const dynamic = "force-dynamic";
 
-type Perfil = { id: string; full_name: string | null; email: string | null; role: string; expand_membro: string | null; expand_cliente: string | null; created_at: string };
+type Perfil = { id: string; full_name: string | null; email: string | null; role: string; expand_membro: string | null; expand_cliente: string | null; acessos: string[] | null; created_at: string };
 const ROLE_ROTULO: Record<string, { l: string; c: string }> = {
   pendente: { l: "Pendente", c: "var(--warn)" },
   admin: { l: "Admin (diretoria)", c: "var(--accent)" },
@@ -16,11 +16,14 @@ async function definirAcesso(formData: FormData) {
   "use server";
   await exigirAdmin();
   const supabase = await createClient();
+  const acessos: string[] = [];
+  if (formData.get("comercial") === "on") acessos.push("comercial");
   await supabase.rpc("admin_definir_acesso", {
     p_id: String(formData.get("id")),
     p_role: String(formData.get("role")),
     p_membro: String(formData.get("membro") ?? "").trim() || null,
     p_cliente: String(formData.get("cliente") ?? "").trim() || null,
+    p_acessos: acessos,
   });
   revalidatePath("/expand/acessos");
 }
@@ -62,6 +65,9 @@ export default async function Acessos() {
       <label style={{ display: "flex", flexDirection: "column", gap: 3 }}>
         <span style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: ".05em", color: "var(--dim)", fontWeight: 700 }}>Vincular ao cliente</span>
         <select name="cliente" defaultValue={p.expand_cliente ?? ""} style={fld}><option value="">—</option>{clientes.map((x) => <option key={x.id} value={x.id}>{x.nome}</option>)}</select>
+      </label>
+      <label style={{ display: "flex", alignItems: "center", gap: 7, alignSelf: "end", padding: "6px 0", fontSize: 12.5, color: "var(--mut)" }} title="Dá acesso ao departamento Comercial (sem ser admin)">
+        <input type="checkbox" name="comercial" defaultChecked={p.acessos?.includes("comercial") ?? false} /> Comercial
       </label>
       <button className="hx-btn hx-btn-primary" type="submit" style={{ padding: "8px 14px", fontSize: 12.5, alignSelf: "end" }}>Salvar</button>
     </form>
