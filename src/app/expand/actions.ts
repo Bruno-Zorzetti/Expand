@@ -14,6 +14,17 @@ async function clienteDaEtapa(supabase: SB, etapaId: string): Promise<string | n
   const { data } = await supabase.from("expand_etapas").select("cliente_id").eq("id", etapaId).single();
   return (data?.cliente_id as string | null) ?? null;
 }
+// Cria uma notificação para uma pessoa (membro_id = id do perfil).
+async function notificar(supabase: SB, paraId: string | null, tipo: string, texto: string, link?: string | null) {
+  if (!paraId) return;
+  await supabase.from("expand_notificacoes").insert({ membro_id: paraId, tipo, texto, link: link ?? null });
+}
+async function perfilIdPorNome(supabase: SB, nome: string): Promise<string | null> {
+  if (!nome?.trim()) return null;
+  const { data } = await supabase.from("expand_perfis").select("id").ilike("nome", nome.trim()).limit(1).maybeSingle();
+  return (data?.id as string | null) ?? null;
+}
+const DIRETORIA = ["bruno", "pedro", "ana"]; // recebem chamados/bloqueios
 
 // Instancia a esteira de um cliente (idempotente) a partir do PROCESSO DO PRODUTO
 // que a conta segue (expand_prod_etapas). Cai para a esteira estática se o produto
@@ -132,10 +143,11 @@ export async function transferirEtapa(formData: FormData) {
   if (!etapaId || !para) return;
   const supabase = await createClient();
   const { pessoa } = await getPessoa();
-  const { data: et } = await supabase.from("expand_etapas").select("responsavel_atual, responsavel, cliente_id").eq("id", etapaId).single();
+  const { data: et } = await supabase.from("expand_etapas").select("responsavel_atual, responsavel, cliente_id, titulo").eq("id", etapaId).single();
   const de = (et?.responsavel_atual ?? et?.responsavel ?? "—") as string;
   await supabase.from("expand_etapas").update({ responsavel_atual: para }).eq("id", etapaId);
   await logar(supabase, "transferir", `Transferiu de ${de} para ${para}`, { etapa_id: etapaId, cliente_id: (et?.cliente_id as string | null) ?? null, autor: pessoa.nome });
+  await notificar(supabase, await perfilIdPorNome(supabase, para), "tarefa", `${pessoa.nome} passou a tarefa "${et?.titulo ?? ""}" para você`, `/expand/etapa/${etapaId}`);
   revalidatePath(`/expand/etapa/${etapaId}`);
   revalidatePath("/expand");
 }
@@ -148,6 +160,7 @@ export async function abrirChamado(formData: FormData) {
   const { pessoa } = await getPessoa();
   await supabase.from("expand_etapas").update({ chamado: true, chamado_msg: msg }).eq("id", etapaId);
   await logar(supabase, "chamado", `Abriu chamado/dúvida: ${msg}`, { etapa_id: etapaId, cliente_id: await clienteDaEtapa(supabase, etapaId), autor: pessoa.nome });
+  for (const d of DIRETORIA) await notificar(supabase, d, "chamado", `${pessoa.nome} abriu um chamado: ${msg}`, `/expand/etapa/${etapaId}`);
   revalidatePath(`/expand/etapa/${etapaId}`);
   revalidatePath("/expand");
 }
@@ -162,6 +175,7 @@ export async function alternarBloqueio(formData: FormData) {
   const bloquear = !et?.bloqueado;
   await supabase.from("expand_etapas").update({ bloqueado: bloquear, bloqueio_motivo: bloquear ? (motivo || "Sem motivo informado") : null }).eq("id", etapaId);
   await logar(supabase, "bloqueio", bloquear ? `Marcou bloqueio: ${motivo || "—"}` : "Desbloqueou a tarefa", { etapa_id: etapaId, cliente_id: (et?.cliente_id as string | null) ?? null, autor: pessoa.nome });
+  if (bloquear) for (const d of DIRETORIA) await notificar(supabase, d, "bloqueio", `${pessoa.nome} bloqueou uma tarefa: ${motivo || "—"}`, `/expand/etapa/${etapaId}`);
   revalidatePath(`/expand/etapa/${etapaId}`);
   revalidatePath("/expand");
 }
@@ -361,4 +375,20 @@ export async function excluirNota(formData: FormData) {
   const supabase = await createClient();
   const { pessoa } = await getPessoa();
   await supabase.from("expand_notas").delete().eq("id", id).eq("membro_id", pessoa.id);
+}
+
+// ---- Notificações ----
+export async function marcarNotificacaoLida(formData: FormData) {
+  const id = String(formData.get("id") ?? "").trim();
+  if (!id) return;
+  const supabase = await createClient();
+  const { pessoa } = await getPessoa();
+  await supabase.from("expand_notificacoes").update({ lida: true }).eq("id", id).eq("membro_id", pessoa.id);
+  revalidatePath("/expand");
+}
+export async function marcarTodasNotificacoes() {
+  const supabase = await createClient();
+  const { pessoa } = await getPessoa();
+  await supabase.from("expand_notificacoes").update({ lida: true }).eq("membro_id", pessoa.id).eq("lida", false);
+  revalidatePath("/expand");
 }

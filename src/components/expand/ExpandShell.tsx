@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import AssistentesDock from "@/components/expand/AssistentesDock";
+import Notificacoes, { type Notif } from "@/components/expand/Notificacoes";
 
 type Pessoa = { id: string; nome: string; papel: string; ini: string };
 
@@ -135,6 +136,9 @@ export default function ExpandShell({
   podeTrocar,
   isAdmin = false,
   acessos = [],
+  notif = [],
+  marcarLida,
+  marcarTodas,
   children,
 }: {
   pessoa: Pessoa;
@@ -142,6 +146,9 @@ export default function ExpandShell({
   podeTrocar: boolean;
   isAdmin?: boolean;
   acessos?: string[];
+  notif?: Notif[];
+  marcarLida?: (fd: FormData) => Promise<void>;
+  marcarTodas?: () => Promise<void>;
   children: ReactNode;
 }) {
   const podeVer = (it: NavItem) => !it.gate || (it.gate === "admin" ? isAdmin : isAdmin || acessos.includes(it.gate));
@@ -226,7 +233,7 @@ export default function ExpandShell({
               </select>
             ) : null}
             <button className="ex-iconbtn" onClick={toggleTema} title="Tema claro/escuro"><Ic name="moon" /></button>
-            <button className="ex-iconbtn" title="Notificações"><Ic name="bell" /></button>
+            {marcarLida && marcarTodas ? <Notificacoes notas={notif} marcarLida={marcarLida} marcarTodas={marcarTodas} /> : <button className="ex-iconbtn" title="Notificações"><Ic name="bell" /></button>}
             <div className="ex-tbav">{pessoa.ini}</div>
           </div>
         </div>
