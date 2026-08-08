@@ -4,6 +4,7 @@ import { FASES } from "@/lib/expand-esteira";
 import { faseDoCliente, type EtapaRow } from "@/lib/expand-tarefas";
 import { TRACK, CLI_DEVERES } from "@/lib/expand-gov";
 import Ajuda from "@/components/expand/Ajuda";
+import { solicitarDemanda } from "@/app/expand/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -66,6 +67,17 @@ export default async function EsteMes({ params }: { params: Promise<{ id: string
         <div className="ex-kpi hx-glass"><div className="lab">Em produção</div><div className="val">{producao.length}</div><div className="foot">A equipe está tocando</div></div>
         <div className="ex-kpi hx-glass"><div className="lab">Já entregue</div><div className="val" style={{ color: "var(--green)" }}>{entregues.length}</div><div className="foot">Concluídos</div></div>
       </div>
+
+      {/* Cliente solicita uma nova demanda → entra na esteira e avisa a equipe */}
+      <details className="hx-glass" style={{ borderRadius: 12, marginBottom: 16, borderLeft: "3px solid var(--accent)" }}>
+        <summary style={{ listStyle: "none", cursor: "pointer", padding: "13px 17px", fontWeight: 700, fontSize: 13.5 }}>＋ Solicitar uma nova demanda <span style={{ fontWeight: 400, fontSize: 12, color: "var(--mut)" }}>· pediu algo novo? registre aqui que a equipe recebe na hora</span></summary>
+        <form action={solicitarDemanda} style={{ display: "grid", gap: 10, padding: "0 17px 16px", borderTop: "1px solid var(--line)", paddingTop: 12 }}>
+          <input type="hidden" name="clienteId" value={id} />
+          <label><span style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".06em", color: "var(--dim)", fontWeight: 700, display: "block", marginBottom: 4 }}>O que você precisa</span><input name="titulo" required placeholder="ex.: Um vídeo extra para a campanha de junho" style={{ width: "100%", background: "var(--bg)", border: "1px solid var(--line-2)", borderRadius: 8, color: "var(--txt)", padding: "9px 11px", fontSize: 13.5, outline: "none", fontFamily: "inherit" }} /></label>
+          <label><span style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".06em", color: "var(--dim)", fontWeight: 700, display: "block", marginBottom: 4 }}>Detalhes (opcional)</span><textarea name="desc" rows={2} placeholder="contexto, prazo desejado, referências…" style={{ width: "100%", background: "var(--bg)", border: "1px solid var(--line-2)", borderRadius: 8, color: "var(--txt)", padding: "9px 11px", fontSize: 13.5, outline: "none", fontFamily: "inherit", resize: "vertical" }} /></label>
+          <div><button className="hx-btn hx-btn-primary" type="submit">Enviar demanda</button></div>
+        </form>
+      </details>
 
       <div className="ex-two">
         <div className="ex-panel hx-glass">

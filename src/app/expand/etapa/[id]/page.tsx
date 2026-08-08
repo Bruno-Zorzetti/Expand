@@ -6,8 +6,9 @@ import { APROVACAO_ROTULO, ARQ_STATUS, ETAPA_STATUS, type EtapaRow, type Arquivo
 import {
   subirArquivo, decidirArquivo, iniciarEtapa, concluirEtapa, transferirEtapa,
   abrirChamado, alternarBloqueio, adicionarLink, editarArquivo, removerArquivo, agendarEtapa,
-  editarEtapa, addModeloEtapa, removeModeloEtapa,
+  editarEtapa, addModeloEtapa, removeModeloEtapa, promoverParaProcesso,
 } from "@/app/expand/actions";
+import { getAcesso } from "@/lib/expand-acesso";
 
 export const dynamic = "force-dynamic";
 
@@ -37,6 +38,7 @@ export default async function EtapaDetalhe({ params }: { params: Promise<{ id: s
   const { data: et } = await supabase.from("expand_etapas").select("*").eq("id", id).single();
   if (!et) notFound();
   const etapa = et as EtapaRow;
+  const { isAdmin } = await getAcesso();
 
   const { data: cli } = await supabase.from("expand_clientes").select("nome").eq("id", etapa.cliente_id).single();
   const { data: arqData } = await supabase.from("expand_arquivos").select("*").eq("etapa_id", id).order("enviado_em");
@@ -160,6 +162,15 @@ export default async function EtapaDetalhe({ params }: { params: Promise<{ id: s
           <div style={{ gridColumn: "1 / -1" }}><button className="hx-btn hx-btn-primary" type="submit">Salvar alterações</button></div>
         </form>
       </details>
+
+      {isAdmin ? (
+        <div className="hx-glass" style={{ borderRadius: 12, padding: "12px 16px", marginBottom: 16, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", borderLeft: "3px solid var(--accent)" }}>
+          <div style={{ flex: 1, minWidth: 220, fontSize: 12.5, color: "var(--mut)", lineHeight: 1.5 }}>
+            <b style={{ color: "var(--txt)" }}>Virou padrão?</b> Se essa tarefa (ex.: definida como importante num debriefing) deve valer para <b>todos os clientes</b> deste produto, promova ela ao processo padrão.
+          </div>
+          <form action={promoverParaProcesso}><input type="hidden" name="etapaId" value={etapa.id} /><button className="hx-btn hx-btn-ghost" type="submit" style={{ padding: "8px 14px", fontSize: 12.5 }}>⬆ Promover ao processo padrão</button></form>
+        </div>
+      ) : null}
 
       <div className="ex-panel hx-glass" style={{ marginBottom: 16 }}>
         <div className="ph"><span className="pt">A tarefa</span><span className="pc">{APROVACAO_ROTULO[etapa.aprovacao] ?? etapa.aprovacao}</span></div>

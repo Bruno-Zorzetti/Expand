@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getPessoa } from "@/lib/expand-user";
+import { exigirAdmin } from "@/lib/expand-acesso";
 import { instanciasParaCliente, instanciasDeProduto, type ProdEtapaRow } from "@/lib/expand-tarefas";
 
 type SB = Awaited<ReturnType<typeof createClient>>;
@@ -391,4 +392,55 @@ export async function marcarTodasNotificacoes() {
   const { pessoa } = await getPessoa();
   await supabase.from("expand_notificacoes").update({ lida: true }).eq("membro_id", pessoa.id).eq("lida", false);
   revalidatePath("/expand");
+}
+
+// ---- Novas atividades / demandas ----
+export async function adicionarEtapaCliente(formData: FormData) {
+  const clienteId = String(formData.get("clienteId") ?? "");
+  const titulo = String(formData.get("titulo") ?? "").trim();
+  if (!clienteId || !titulo) return;
+  const supabase = await createClient();
+  const { pessoa } = await getPessoa();
+  const { data: mx } = await supabase.from("expand_etapas").select("ordem, fase").eq("cliente_id", clienteId).order("ordem", { ascending: false }).limit(1).maybeSingle();
+  await supabase.from("expand_etapas").insert({
+    cliente_id: clienteId, ordem: (Number(mx?.ordem) || 0) + 1, fase: Number(mx?.fase) || 1, titulo,
+    criterio: String(formData.get("criterio") ?? "").trim() || null,
+    responsavel: String(formData.get("responsavel") ?? "").trim() || "A definir",
+    sla: String(formData.get("sla") ?? "").trim() || null,
+    area: String(formData.get("area") ?? "").trim() || null,
+    status: "idle", origem: "adhoc", qtd_esperada: 1, aprovacao: "gestor", visivel_cliente: true,
+  });
+  await logar(supabase, "nova-tarefa", `Nova tarefa "${titulo}"`, { cliente_id: clienteId, autor: pessoa.nome });
+  revalidatePath("/expand/board");
+  revalidatePath("/expand");
+}
+
+// cliente (ou staff) solicita demanda pelo portal → função segura + notifica diretoria
+export async function solicitarDemanda(formData: FormData) {
+  const clienteId = String(formData.get("clienteId") ?? "");
+  const titulo = String(formData.get("titulo") ?? "").trim();
+  if (!clienteId || !titulo) return;
+  const supabase = await createClient();
+  await supabase.rpc("solicitar_demanda", { p_cliente: clienteId, p_titulo: titulo, p_desc: String(formData.get("desc") ?? "").trim() });
+  revalidatePath(`/portal/${clienteId}`);
+}
+
+// promove uma tarefa da conta para o PROCESSO PADRÃO do produto (admin) → futuros clientes recebem
+export async function promoverParaProcesso(formData: FormData) {
+  await exigirAdmin();
+  const etapaId = String(formData.get("etapaId") ?? "");
+  if (!etapaId) return;
+  const supabase = await createClient();
+  const { data: e } = await supabase.from("expand_etapas").select("cliente_id, titulo, area, responsavel, agente, sla, gatilho, criterio, visivel_cliente, qtd_esperada, aprovacao, marco, depende_de").eq("id", etapaId).single();
+  if (!e) return;
+  const { data: c } = await supabase.from("expand_clientes").select("produto_slug").eq("id", e.cliente_id as string).single();
+  const slug = (c?.produto_slug as string) || "pide";
+  const { data: mx } = await supabase.from("expand_prod_etapas").select("ordem, fase_ordem").eq("produto_slug", slug).order("ordem", { ascending: false }).limit(1).maybeSingle();
+  await supabase.from("expand_prod_etapas").insert({
+    produto_slug: slug, fase_ordem: Number(mx?.fase_ordem) || 1, ordem: (Number(mx?.ordem) || 0) + 1,
+    titulo: e.titulo, area: e.area, responsavel: e.responsavel, agente: e.agente, sla: e.sla,
+    gatilho: e.gatilho, criterio: e.criterio, visivel_cliente: e.visivel_cliente, qtd_esperada: e.qtd_esperada,
+    aprovacao: e.aprovacao, marco: e.marco, depende_de: e.depende_de,
+  });
+  revalidatePath(`/expand/etapa/${etapaId}`);
 }

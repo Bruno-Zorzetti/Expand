@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { FASES, AREAS, AG_COR, AG_NOME } from "@/lib/expand-esteira";
 import { MAT_COR, type ClienteRow } from "@/lib/expand";
 import { ETAPA_STATUS, type EtapaRow } from "@/lib/expand-tarefas";
-import { garantirEtapas } from "@/app/expand/actions";
+import { garantirEtapas, adicionarEtapaCliente } from "@/app/expand/actions";
 import Ajuda, { AJUDA } from "@/components/expand/Ajuda";
 
 export const dynamic = "force-dynamic";
@@ -63,6 +63,19 @@ export default async function Board({ searchParams }: { searchParams: Promise<{ 
         <Link href={`/portal/${sel.id}`} className="hx-btn hx-btn-ghost" style={{ padding: "7px 13px", fontSize: 12 }}>Abrir portal de {sel.nome} ↗</Link>
         {etapas.length ? <Link href={`/expand/board/squad?c=${sel.id}`} className="hx-btn hx-btn-ghost" style={{ padding: "7px 13px", fontSize: 12 }}>🧩 PMO: montar squad</Link> : null}
       </div>
+
+      {/* Adicionar nova tarefa/atividade à conta (qualquer um da equipe / PMO) */}
+      <details className="hx-glass" style={{ borderRadius: 12, marginBottom: 12 }}>
+        <summary style={{ listStyle: "none", cursor: "pointer", padding: "11px 16px", fontWeight: 700, fontSize: 13 }}>＋ Nova tarefa para {sel.nome} <span style={{ fontWeight: 400, fontSize: 11.5, color: "var(--dim)" }}>· demanda avulsa, entra na esteira desta conta</span></summary>
+        <form action={adicionarEtapaCliente} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 10, padding: "0 16px 16px", borderTop: "1px solid var(--line)", paddingTop: 12 }}>
+          <input type="hidden" name="clienteId" value={sel.id} />
+          <label style={{ gridColumn: "1 / -1" }}><span style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".06em", color: "var(--dim)", fontWeight: 700, display: "block", marginBottom: 4 }}>O que precisa ser feito</span><input name="titulo" required placeholder="ex.: Gravar 2 reels extras" style={{ width: "100%", background: "var(--bg)", border: "1px solid var(--line-2)", borderRadius: 8, color: "var(--txt)", padding: "8px 10px", fontSize: 13, outline: "none", fontFamily: "inherit" }} /></label>
+          <label style={{ gridColumn: "1 / -1" }}><span style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".06em", color: "var(--dim)", fontWeight: 700, display: "block", marginBottom: 4 }}>Detalhe / critério de conclusão</span><input name="criterio" placeholder="o que caracteriza pronto" style={{ width: "100%", background: "var(--bg)", border: "1px solid var(--line-2)", borderRadius: 8, color: "var(--txt)", padding: "8px 10px", fontSize: 13, outline: "none", fontFamily: "inherit" }} /></label>
+          <label><span style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".06em", color: "var(--dim)", fontWeight: 700, display: "block", marginBottom: 4 }}>Responsável</span><input name="responsavel" placeholder="A definir" style={{ width: "100%", background: "var(--bg)", border: "1px solid var(--line-2)", borderRadius: 8, color: "var(--txt)", padding: "8px 10px", fontSize: 13, outline: "none", fontFamily: "inherit" }} /></label>
+          <label><span style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".06em", color: "var(--dim)", fontWeight: 700, display: "block", marginBottom: 4 }}>SLA</span><input name="sla" placeholder="ex.: 2 dias" style={{ width: "100%", background: "var(--bg)", border: "1px solid var(--line-2)", borderRadius: 8, color: "var(--txt)", padding: "8px 10px", fontSize: 13, outline: "none", fontFamily: "inherit" }} /></label>
+          <div style={{ gridColumn: "1 / -1" }}><button className="hx-btn hx-btn-primary" type="submit">Adicionar à esteira</button></div>
+        </form>
+      </details>
 
       <div className="ex-kpis">
         <div className="ex-kpi hx-glass"><div className="lab">Conta</div><div className="val" style={{ fontSize: 19 }}>{sel.nome}</div><div className="foot">{sel.segmento}</div></div>
