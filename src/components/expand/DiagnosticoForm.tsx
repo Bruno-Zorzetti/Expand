@@ -2,16 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { QUESTOES_DISC, QUESTOES_TEMP } from "@/lib/expand-disc";
+import { QUESTOES_DISC } from "@/lib/expand-disc";
+import { QUESTOES_ARQ } from "@/lib/expand-arquetipo";
 
 const TODAS = [
-  ...QUESTOES_DISC.map((q) => ({ ...q, sec: "DISC" as const })),
-  ...QUESTOES_TEMP.map((q) => ({ ...q, sec: "Temperamentos" as const })),
+  ...QUESTOES_DISC.map((q) => ({ q: q.q, sec: "DISC" as const })),
+  ...QUESTOES_ARQ.map((q) => ({ q, sec: "Arquétipo" as const })),
 ];
 const ESCALA = ["Discordo\ntotalmente", "Discordo", "Neutro", "Concordo", "Concordo\ntotalmente"];
 
 export default function DiagnosticoForm({ perfilId, nome, onSalvar }: {
-  perfilId: string; nome: string; onSalvar: (disc: number[], temp: number[]) => Promise<void>;
+  perfilId: string; nome: string; onSalvar: (disc: number[], arqu: number[]) => Promise<void>;
 }) {
   const router = useRouter();
   const [i, setI] = useState(0);
@@ -30,8 +31,8 @@ export default function DiagnosticoForm({ perfilId, nome, onSalvar }: {
     if (ans.some((a) => a === null)) { setI(ans.findIndex((a) => a === null)); return; }
     setEnviando(true);
     const disc = ans.slice(0, QUESTOES_DISC.length).map((v) => v ?? 3);
-    const temp = ans.slice(QUESTOES_DISC.length).map((v) => v ?? 3);
-    await onSalvar(disc, temp);
+    const arqu = ans.slice(QUESTOES_DISC.length).map((v) => v ?? 3);
+    await onSalvar(disc, arqu);
     router.push(`/expand/equipe/${perfilId}`);
     router.refresh();
   }

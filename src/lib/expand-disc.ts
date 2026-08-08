@@ -90,6 +90,14 @@ function segmento<K extends string>(scores: Record<K, number>): { pri: K; sec: K
   return { pri, sec };
 }
 
+export type DiscResult = { disc: Record<DiscKey, number>; discSegmento: string; discNome: string; discDesc: string };
+export function montarDisc(disc: Record<DiscKey, number>): DiscResult {
+  const d = segmento(disc);
+  const discSeg = d.sec ? `${d.pri}${d.sec}` : d.pri;
+  const discNome = d.sec ? `${DISC_NOME[d.pri]} com ${DISC_NOME[d.sec]}` : `${DISC_NOME[d.pri]} (perfil marcante)`;
+  return { disc, discSegmento: discSeg, discNome, discDesc: DISC_SEG[discSeg] ?? DISC_SEG[d.pri] };
+}
+
 export function montarResultado(disc: Record<DiscKey, number>, temp: Record<TempKey, number>): Result {
   const d = segmento(disc);
   const discSeg = d.sec ? `${d.pri}${d.sec}` : d.pri;

@@ -14,6 +14,7 @@ export type Perfil = {
   superior: string | null; chapeus: string[] | null;
   disc: Record<string, number> | null; temperamentos: Record<string, number> | null; comportamental_em: string | null;
   disc_segmento: string | null; temp_segmento: string | null;
+  arquetipo: Record<string, number> | null; arquetipo_dominante: string | null;
   ics_token: string | null;
   instagram: string | null; linkedin: string | null;
 };

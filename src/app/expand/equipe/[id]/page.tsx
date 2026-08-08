@@ -5,7 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import PerfilAvatar from "@/components/expand/PerfilAvatar";
 import AgenteChat from "@/components/expand/AgenteChat";
 import type { Perfil } from "@/lib/expand-perfis";
-import { montarResultado, type DiscKey, type TempKey } from "@/lib/expand-disc";
+import { montarDisc, type DiscKey } from "@/lib/expand-disc";
+import { montarArquetipo, type ArqKey } from "@/lib/expand-arquetipo";
 import { metricasPessoa, heatmap, type EtapaProd } from "@/lib/expand-produtividade";
 import Heatmap from "@/components/expand/Heatmap";
 import { marcarFolga, removerFolga } from "@/app/expand/actions";
@@ -148,7 +149,8 @@ export default async function PerfilPage({ params, searchParams }: { params: Pro
     const { data: s } = await supabase.storage.from("expand-entregaveis").createSignedUrl(a.arquivo_path, 3600);
     if (s?.signedUrl) assinado[a.id] = s.signedUrl;
   }));
-  const comport = p.disc && p.temperamentos ? montarResultado(p.disc as Record<DiscKey, number>, p.temperamentos as Record<TempKey, number>) : null;
+  const comport = p.disc ? montarDisc(p.disc as Record<DiscKey, number>) : null;
+  const arq = p.arquetipo ? montarArquetipo(p.arquetipo as Record<ArqKey, number>) : null;
 
   // Produtividade — só para humanos (o trabalho por-tarefa é deles). Deriva das etapas.
   let prod: ReturnType<typeof metricasPessoa> | null = null;
@@ -243,25 +245,35 @@ export default async function PerfilPage({ params, searchParams }: { params: Pro
           </div>
           {/* PERFIL COMPORTAMENTAL — DISC + Temperamentos */}
           <div className="ex-panel hx-glass" style={{ padding: 0, marginBottom: 16 }}>
-            <div className="ph"><span className="pt">Perfil comportamental</span><span style={{ marginLeft: "auto", fontSize: 11, color: "var(--dim)" }}>DISC + Temperamentos</span></div>
+            <div className="ph"><span className="pt">Perfil comportamental</span><span style={{ marginLeft: "auto", fontSize: 11, color: "var(--dim)" }}>DISC + Arquétipo (Henrique)</span></div>
             <div className="pb">
               {comport ? (
                 <>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(210px,1fr))", gap: 8 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 12, alignItems: "center" }}>
                     <div>
                       <p style={{ fontSize: 11.5, fontWeight: 700, textAlign: "center", color: "var(--mut)", marginBottom: 2 }}>DISC · <span style={{ color: cor }}>{comport.discSegmento}</span></p>
                       <Radar cor={cor} eixos={[{ l: "D", v: comport.disc.D / 15 }, { l: "I", v: comport.disc.I / 15 }, { l: "S", v: comport.disc.S / 15 }, { l: "C", v: comport.disc.C / 15 }]} />
                       <p style={{ fontSize: 12, textAlign: "center", marginTop: 2, fontWeight: 600 }}>{comport.discNome}</p>
                     </div>
                     <div>
-                      <p style={{ fontSize: 11.5, fontWeight: 700, textAlign: "center", color: "var(--mut)", marginBottom: 2 }}>Temperamento</p>
-                      <Radar cor="var(--accent-2)" eixos={[{ l: "Sang", v: comport.temperamentos.sanguineo / 10 }, { l: "Col", v: comport.temperamentos.colerico / 10 }, { l: "Mel", v: comport.temperamentos.melancolico / 10 }, { l: "Fleu", v: comport.temperamentos.fleumatico / 10 }]} />
-                      <p style={{ fontSize: 12, textAlign: "center", marginTop: 2, fontWeight: 600 }}>{comport.tempNome}</p>
+                      <p style={{ fontSize: 11.5, fontWeight: 700, textAlign: "center", color: "var(--mut)", marginBottom: 8 }}>Arquétipo {arq ? <>· <span style={{ color: "var(--accent-2)" }}>{arq.dominanteNome}</span></> : null}</p>
+                      {arq ? (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                          {arq.top.slice(0, 5).map((a) => (
+                            <div key={a.k} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                              <span style={{ fontSize: 11, color: "var(--mut)", width: 80, flexShrink: 0 }}>{a.nome}</span>
+                              <div style={{ flex: 1, height: 7, borderRadius: 4, background: "var(--panel-2)", overflow: "hidden" }}><div style={{ height: "100%", width: `${(a.v / 5) * 100}%`, background: a.cor, borderRadius: 4 }} /></div>
+                              <span style={{ fontSize: 10, color: "var(--dim)", width: 26, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{a.v.toFixed(1)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : <p style={{ fontSize: 11.5, color: "var(--dim)", textAlign: "center" }}>Sem teste de arquétipo ainda.</p>}
                     </div>
                   </div>
                   <div style={{ borderTop: "1px solid var(--line)", marginTop: 10, paddingTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
                     <p style={{ fontSize: 12, color: "var(--mut)", lineHeight: 1.55 }}><b style={{ color: cor }}>DISC:</b> {comport.discDesc}</p>
-                    <p style={{ fontSize: 12, color: "var(--mut)", lineHeight: 1.55 }}><b style={{ color: "var(--accent-2)" }}>Temperamento:</b> {comport.tempDesc}</p>
+                    {arq ? <><p style={{ fontSize: 12, color: "var(--mut)", lineHeight: 1.55 }}><b style={{ color: "var(--accent-2)" }}>Arquétipo ({arq.segmento}):</b> {arq.desc}</p>
+                    <p style={{ fontSize: 12, color: "var(--mut)", lineHeight: 1.55, borderLeft: "2px solid var(--green)", paddingLeft: 9 }}><b style={{ color: "var(--green)" }}>Como lidar nas tarefas:</b> {arq.comoLidar}</p></> : null}
                     <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 4 }}>
                       <Link href={`/expand/equipe/${id}/comportamental`} className="hx-btn hx-btn-ghost" style={{ padding: "6px 12px", fontSize: 12 }}>Relatório completo / PDF ↗</Link>
                       {podeEditar ? <Link href={`/expand/equipe/${id}/diagnostico`} style={{ color: "var(--accent)", fontSize: 12 }}>refazer diagnóstico</Link> : null}

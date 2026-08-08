@@ -2,13 +2,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { Perfil } from "@/lib/expand-perfis";
-import { montarResultado, harmonia, TEMP_NOME, TEMP_DESC, type DiscKey, type TempKey } from "@/lib/expand-disc";
+import { montarDisc, type DiscKey } from "@/lib/expand-disc";
+import { montarArquetipo, ARQUETIPOS, type ArqKey } from "@/lib/expand-arquetipo";
 import PerfilAvatar from "@/components/expand/PerfilAvatar";
 import BotaoPdf from "@/components/expand/BotaoPdf";
 
 export const dynamic = "force-dynamic";
 
-type Diag = { id: string; criado_em: string; disc_segmento: string | null; temp_segmento: string | null };
+type Diag = { id: string; criado_em: string; disc_segmento: string | null };
 
 function Radar({ eixos, cor }: { eixos: { l: string; v: number }[]; cor: string }) {
   const N = eixos.length, cx = 108, cy = 104, R = 74;
@@ -30,14 +31,14 @@ export default async function Comportamental({ params }: { params: Promise<{ id:
   const { data } = await supabase.from("expand_perfis").select("*").eq("id", id).single();
   if (!data) notFound();
   const p = data as Perfil;
-  if (!p.disc || !p.temperamentos) {
+  if (!p.disc) {
     return (<><Link href={`/expand/equipe/${id}`} className="ex-back">← Voltar</Link><p className="ex-sub">Sem diagnóstico ainda. Preencha em <Link href={`/expand/equipe/${id}/diagnostico`} style={{ color: "var(--accent)" }}>Diagnóstico</Link>.</p></>);
   }
-  const r = montarResultado(p.disc as Record<DiscKey, number>, p.temperamentos as Record<TempKey, number>);
+  const rd = montarDisc(p.disc as Record<DiscKey, number>);
+  const arq = p.arquetipo ? montarArquetipo(p.arquetipo as Record<ArqKey, number>) : null;
   const cor = p.cor ?? "var(--accent)";
-  const tempPrimario = (Object.entries(p.temperamentos) as [TempKey, number][]).sort((a, b) => b[1] - a[1])[0][0];
 
-  const { data: hData } = await supabase.from("expand_diagnosticos").select("id, criado_em, disc_segmento, temp_segmento").eq("perfil_id", id).order("criado_em", { ascending: false }).limit(12);
+  const { data: hData } = await supabase.from("expand_diagnosticos").select("id, criado_em, disc_segmento").eq("perfil_id", id).order("criado_em", { ascending: false }).limit(12);
   const hist = (hData ?? []) as Diag[];
 
   return (
@@ -55,35 +56,48 @@ export default async function Comportamental({ params }: { params: Promise<{ id:
 
       <div className="ex-two" style={{ marginBottom: 16 }}>
         <div className="ex-panel hx-glass" style={{ padding: 0 }}>
-          <div className="ph"><span className="pt">DISC · {r.discSegmento}</span></div>
+          <div className="ph"><span className="pt">DISC · {rd.discSegmento}</span></div>
           <div className="pb">
-            <Radar cor={cor} eixos={[{ l: "D", v: r.disc.D / 15 }, { l: "I", v: r.disc.I / 15 }, { l: "S", v: r.disc.S / 15 }, { l: "C", v: r.disc.C / 15 }]} />
-            <p style={{ fontSize: 13, fontWeight: 700, textAlign: "center", marginTop: 4 }}>{r.discNome}</p>
-            <p style={{ fontSize: 12.5, color: "var(--mut)", lineHeight: 1.6, marginTop: 8 }}>{r.discDesc}</p>
+            <Radar cor={cor} eixos={[{ l: "D", v: rd.disc.D / 15 }, { l: "I", v: rd.disc.I / 15 }, { l: "S", v: rd.disc.S / 15 }, { l: "C", v: rd.disc.C / 15 }]} />
+            <p style={{ fontSize: 13, fontWeight: 700, textAlign: "center", marginTop: 4 }}>{rd.discNome}</p>
+            <p style={{ fontSize: 12.5, color: "var(--mut)", lineHeight: 1.6, marginTop: 8 }}>{rd.discDesc}</p>
           </div>
         </div>
         <div className="ex-panel hx-glass" style={{ padding: 0 }}>
-          <div className="ph"><span className="pt">Temperamento</span></div>
+          <div className="ph"><span className="pt">Arquétipo{arq ? ` · ${arq.dominanteNome}` : ""}</span><span style={{ marginLeft: "auto", fontSize: 10.5, color: "var(--dim)" }}>Henrique Toledo</span></div>
           <div className="pb">
-            <Radar cor="var(--accent-2)" eixos={[{ l: "Sang", v: r.temperamentos.sanguineo / 10 }, { l: "Col", v: r.temperamentos.colerico / 10 }, { l: "Mel", v: r.temperamentos.melancolico / 10 }, { l: "Fleu", v: r.temperamentos.fleumatico / 10 }]} />
-            <p style={{ fontSize: 13, fontWeight: 700, textAlign: "center", marginTop: 4 }}>{r.tempNome}</p>
-            <p style={{ fontSize: 12.5, color: "var(--mut)", lineHeight: 1.6, marginTop: 8 }}>{r.tempDesc}</p>
+            {arq ? (<>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {arq.top.map((a) => (
+                  <div key={a.k} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 11.5, color: "var(--mut)", width: 92, flexShrink: 0 }}>{a.nome}</span>
+                    <div style={{ flex: 1, height: 8, borderRadius: 4, background: "var(--panel-2)", overflow: "hidden" }}><div style={{ height: "100%", width: `${(a.v / 5) * 100}%`, background: a.cor, borderRadius: 4 }} /></div>
+                    <span style={{ fontSize: 10.5, color: "var(--dim)", width: 26, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{a.v.toFixed(1)}</span>
+                  </div>
+                ))}
+              </div>
+              <p style={{ fontSize: 12.5, color: "var(--mut)", lineHeight: 1.6, marginTop: 10 }}><b>{arq.segmento}:</b> {arq.desc}</p>
+            </>) : <p style={{ fontSize: 12.5, color: "var(--dim)" }}>Sem teste de arquétipo ainda. Refaça o diagnóstico para gerar.</p>}
           </div>
         </div>
       </div>
 
-      <div className="ex-panel hx-glass" style={{ padding: 0, marginBottom: 16 }}>
-        <div className="ph"><span className="pt">Como {p.nome} trabalha em harmonia</span><span style={{ marginLeft: "auto", fontSize: 10.5, color: "var(--dim)" }}>tratativas por temperamento</span></div>
-        <div className="pb" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {(["sanguineo", "colerico", "melancolico", "fleumatico"] as TempKey[]).map((t) => (
-            <div key={t} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-              <div style={{ minWidth: 96, fontSize: 12, fontWeight: 700, color: "var(--accent-2)" }}>com {TEMP_NOME[t]}</div>
-              <div style={{ flex: 1, fontSize: 12.2, color: "var(--mut)", lineHeight: 1.5 }}>{harmonia(tempPrimario, t)}</div>
+      {arq ? (
+        <div className="ex-panel hx-glass" style={{ padding: 0, marginBottom: 16 }}>
+          <div className="ph"><span className="pt">Como lidar com {p.nome} nas tarefas</span><span style={{ marginLeft: "auto", fontSize: 10.5, color: "var(--dim)" }}>arquétipo dominante</span></div>
+          <div className="pb" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <p style={{ fontSize: 13, color: "var(--txt)", lineHeight: 1.6, borderLeft: "3px solid var(--green)", paddingLeft: 12 }}>{arq.comoLidar}</p>
+            <div style={{ borderTop: "1px solid var(--line)", paddingTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+              {arq.top.slice(0, 3).map((a) => (
+                <div key={a.k} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                  <div style={{ minWidth: 96, fontSize: 12, fontWeight: 700, color: a.cor }}>{a.nome}</div>
+                  <div style={{ flex: 1, fontSize: 12.2, color: "var(--mut)", lineHeight: 1.5 }}>{ARQUETIPOS[a.k].comoLidar}</div>
+                </div>
+              ))}
             </div>
-          ))}
-          <p style={{ fontSize: 11.5, color: "var(--dim)", borderTop: "1px solid var(--line)", paddingTop: 8, marginTop: 2 }}>{TEMP_NOME[tempPrimario]}: {TEMP_DESC[tempPrimario]}</p>
+          </div>
         </div>
-      </div>
+      ) : null}
 
       <div className="ex-panel hx-glass" style={{ padding: 0 }}>
         <div className="ph"><span className="pt">Evolução</span><span style={{ marginLeft: "auto", fontSize: 10.5, color: "var(--dim)" }}>{hist.length} preenchimento(s)</span></div>
@@ -92,7 +106,6 @@ export default async function Comportamental({ params }: { params: Promise<{ id:
             <div key={h.id} style={{ display: "flex", gap: 12, fontSize: 12.5, padding: "6px 0", borderBottom: "1px solid var(--line)" }}>
               <span style={{ color: "var(--dim)", minWidth: 90 }}>{new Date(h.criado_em).toLocaleDateString("pt-BR")}</span>
               <span>DISC <b style={{ color: cor }}>{h.disc_segmento}</b></span>
-              <span style={{ color: "var(--dim)" }}>· temperamento {h.temp_segmento}</span>
             </div>
           )) : <p style={{ fontSize: 12.5, color: "var(--dim)" }}>Primeiro preenchimento. Refazendo o diagnóstico ao longo do tempo, a evolução aparece aqui.</p>}
         </div>
