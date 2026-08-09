@@ -60,6 +60,7 @@ const NAV: { sec: string; items: NavItem[] }[] = [
       { href: "/expand/gestao", label: "Gestão", icon: "kanban", eyebrow: "Painel Monday · tudo", gate: "admin" },
       { href: "/expand/financas", label: "Finanças", icon: "coin", eyebrow: "DRE & valuation", gate: "admin" },
       { href: "/expand/roadmap", label: "Roadmap", icon: "map", eyebrow: "Entregas & prazos", gate: "admin" },
+      { href: "/expand/rotinas", label: "Rotinas", icon: "activity", eyebrow: "Automações & tokens", gate: "admin" },
       { href: "/expand/log", label: "Log", icon: "list", eyebrow: "Auditoria do sistema", gate: "admin" },
     ],
   },

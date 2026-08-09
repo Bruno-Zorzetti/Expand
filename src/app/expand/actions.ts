@@ -486,6 +486,42 @@ export async function criarGrupo(_prev: GrupoRes, formData: FormData): Promise<G
   } catch (e) { return { erro: String((e as Error)?.message ?? e) }; }
 }
 
+// ---- Rotinas (play/pause, intervalo, rodar agora) ----
+export async function alternarRotina(formData: FormData) {
+  await exigirAdmin();
+  const chave = String(formData.get("chave") ?? "");
+  if (!chave) return;
+  const supabase = await createClient();
+  const { data } = await supabase.from("expand_rotina").select("ativa").eq("chave", chave).maybeSingle();
+  await supabase.from("expand_rotina").update({ ativa: !(data?.ativa ?? true) }).eq("chave", chave);
+  revalidatePath("/expand/rotinas");
+}
+
+export async function ajustarIntervalo(formData: FormData) {
+  await exigirAdmin();
+  const chave = String(formData.get("chave") ?? "");
+  const min = parseInt(String(formData.get("intervalo_min") ?? "1440"), 10);
+  if (!chave || !Number.isFinite(min) || min < 5) return;
+  const supabase = await createClient();
+  await supabase.from("expand_rotina").update({ intervalo_min: min }).eq("chave", chave);
+  revalidatePath("/expand/rotinas");
+}
+
+export async function rodarRotinaResumo() {
+  await exigirAdmin();
+  const supabase = await createClient();
+  const { data: cls } = await supabase.from("expand_clientes").select("id, nome, whatsapp_grupo").eq("ativo", true).not("whatsapp_grupo", "is", null);
+  const { processarResumoCliente } = await import("@/lib/resumo");
+  let tin = 0, tout = 0, custo = 0;
+  for (const c of (cls ?? []) as { id: string; nome: string; whatsapp_grupo: string | null }[]) {
+    const r = await processarResumoCliente(supabase, c);
+    tin += r.tokensIn; tout += r.tokensOut; custo += r.custo;
+  }
+  const { data: rr } = await supabase.from("expand_rotina").select("tokens_total, custo_total").eq("chave", "resumo-diario").maybeSingle();
+  await supabase.from("expand_rotina").update({ ultima_exec: new Date().toISOString(), tokens_total: Number(rr?.tokens_total ?? 0) + tin + tout, custo_total: Number(rr?.custo_total ?? 0) + custo }).eq("chave", "resumo-diario");
+  revalidatePath("/expand/rotinas");
+}
+
 // ---- Fase B: resumo diário do grupo (rodar manual + adotar demanda) ----
 export async function rodarResumoAgora(formData: FormData) {
   await exigirAdmin();
