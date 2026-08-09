@@ -44,9 +44,11 @@ export default async function ClienteHub({ params, searchParams }: { params: Pro
   const grupos = isAdmin && aba === "grupo" ? await listarGrupos() : [];
   type Resumo = { dia: string; resumo: string | null; atividades: string[]; demandas: { titulo: string; urgencia: string; importancia: string; citacao: string }[]; msgs_lidas: number; tokens_in: number; tokens_out: number; custo: number; modelo: string | null };
   let resumo: Resumo | null = null;
+  let pessoas: { id: string; nome: string }[] = [];
   if (aba === "grupo") {
     const { data: rz } = await supabase.from("expand_cliente_resumo").select("dia, resumo, atividades, demandas, msgs_lidas, tokens_in, tokens_out, custo, modelo").eq("cliente_id", id).order("dia", { ascending: false }).limit(1).maybeSingle();
     resumo = (rz as Resumo) ?? null;
+    if (isAdmin) { const { data: ps } = await supabase.from("expand_perfis").select("id, nome").eq("tipo", "humano").order("nome"); pessoas = (ps ?? []) as { id: string; nome: string }[]; }
   }
 
   const extras = etapas.filter((e) => e.origem && e.origem !== "processo");
@@ -150,9 +152,33 @@ export default async function ClienteHub({ params, searchParams }: { params: Pro
                         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
                           <span style={{ fontSize: 13, fontWeight: 600, flex: 1 }}>{dm.titulo}</span>
                           <span style={{ fontSize: 10, color: "var(--dim)" }}>urg. {dm.urgencia} · imp. {dm.importancia}</span>
-                          {isAdmin ? <form action={adotarDemanda}><input type="hidden" name="clienteId" value={id} /><input type="hidden" name="titulo" value={dm.titulo} /><button className="hx-btn hx-btn-ghost" type="submit" style={{ padding: "5px 11px", fontSize: 11.5 }}>Adotar → tarefa</button></form> : null}
                         </div>
-                        {dm.citacao ? <p style={{ fontSize: 11.5, color: "var(--mut)", margin: "6px 0 0", fontStyle: "italic" }}>“{dm.citacao}”</p> : null}
+                        {dm.citacao ? <p style={{ fontSize: 11.5, color: "var(--mut)", margin: "6px 0 4px", fontStyle: "italic" }}>“{dm.citacao}”</p> : null}
+                        {isAdmin ? (
+                          <details style={{ marginTop: 6 }}>
+                            <summary style={{ listStyle: "none", cursor: "pointer", fontSize: 11.5, color: "var(--accent)", fontWeight: 600 }}>✓ Adotar / decidir</summary>
+                            <form action={adotarDemanda} style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "flex-end", marginTop: 8, paddingTop: 8, borderTop: "1px solid var(--line)" }}>
+                              <input type="hidden" name="clienteId" value={id} />
+                              <input type="hidden" name="titulo" value={dm.titulo} />
+                              <label style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                                <span style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: ".05em", color: "var(--dim)", fontWeight: 700 }}>Escopo</span>
+                                <select name="escopo" defaultValue="cliente" style={{ ...fld, minWidth: 190, flex: "none" }}>
+                                  <option value="cliente">Só este cliente</option>
+                                  <option value="todos">Todos os clientes ativos</option>
+                                  <option value="padrao">Incluir no processo padrão</option>
+                                </select>
+                              </label>
+                              <label style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                                <span style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: ".05em", color: "var(--dim)", fontWeight: 700 }}>Responsável</span>
+                                <select name="responsavel" defaultValue="ia" style={{ ...fld, minWidth: 170, flex: "none" }}>
+                                  <option value="ia">PMO IA (prepara)</option>
+                                  {pessoas.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
+                                </select>
+                              </label>
+                              <button className="hx-btn hx-btn-primary" type="submit" style={{ padding: "8px 14px", fontSize: 12 }}>Criar tarefa(s)</button>
+                            </form>
+                          </details>
+                        ) : null}
                       </div>
                     ))}
                   </div>

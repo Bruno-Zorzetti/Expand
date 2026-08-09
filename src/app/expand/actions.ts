@@ -501,16 +501,44 @@ export async function rodarResumoAgora(formData: FormData) {
   revalidatePath(`/expand/clientes/${clienteId}`);
 }
 
+// Adoção de demanda pelo PMO: escopo (este cliente / todos os ativos / processo padrão)
+// + responsável (uma pessoa OU o PMO IA). Gera etapa(s) no lugar certo.
 export async function adotarDemanda(formData: FormData) {
   await exigirAdmin();
   const clienteId = String(formData.get("clienteId") ?? "");
   const titulo = String(formData.get("titulo") ?? "").trim();
   if (!clienteId || !titulo) return;
+  const escopo = String(formData.get("escopo") ?? "cliente");        // cliente | todos | padrao
+  const responsavel = String(formData.get("responsavel") ?? "ia").trim(); // id da pessoa OU 'ia'
+  const ehIA = responsavel === "ia" || responsavel === "";
   const supabase = await createClient();
   const { pessoa } = await getPessoa();
-  const { data: mx } = await supabase.from("expand_etapas").select("ordem").eq("cliente_id", clienteId).order("ordem", { ascending: false }).limit(1).maybeSingle();
-  await supabase.from("expand_etapas").insert({ cliente_id: clienteId, titulo, ordem: Number(mx?.ordem ?? 0) + 1, fase: 99, area: "cs", status: "idle", origem: "resumo", visivel_cliente: false, aprovacao: "qualquer" });
-  await logar(supabase, "demanda", `Adotou do resumo do grupo: "${titulo}"`, { cliente_id: clienteId, autor: pessoa.nome });
+
+  let respNome = "PMO IA";
+  if (!ehIA) { const { data: p } = await supabase.from("expand_perfis").select("nome").eq("id", responsavel).maybeSingle(); respNome = (p?.nome as string) ?? responsavel; }
+
+  async function proxOrdem(cid: string) {
+    const { data: mx } = await supabase.from("expand_etapas").select("ordem").eq("cliente_id", cid).order("ordem", { ascending: false }).limit(1).maybeSingle();
+    return Number(mx?.ordem ?? 0) + 1;
+  }
+  const etapa = (cid: string, ordem: number) => ({ cliente_id: cid, titulo, ordem, fase: 99, area: "cs", status: "idle", origem: "resumo", visivel_cliente: false, aprovacao: "qualquer", responsavel: respNome, agente: ehIA ? "gerente-projetos" : null });
+
+  if (escopo === "todos") {
+    const { data: cls } = await supabase.from("expand_clientes").select("id").eq("ativo", true);
+    for (const c of (cls ?? []) as { id: string }[]) await supabase.from("expand_etapas").insert(etapa(c.id, await proxOrdem(c.id)));
+  } else if (escopo === "padrao") {
+    const { data: cli } = await supabase.from("expand_clientes").select("produto_slug").eq("id", clienteId).maybeSingle();
+    const slug = cli?.produto_slug as string | null;
+    if (slug) {
+      const { data: mx } = await supabase.from("expand_prod_etapas").select("ordem").eq("produto_slug", slug).order("ordem", { ascending: false }).limit(1).maybeSingle();
+      await supabase.from("expand_prod_etapas").insert({ produto_slug: slug, fase_ordem: 99, ordem: Number(mx?.ordem ?? 0) + 1, titulo, area: "cs", responsavel: respNome, agente: ehIA ? "gerente-projetos" : null, sla: "Sob demanda", gatilho: "Melhoria adotada", criterio: "Concluída e validada", qtd_esperada: 1, aprovacao: "qualquer", visivel_cliente: false, marco: false });
+    }
+    await supabase.from("expand_etapas").insert(etapa(clienteId, await proxOrdem(clienteId))); // aplica também na conta atual
+  } else {
+    await supabase.from("expand_etapas").insert(etapa(clienteId, await proxOrdem(clienteId)));
+  }
+
+  await logar(supabase, "demanda", `Adotou do resumo (${escopo} · resp. ${respNome}): "${titulo}"`, { cliente_id: clienteId, autor: pessoa.nome });
   revalidatePath(`/expand/clientes/${clienteId}`);
 }
 
