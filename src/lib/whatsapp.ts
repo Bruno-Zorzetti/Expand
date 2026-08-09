@@ -14,7 +14,7 @@ export async function enviarWhatsapp(
   try {
     const res = await fetch(`${url.replace(/\/$/, "")}/send/text`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", token },
+      headers: { "Content-Type": "application/json; charset=utf-8", token },
       body: JSON.stringify({ number, text }),
     });
     if (!res.ok) return { ok: false, error: `uazapi ${res.status}` };

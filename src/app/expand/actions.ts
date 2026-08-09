@@ -469,7 +469,7 @@ export async function criarGrupo(_prev: GrupoRes, formData: FormData): Promise<G
   const participants = nums(formData.get("participantes"));
   const admins = nums(formData.get("admins"));
   const base = url.replace(/\/$/, "");
-  const H = { "Content-Type": "application/json", token };
+  const H = { "Content-Type": "application/json; charset=utf-8", token };
   const avisos: string[] = [];
   try {
     const res = await fetch(`${base}/group/create`, { method: "POST", headers: H, body: JSON.stringify({ name: nome, participants }) });
