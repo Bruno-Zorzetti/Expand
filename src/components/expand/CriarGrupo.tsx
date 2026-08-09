@@ -2,8 +2,16 @@
 
 import { useActionState, useState } from "react";
 
-type Cli = { id: string; nome: string; drive: string | null };
+type Cli = { id: string; nome: string; drive: string | null; inicio?: string | null; alterado?: string | null };
 type Res = { jid?: string; link?: string; nome?: string; avisos?: string[]; erro?: string } | null;
+
+// Dados institucionais (edite com os oficiais da Expand).
+const EMPRESA = {
+  instagram: "https://instagram.com/grupoexpand",
+  linkedin: "https://www.linkedin.com/company/grupoexpand",
+  telefones: "PMO/Atendimento: (preencha) · Suporte: (preencha)",
+};
+const fmtData = (s?: string | null) => (s ? new Date(s.length <= 10 ? s + "T12:00" : s).toLocaleDateString("pt-BR") : "—");
 
 const fld: React.CSSProperties = { background: "var(--bg)", border: "1px solid var(--line-2)", borderRadius: 8, color: "var(--txt)", padding: "10px 12px", fontSize: 13, fontFamily: "inherit", width: "100%", boxSizing: "border-box" };
 const lab: React.CSSProperties = { fontSize: 10.5, textTransform: "uppercase", letterSpacing: ".05em", color: "var(--dim)", fontWeight: 700, marginBottom: 5, display: "block" };
@@ -19,10 +27,23 @@ export default function CriarGrupo({ clientes, siteUrl, criar }: { clientes: Cli
     const c = clientes.find((x) => x.id === id);
     if (!c) return;
     if (!nome) setNome(`Oficial · ${c.nome} · Expand`);
+    const base = (siteUrl || "https://expand-hazel.vercel.app").replace(/\/$/, "");
     const linhas = [
-      `Grupo oficial de trabalho — ${c.nome} · Expand`,
-      c.drive ? `📁 Materiais (Drive): ${c.drive}` : `📁 Materiais (Drive): (vincule a pasta no hub do cliente)`,
-      `👤 Área do cliente: ${siteUrl || "https://expand.app"}/portal/${c.id}`,
+      `Bem-vindo(a) ao grupo oficial de trabalho — ${c.nome} · Grupo Expand 👋`,
+      ``,
+      `Este é o canal direto do seu projeto com a nossa equipe: alinhamos entregas, tiramos dúvidas e enviamos materiais para sua aprovação.`,
+      ``,
+      `📅 Início do projeto: ${fmtData(c.inicio)}`,
+      `🔄 Última atualização: ${fmtData(c.alterado)}`,
+      ``,
+      `📁 Materiais (Google Drive): ${c.drive || "(vincule a pasta no hub do cliente)"}`,
+      `✅ Aprovações e acompanhamento (sua área de cliente): ${base}/portal/${c.id}`,
+      ``,
+      `📞 Contatos úteis da equipe: ${EMPRESA.telefones}`,
+      ``,
+      `🌐 Acompanhe a Expand:`,
+      `Instagram: ${EMPRESA.instagram}`,
+      `LinkedIn: ${EMPRESA.linkedin}`,
     ];
     setDesc(linhas.join("\n"));
   }

@@ -4,8 +4,9 @@ import Link from "next/link";
 import AdminNav from "@/components/AdminNav";
 import Icon from "@/components/Icon";
 import { enviarWhatsapp } from "@/lib/whatsapp";
+import { siteUrl } from "@/lib/site";
 
-const SITE = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+const SITE = siteUrl();
 
 function foneDe(d: Record<string, unknown>): string {
   return String(d.whatsapp || d.telefone || d.telefone_fixo || d.contato || "");
