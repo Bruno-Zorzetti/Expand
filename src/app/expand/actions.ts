@@ -455,6 +455,19 @@ export async function promoverParaProcesso(formData: FormData) {
   revalidatePath(`/expand/etapa/${etapaId}`);
 }
 
+// ---- Área do Cliente: pasta do Drive ----
+export async function salvarLinkDrive(formData: FormData) {
+  await exigirAdmin();
+  const clienteId = String(formData.get("clienteId") ?? "");
+  if (!clienteId) return;
+  const url = String(formData.get("url") ?? "").trim();
+  // Extrai o id da pasta de um link do Drive (…/folders/<id>…) quando possível.
+  const m = url.match(/[-\w]{25,}/);
+  const supabase = await createClient();
+  await supabase.from("expand_clientes").update({ drive_folder_url: url || null, drive_folder_id: m ? m[0] : null }).eq("id", clienteId);
+  revalidatePath(`/expand/clientes/${clienteId}`);
+}
+
 // ---- WhatsApp: grupo do cliente (avisos/links/aprovações) ----
 export async function salvarGrupoCliente(formData: FormData) {
   await exigirAdmin();

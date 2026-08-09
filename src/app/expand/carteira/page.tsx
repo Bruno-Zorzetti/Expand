@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { derive, MAT_COR, RISCO_ROTULO, type ClienteRow } from "@/lib/expand";
 import Ajuda, { AJUDA } from "@/components/expand/Ajuda";
@@ -34,7 +35,7 @@ export default async function Carteira() {
 
       <div className="ex-cards">
         {clientes.map((c) => (
-          <div key={c.id} className="ex-cc hx-glass hx-glass-hover">
+          <Link key={c.id} href={`/expand/clientes/${c.id}`} className="ex-cc hx-glass hx-glass-hover" style={{ textDecoration: "none", color: "inherit" }}>
             <div className="ex-cch">
               <div className="ex-cci" style={{ background: `color-mix(in srgb, ${MAT_COR[c.maturidade ?? ""] ?? "var(--accent)"} 18%, transparent)`, color: MAT_COR[c.maturidade ?? ""] ?? "var(--accent)" }}>{c.nome[0]}</div>
               <div style={{ flex: 1 }}><div className="ex-ccn">{c.nome}</div><div className="ex-ccs">{c.segmento}</div></div>
@@ -46,7 +47,7 @@ export default async function Carteira() {
               <div className="ex-ccrow"><span className="k">Pendência hoje</span><span className="v">{c.pendencia}</span></div>
               <div className="ex-ccrow"><span className="k">Depende de</span><span className="v">{c.depende_de}</span></div>
             </div>
-          </div>
+          </Link>
         ))}
       </div>
     </>
