@@ -27,6 +27,14 @@ async function perfilIdPorNome(supabase: SB, nome: string): Promise<string | nul
 }
 const DIRETORIA = ["bruno", "pedro", "ana"]; // recebem chamados/bloqueios
 
+// Avisa no grupo de WhatsApp do cliente (se configurado e instância conectada).
+async function notificarGrupoCliente(supabase: SB, clienteId: string | null, texto: string) {
+  if (!clienteId) return;
+  const { data } = await supabase.from("expand_clientes").select("whatsapp_grupo").eq("id", clienteId).maybeSingle();
+  const jid = data?.whatsapp_grupo as string | null;
+  if (jid) { const { enviarWhatsapp } = await import("@/lib/whatsapp"); await enviarWhatsapp(jid, texto); }
+}
+
 // Instancia a esteira de um cliente (idempotente) a partir do PROCESSO DO PRODUTO
 // que a conta segue (expand_prod_etapas). Cai para a esteira estática se o produto
 // ainda não tiver processo cadastrado.
@@ -191,7 +199,9 @@ export async function adicionarLink(formData: FormData) {
   const { pessoa } = await getPessoa();
   await supabase.from("expand_arquivos").insert({ etapa_id: etapaId, nome, url, tipo: "link", enviado_por: pessoa.nome, status: "pendente" });
   await supabase.from("expand_etapas").update({ status: "run", iniciada_em: new Date().toISOString(), responsavel_atual: pessoa.nome }).eq("id", etapaId).eq("status", "idle");
-  await logar(supabase, "link", `Adicionou o link "${nome}"`, { etapa_id: etapaId, cliente_id: await clienteDaEtapa(supabase, etapaId), autor: pessoa.nome });
+  const { data: et } = await supabase.from("expand_etapas").select("cliente_id, titulo, visivel_cliente").eq("id", etapaId).maybeSingle();
+  await logar(supabase, "link", `Adicionou o link "${nome}"`, { etapa_id: etapaId, cliente_id: (et?.cliente_id as string | null) ?? null, autor: pessoa.nome });
+  if (et?.visivel_cliente) await notificarGrupoCliente(supabase, et.cliente_id as string, `📎 *${et.titulo}* — novo material para sua aprovação:\n${nome}: ${url}`);
   revalidatePath(`/expand/etapa/${etapaId}`);
 }
 
@@ -443,4 +453,30 @@ export async function promoverParaProcesso(formData: FormData) {
     aprovacao: e.aprovacao, marco: e.marco, depende_de: e.depende_de,
   });
   revalidatePath(`/expand/etapa/${etapaId}`);
+}
+
+// ---- WhatsApp: grupo do cliente (avisos/links/aprovações) ----
+export async function salvarGrupoCliente(formData: FormData) {
+  await exigirAdmin();
+  const clienteId = String(formData.get("clienteId") ?? "");
+  if (!clienteId) return;
+  const jid = String(formData.get("jid") ?? "").trim();
+  let nome: string | null = null;
+  if (jid) { const { listarGrupos } = await import("@/lib/whatsapp"); const g = await listarGrupos(); nome = g.find((x) => x.jid === jid)?.nome ?? null; }
+  const supabase = await createClient();
+  await supabase.from("expand_clientes").update({ whatsapp_grupo: jid || null, whatsapp_grupo_nome: nome }).eq("id", clienteId);
+  revalidatePath("/expand/board");
+}
+
+export async function testarGrupoCliente(formData: FormData) {
+  await exigirAdmin();
+  const clienteId = String(formData.get("clienteId") ?? "");
+  if (!clienteId) return;
+  const supabase = await createClient();
+  const { data: c } = await supabase.from("expand_clientes").select("nome, whatsapp_grupo").eq("id", clienteId).maybeSingle();
+  const jid = c?.whatsapp_grupo as string | null;
+  if (!jid) return;
+  const { enviarWhatsapp } = await import("@/lib/whatsapp");
+  await enviarWhatsapp(jid, `✅ Teste da Expand — este grupo de *${c?.nome ?? "cliente"}* está conectado. A partir de agora, avisos, links e aprovações chegam por aqui.`);
+  revalidatePath("/expand/board");
 }

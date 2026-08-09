@@ -3,7 +3,9 @@ import { createClient } from "@/lib/supabase/server";
 import { FASES, AREAS, AG_COR, AG_NOME } from "@/lib/expand-esteira";
 import { MAT_COR, type ClienteRow } from "@/lib/expand";
 import { ETAPA_STATUS, type EtapaRow } from "@/lib/expand-tarefas";
-import { garantirEtapas, adicionarEtapaCliente } from "@/app/expand/actions";
+import { garantirEtapas, adicionarEtapaCliente, salvarGrupoCliente, testarGrupoCliente } from "@/app/expand/actions";
+import { getAcesso } from "@/lib/expand-acesso";
+import { listarGrupos } from "@/lib/whatsapp";
 import Ajuda, { AJUDA } from "@/components/expand/Ajuda";
 
 export const dynamic = "force-dynamic";
@@ -27,6 +29,9 @@ export default async function Board({ searchParams }: { searchParams: Promise<{ 
 
   const { data: etData } = await supabase.from("expand_etapas").select("*").eq("cliente_id", sel.id).order("ordem");
   const etapas = (etData ?? []) as EtapaRow[];
+  const { isAdmin } = await getAcesso();
+  const grupos = isAdmin ? await listarGrupos() : [];
+  const selWpp = sel as ClienteRow & { whatsapp_grupo?: string | null; whatsapp_grupo_nome?: string | null };
 
   // produtos com processo cadastrado (para escolher a esteira ao preparar)
   const { data: prodData } = await supabase.from("expand_prod_etapas").select("produto_slug");
@@ -76,6 +81,31 @@ export default async function Board({ searchParams }: { searchParams: Promise<{ 
           <div style={{ gridColumn: "1 / -1" }}><button className="hx-btn hx-btn-primary" type="submit">Adicionar à esteira</button></div>
         </form>
       </details>
+
+      {/* WhatsApp do cliente — grupo para avisos/links/aprovações (admin) */}
+      {isAdmin ? (
+        <details className="hx-glass" style={{ borderRadius: 12, marginBottom: 12, borderLeft: "3px solid var(--green)" }}>
+          <summary style={{ listStyle: "none", cursor: "pointer", padding: "11px 16px", fontWeight: 700, fontSize: 13 }}>💬 Grupo de WhatsApp de {sel.nome} <span style={{ fontWeight: 400, fontSize: 11.5, color: "var(--dim)" }}>· {selWpp.whatsapp_grupo ? `conectado (${selWpp.whatsapp_grupo_nome ?? "grupo"})` : "não configurado"}</span></summary>
+          <div style={{ padding: "0 16px 16px", borderTop: "1px solid var(--line)", paddingTop: 12, display: "flex", flexDirection: "column", gap: 10 }}>
+            <p style={{ fontSize: 12, color: "var(--mut)", lineHeight: 1.5, margin: 0 }}>Escolha o grupo do cliente — avisos, links e aprovações passam a chegar nele. {grupos.length === 0 ? <b style={{ color: "var(--warn)" }}>Conecte o WhatsApp em Integrações para listar os grupos.</b> : null}</p>
+            <form action={salvarGrupoCliente} style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+              <input type="hidden" name="clienteId" value={sel.id} />
+              {grupos.length ? (
+                <select name="jid" defaultValue={selWpp.whatsapp_grupo ?? ""} style={{ background: "var(--bg)", border: "1px solid var(--line-2)", borderRadius: 8, color: "var(--txt)", padding: "8px 10px", fontSize: 12.5, minWidth: 220, fontFamily: "inherit" }}>
+                  <option value="">— sem grupo —</option>
+                  {grupos.map((g) => <option key={g.jid} value={g.jid}>{g.nome}</option>)}
+                </select>
+              ) : (
+                <input name="jid" defaultValue={selWpp.whatsapp_grupo ?? ""} placeholder="JID do grupo (ex.: 12036...@g.us)" style={{ background: "var(--bg)", border: "1px solid var(--line-2)", borderRadius: 8, color: "var(--txt)", padding: "8px 10px", fontSize: 12.5, minWidth: 240, fontFamily: "inherit" }} />
+              )}
+              <button className="hx-btn hx-btn-primary" type="submit" style={{ padding: "8px 14px", fontSize: 12.5 }}>Salvar grupo</button>
+            </form>
+            {selWpp.whatsapp_grupo ? (
+              <form action={testarGrupoCliente}><input type="hidden" name="clienteId" value={sel.id} /><button className="hx-btn hx-btn-ghost" type="submit" style={{ padding: "8px 14px", fontSize: 12.5 }}>📨 Enviar mensagem de teste ao grupo</button></form>
+            ) : null}
+          </div>
+        </details>
+      ) : null}
 
       <div className="ex-kpis">
         <div className="ex-kpi hx-glass"><div className="lab">Conta</div><div className="val" style={{ fontSize: 19 }}>{sel.nome}</div><div className="foot">{sel.segmento}</div></div>
