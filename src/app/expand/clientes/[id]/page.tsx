@@ -53,35 +53,74 @@ export default async function ClienteHub({ params, searchParams }: { params: Pro
 
   const extras = etapas.filter((e) => e.origem && e.origem !== "processo");
   const cor = MAT_COR[cli.maturidade ?? ""] ?? "var(--accent)";
+  const stCor = d.risco === "ok" ? "var(--green)" : d.risco === "churn" ? "var(--red)" : "var(--warn)";
+  const stLabel = d.risco === "ok" ? (cli.maturidade ?? "Saudável") : RISCO_ROTULO[d.risco];
   const dt = (s: string) => new Date(s).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
+  const feitas = etapas.filter((e) => e.status === "done").length;
+  const meta: React.CSSProperties = { display: "flex", flexDirection: "column", gap: 2 };
+  const metaLab: React.CSSProperties = { fontSize: 9.5, textTransform: "uppercase", letterSpacing: ".06em", color: "var(--dim)", fontWeight: 700 };
+  const metaVal: React.CSSProperties = { fontSize: 14, fontWeight: 700, color: "var(--txt)", fontVariantNumeric: "tabular-nums" };
 
   return (
     <>
-      <p className="hx-eyebrow"><Link href="/expand/carteira" style={{ color: "var(--dim)" }}>Clientes</Link> · dossiê</p>
-      <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 6 }}>
-        <div style={{ width: 48, height: 48, borderRadius: 13, display: "grid", placeItems: "center", background: `color-mix(in srgb, ${cor} 18%, transparent)`, color: cor, fontWeight: 800, fontSize: 20, fontFamily: "var(--font-cinzel), serif" }}>{cli.nome[0]}</div>
-        <div>
-          <h1 className="ex-h1" style={{ margin: 0 }}>{cli.nome}</h1>
-          <p style={{ margin: 0, fontSize: 12.5, color: "var(--mut)" }}>{cli.segmento ?? "—"}{cli.maturidade ? ` · ${cli.maturidade}` : ""} · <span style={{ color: d.risco === "ok" ? "var(--green)" : "var(--warn)" }}>{d.risco === "ok" ? "sem alerta" : RISCO_ROTULO[d.risco]}</span></p>
+      <p className="hx-eyebrow"><Link href="/expand/carteira" style={{ color: "var(--dim)", textDecoration: "none" }}>Clientes</Link> · dossiê da conta</p>
+
+      {/* Cabeçalho — hero da conta */}
+      <div className="hx-glass" style={{ borderRadius: 16, padding: "18px 20px", marginBottom: 2, position: "relative", overflow: "hidden" }}>
+        <div aria-hidden style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, ${cor}, transparent 70%)` }} />
+        <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+          <div style={{ width: 56, height: 56, borderRadius: 15, display: "grid", placeItems: "center", background: `color-mix(in srgb, ${cor} 20%, transparent)`, color: cor, fontWeight: 800, fontSize: 24, fontFamily: "var(--font-cinzel), serif", flexShrink: 0 }}>{cli.nome[0]}</div>
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              <h1 className="ex-h1" style={{ margin: 0, lineHeight: 1.1 }}>{cli.nome}</h1>
+              <span className="ex-pill" style={{ background: `color-mix(in srgb, ${stCor} 16%, transparent)`, color: stCor }}><i className="ex-dot" />{stLabel}</span>
+            </div>
+            <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "var(--mut)" }}>{cli.segmento ?? "Sem segmento"}{cli.maturidade ? ` · ${cli.maturidade}` : ""}</p>
+          </div>
+          <div style={{ display: "flex", gap: 24, flexWrap: "wrap", alignItems: "center" }}>
+            <div style={meta}><span style={metaLab}>Contrato</span><span style={metaVal}>{cli.contrato_tipo ?? "—"}{cli.contrato_dur ? ` · ${cli.contrato_dur}m` : ""}</span></div>
+            <div style={meta}><span style={metaLab}>Relação / Exec</span><span style={metaVal}>{cli.rel ?? "—"} / {cli.exec ?? "—"}</span></div>
+            <div style={meta}><span style={metaLab}>Tarefas</span><span style={metaVal}>{feitas}/{etapas.length}</span></div>
+          </div>
         </div>
       </div>
 
-      {/* Abas */}
-      <div style={{ display: "flex", gap: 4, flexWrap: "wrap", borderBottom: "1px solid var(--line)", marginBottom: 18, marginTop: 12 }}>
-        {ABAS.map((a) => (
-          <Link key={a.k} href={`/expand/clientes/${id}?t=${a.k}`} scroll={false}
-            style={{ padding: "8px 13px", fontSize: 12.5, fontWeight: aba === a.k ? 700 : 500, color: aba === a.k ? "var(--txt)" : "var(--mut)", borderBottom: `2px solid ${aba === a.k ? cor : "transparent"}`, textDecoration: "none", marginBottom: -1 }}>
-            {a.l}{a.k === "solicitacoes" && extras.length ? <span style={{ marginLeft: 6, fontSize: 10.5, background: "var(--panel-2)", borderRadius: 20, padding: "1px 6px", color: "var(--dim)" }}>{extras.length}</span> : null}
-          </Link>
-        ))}
+      {/* Abas — fixas ao rolar */}
+      <div style={{ position: "sticky", top: 0, zIndex: 5, background: "linear-gradient(var(--bg) 78%, transparent)", display: "flex", gap: 2, flexWrap: "wrap", borderBottom: "1px solid var(--line)", marginBottom: 20, paddingTop: 8 }}>
+        {ABAS.map((a) => {
+          const on = aba === a.k;
+          return (
+            <Link key={a.k} href={`/expand/clientes/${id}?t=${a.k}`} scroll={false}
+              style={{ padding: "9px 14px", fontSize: 12.5, fontWeight: on ? 700 : 500, color: on ? "var(--txt)" : "var(--mut)", borderBottom: `2px solid ${on ? cor : "transparent"}`, textDecoration: "none", marginBottom: -1, transition: "color .15s" }}>
+              {a.l}{a.k === "solicitacoes" && extras.length ? <span style={{ marginLeft: 6, fontSize: 10.5, background: on ? `color-mix(in srgb, ${cor} 22%, transparent)` : "var(--panel-2)", borderRadius: 20, padding: "1px 7px", color: on ? cor : "var(--dim)", fontWeight: 700 }}>{extras.length}</span> : null}
+            </Link>
+          );
+        })}
       </div>
 
       {aba === "geral" ? (
-        <div className="ex-kpis">
-          <div className="ex-kpi hx-glass"><div className="lab">Contrato</div><div className="val" style={{ fontSize: 16 }}>{cli.contrato_tipo ?? "—"}</div><div className="foot">{cli.contrato_dur ? `${cli.contrato_dur} meses` : "sem prazo"}</div></div>
-          <div className="ex-kpi hx-glass"><div className="lab">Relação / Execução</div><div className="val" style={{ fontSize: 16 }}>{cli.rel ?? "—"} / {cli.exec ?? "—"}</div><div className="foot">health · dossiê</div></div>
-          <div className="ex-kpi hx-glass"><div className="lab">Pendência hoje</div><div className="val" style={{ fontSize: 14 }}>{cli.pendencia ?? "—"}</div><div className="foot">depende de {cli.depende_de ?? "—"}</div></div>
-          <div className="ex-kpi hx-glass"><div className="lab">Tarefas</div><div className="val">{etapas.length}</div><div className="foot">{etapas.filter((e) => e.status === "done").length} concluídas</div></div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div className="hx-glass" style={{ borderRadius: 12, padding: "14px 16px", borderLeft: `3px solid ${stCor}` }}>
+            <div style={{ display: "flex", gap: 32, flexWrap: "wrap" }}>
+              <div style={{ flex: 1, minWidth: 220 }}><div style={metaLab}>Pendência hoje</div><div style={{ fontSize: 14, color: "var(--txt)", marginTop: 3 }}>{cli.pendencia ?? "Nada pendente."}</div></div>
+              <div><div style={metaLab}>Depende de</div><div style={{ fontSize: 14, color: "var(--txt)", marginTop: 3 }}>{cli.depende_de ?? "—"}</div></div>
+              <div><div style={metaLab}>Tarefas em aberto</div><div style={{ ...metaVal, fontSize: 18, marginTop: 3 }}>{etapas.filter((e) => e.status === "run" || e.status === "idle").length}</div></div>
+            </div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(200px,1fr))", gap: 10 }}>
+            {[
+              { k: "drive", t: "Pasta / Drive", d: cli.drive_folder_url ? "vinculada" : "configurar", ic: "📂" },
+              { k: "grupo", t: "Grupo & Mensagens", d: cli.whatsapp_grupo ? "conectado" : "configurar", ic: "💬" },
+              { k: "historico", t: "Histórico", d: `${logs.length} eventos`, ic: "🕑" },
+              { k: "solicitacoes", t: "Solicitações & Extras", d: `${extras.length} extra(s)`, ic: "＋" },
+            ].map((x) => (
+              <Link key={x.k} href={`/expand/clientes/${id}?t=${x.k}`} scroll={false} className="hx-glass hx-glass-hover" style={{ borderRadius: 12, padding: "13px 14px", textDecoration: "none", color: "inherit", display: "flex", flexDirection: "column", gap: 4 }}>
+                <span style={{ fontSize: 18 }}>{x.ic}</span>
+                <span style={{ fontSize: 13, fontWeight: 700 }}>{x.t}</span>
+                <span style={{ fontSize: 11.5, color: "var(--dim)" }}>{x.d}</span>
+              </Link>
+            ))}
+          </div>
         </div>
       ) : null}
 
