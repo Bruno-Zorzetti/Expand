@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import AssistentesDock from "@/components/expand/AssistentesDock";
 import Notificacoes, { type Notif } from "@/components/expand/Notificacoes";
 
 type Pessoa = { id: string; nome: string; papel: string; ini: string };
 
-type NavItem = { href: string; label: string; icon: string; eyebrow: string; badge?: number; external?: boolean; gate?: "admin" | "comercial" };
+type Sub = { href: string; label: string; external?: boolean };
+type NavItem = { href: string; label: string; icon: string; eyebrow: string; badge?: number; external?: boolean; gate?: "admin" | "comercial"; sub?: Sub[] };
 const NAV: { sec: string; items: NavItem[] }[] = [
   {
     sec: "Meu trabalho",
@@ -37,6 +38,10 @@ const NAV: { sec: string; items: NavItem[] }[] = [
       { href: "/expand/biblioteca", label: "Biblioteca", icon: "library", eyebrow: "Conhecimento" },
       { href: "/expand/apresentacoes", label: "Apresentações", icon: "slides", eyebrow: "Editor de decks" },
       { href: "/expand/perfis", label: "Perfis de Cliente", icon: "users", eyebrow: "Dossiê comportamental" },
+      { href: "/expand/ferramentas", label: "Ferramentas", icon: "tool", eyebrow: "Criar grupo, slides…", gate: "admin", sub: [
+        { href: "/expand/ferramentas/grupo", label: "Criar grupo" },
+        { href: "/expand/apresentacoes", label: "Criar slides" },
+      ] },
     ],
   },
   {
@@ -99,6 +104,8 @@ function Ic({ name }: { name: string }) {
     library: <><path d="M12 6.5C10.5 5 8 4.5 4 4.8v13C8 17.5 10.5 18 12 19.3M12 6.5C13.5 5 16 4.5 20 4.8v13C16 17.5 13.5 18 12 19.3M12 6.5v12.8" /></>,
     slides: <><rect x="3" y="4" width="18" height="12" rx="2" /><path d="M12 16v4M8 20h8" /></>,
     lock: <><rect x="4" y="11" width="16" height="9" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></>,
+    tool: <path d="M14.7 6.3a4 4 0 0 0-5.4 5.2L3 17.8 6.2 21l6.3-6.3a4 4 0 0 0 5.2-5.4l-2.6 2.6-2.3-2.3z" />,
+    chevron: <path d="M9 6l6 6-6 6" />,
   };
   return <svg className="ex-ic" viewBox="0 0 24 24">{paths[name]}</svg>;
 }
@@ -154,6 +161,7 @@ export default function ExpandShell({
   const podeVer = (it: NavItem) => !it.gate || (it.gate === "admin" ? isAdmin : isAdmin || acessos.includes(it.gate));
   const path = usePathname();
   const router = useRouter();
+  const [aberto, setAberto] = useState<Record<string, boolean>>({});
   function trocarPessoa(id: string) {
     document.cookie = `expand_pessoa=${id}; path=/; max-age=31536000`;
     router.refresh();
@@ -179,31 +187,62 @@ export default function ExpandShell({
           return (
           <div key={s.sec}>
             <div className="ex-navsec">{s.sec}</div>
-            {items.map((it) => it.external ? (
-              <a
-                key={it.href}
-                href={it.href}
-                target="_blank"
-                rel="noreferrer"
-                onClick={() => document.body.classList.remove("ex-nav-open")}
-                className="ex-navi"
-              >
-                <Ic name={it.icon} />
-                {it.label}
-                <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--dim)" }}>↗</span>
-              </a>
-            ) : (
-              <Link
-                key={it.href}
-                href={it.href}
-                onClick={() => document.body.classList.remove("ex-nav-open")}
-                className={`ex-navi${it.href === active.href ? " on" : ""}`}
-              >
-                <Ic name={it.icon} />
-                {it.label}
-                {it.badge ? <span className="ex-badge">{it.badge}</span> : null}
-              </Link>
-            ))}
+            {items.map((it) => {
+              if (it.sub?.length) {
+                const open = aberto[it.href] ?? it.sub.some((s) => path.startsWith(s.href));
+                return (
+                  <div key={it.href}>
+                    <button
+                      type="button"
+                      onClick={() => setAberto((a) => ({ ...a, [it.href]: !open }))}
+                      className={`ex-navi${it.sub.some((s) => path.startsWith(s.href)) ? " on" : ""}`}
+                      style={{ width: "100%", background: "transparent", border: "none", cursor: "pointer", textAlign: "left", font: "inherit", color: "inherit" }}
+                    >
+                      <Ic name={it.icon} />
+                      {it.label}
+                      <span style={{ marginLeft: "auto", display: "inline-flex", transform: open ? "rotate(90deg)" : "none", transition: "transform .15s" }}><Ic name="chevron" /></span>
+                    </button>
+                    {open ? it.sub.map((s) => (
+                      <Link
+                        key={s.href}
+                        href={s.href}
+                        {...(s.external ? { target: "_blank", rel: "noreferrer" } : {})}
+                        onClick={() => document.body.classList.remove("ex-nav-open")}
+                        className={`ex-navi${path.startsWith(s.href) ? " on" : ""}`}
+                        style={{ paddingLeft: 40, fontSize: 12.5 }}
+                      >
+                        {s.label}
+                      </Link>
+                    )) : null}
+                  </div>
+                );
+              }
+              return it.external ? (
+                <a
+                  key={it.href}
+                  href={it.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={() => document.body.classList.remove("ex-nav-open")}
+                  className="ex-navi"
+                >
+                  <Ic name={it.icon} />
+                  {it.label}
+                  <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--dim)" }}>↗</span>
+                </a>
+              ) : (
+                <Link
+                  key={it.href}
+                  href={it.href}
+                  onClick={() => document.body.classList.remove("ex-nav-open")}
+                  className={`ex-navi${it.href === active.href ? " on" : ""}`}
+                >
+                  <Ic name={it.icon} />
+                  {it.label}
+                  {it.badge ? <span className="ex-badge">{it.badge}</span> : null}
+                </Link>
+              );
+            })}
           </div>
           );
         })}

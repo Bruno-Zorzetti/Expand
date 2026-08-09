@@ -455,6 +455,37 @@ export async function promoverParaProcesso(formData: FormData) {
   revalidatePath(`/expand/etapa/${etapaId}`);
 }
 
+// ---- Ferramenta: criar grupo de WhatsApp (uazapi) ----
+type GrupoRes = { jid?: string; link?: string; nome?: string; avisos?: string[]; erro?: string } | null;
+export async function criarGrupo(_prev: GrupoRes, formData: FormData): Promise<GrupoRes> {
+  await exigirAdmin();
+  const url = process.env.UAZAPI_URL, token = process.env.UAZAPI_TOKEN;
+  if (!url || !token) return { erro: "Configure UAZAPI_URL e UAZAPI_TOKEN no Vercel (e Redeploy)." };
+  const nome = String(formData.get("nome") ?? "").trim();
+  if (!nome) return { erro: "Dê um nome ao grupo." };
+  const descricao = String(formData.get("descricao") ?? "").trim();
+  const clienteId = String(formData.get("clienteId") ?? "").trim();
+  const nums = (s: FormDataEntryValue | null) => String(s ?? "").split(/[\n,;]+/).map((x) => x.replace(/\D/g, "")).filter((x) => x.length >= 10);
+  const participants = nums(formData.get("participantes"));
+  const admins = nums(formData.get("admins"));
+  const base = url.replace(/\/$/, "");
+  const H = { "Content-Type": "application/json", token };
+  const avisos: string[] = [];
+  try {
+    const res = await fetch(`${base}/group/create`, { method: "POST", headers: H, body: JSON.stringify({ name: nome, participants }) });
+    const j = (await res.json()) as Record<string, unknown>;
+    const g = ((j.group ?? j.instance ?? j) as Record<string, unknown>) ?? {};
+    const jid = (g.JID ?? g.jid ?? g.id ?? g.groupJid) as string | undefined;
+    if (!jid) return { erro: String(j.error ?? j.message ?? "O servidor não retornou o JID do grupo.") };
+    if (descricao) { try { await fetch(`${base}/group/updateDescription`, { method: "POST", headers: H, body: JSON.stringify({ groupjid: jid, description: descricao }) }); } catch { avisos.push("descrição não aplicada — ajuste no grupo"); } }
+    if (admins.length) { try { await fetch(`${base}/group/updateParticipants`, { method: "POST", headers: H, body: JSON.stringify({ groupjid: jid, action: "promote", participants: admins }) }); } catch { avisos.push("admins não promovidos"); } }
+    let link: string | undefined;
+    try { const r = await fetch(`${base}/group/inviteLink`, { method: "POST", headers: H, body: JSON.stringify({ groupjid: jid }) }); const jl = (await r.json()) as Record<string, unknown>; link = (jl.link ?? jl.inviteLink ?? jl.url) as string | undefined; } catch { /* opcional */ }
+    if (clienteId) { const supabase = await createClient(); await supabase.from("expand_clientes").update({ whatsapp_grupo: jid, whatsapp_grupo_nome: nome }).eq("id", clienteId); revalidatePath(`/expand/clientes/${clienteId}`); }
+    return { jid, link, nome, avisos };
+  } catch (e) { return { erro: String((e as Error)?.message ?? e) }; }
+}
+
 // ---- Área do Cliente: pasta do Drive ----
 export async function salvarLinkDrive(formData: FormData) {
   await exigirAdmin();
