@@ -1,4 +1,5 @@
 import WhatsAppConnect from "@/components/WhatsAppConnect";
+import CriarInstancia from "@/components/CriarInstancia";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +41,21 @@ export default async function Integracoes() {
   async function checar() { "use server"; return await statusWpp(); }
   async function desconectar() { "use server"; if (!URL_UAZ || !TOKEN) return; try { await fetch(`${URL_UAZ}/instance/disconnect`, { method: "POST", headers: { token: TOKEN } }); } catch {} }
 
+  async function criarInstancia(_prev: { token?: string; nome?: string; erro?: string } | null, formData: FormData) {
+    "use server";
+    const admin = process.env.UAZAPI_ADMIN_TOKEN;
+    if (!URL_UAZ || !admin) return { erro: "Para criar instâncias, defina UAZAPI_URL e UAZAPI_ADMIN_TOKEN (do seu servidor pago) no Vercel." };
+    const nome = String(formData.get("nome") ?? "").trim() || "expand";
+    try {
+      const res = await fetch(`${URL_UAZ}/instance/init`, { method: "POST", headers: { "Content-Type": "application/json", admintoken: admin }, body: JSON.stringify({ name: nome }) });
+      const j = await res.json();
+      const inst = (j.instance ?? j) as Record<string, unknown>;
+      const token = (inst.token ?? inst.instanceToken ?? inst.apikey ?? inst.hash) as string | undefined;
+      if (!token) return { erro: String(j.error ?? j.message ?? "O servidor não retornou um token. No servidor de demonstração (free.uazapi.com) criar instância é bloqueado — use seu servidor pago.") };
+      return { token, nome };
+    } catch (e) { return { erro: String((e as Error)?.message ?? e) }; }
+  }
+
   return (
     <>
       <p className="hx-eyebrow">Configurações · conexões</p>
@@ -64,6 +80,15 @@ export default async function Integracoes() {
           <WhatsAppConnect inicial={wpp} conectar={conectar} checar={checar} desconectar={desconectar} />
         )}
       </div>
+
+      {/* Criar nova instância (precisa do Admin Token de um servidor pago) */}
+      <details className="hx-glass" style={{ borderRadius: 12, marginBottom: 20, borderLeft: "3px solid var(--accent-2)" }}>
+        <summary style={{ listStyle: "none", cursor: "pointer", padding: "12px 16px", fontWeight: 700, fontSize: 13 }}>＋ Criar nova instância <span style={{ fontWeight: 400, fontSize: 11.5, color: "var(--dim)" }}>· gera um novo número/token no seu servidor uazapi</span></summary>
+        <div style={{ padding: "0 16px 16px", borderTop: "1px solid var(--line)", paddingTop: 12 }}>
+          <p style={{ fontSize: 12, color: "var(--mut)", lineHeight: 1.55, margin: "0 0 12px" }}>Usa o <code style={cd}>UAZAPI_ADMIN_TOKEN</code>. No servidor de demonstração <code style={cd}>free.uazapi.com</code> isso é <b style={{ color: "var(--warn)" }}>bloqueado</b> — funciona no seu servidor pago. O token gerado você cola em <code style={cd}>UAZAPI_TOKEN</code> e conecta por QR acima.</p>
+          <CriarInstancia criar={criarInstancia} />
+        </div>
+      </details>
 
       {/* Mapa de chaves */}
       <div className="ex-grph"><span className="gt">Chaves & tokens</span><span className="gc">{integs.length}</span><span className="gl" /></div>
