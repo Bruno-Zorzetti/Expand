@@ -17,16 +17,27 @@ async function statusWpp() {
 }
 
 // integração = nome + para quê + variáveis de ambiente que a ligam
-type Integ = { nome: string; cor: string; ini: string; para: string; vars: string[]; ok: boolean };
+// quem: "voce" = você põe a chave/saldo no Vercel · "eu" = eu opero por aqui (sem chave no app)
+type Integ = { nome: string; cor: string; ini: string; para: string; vars: string[]; ok: boolean; quem: "voce" | "eu" };
 
 export default async function Integracoes() {
   const wpp = await statusWpp();
   const integs: Integ[] = [
-    { nome: "Anthropic (IA dos agentes)", cor: "#C89B5E", ini: "AI", para: "Faz os agentes responderem de verdade no chat (prompt + RAG).", vars: ["ANTHROPIC_API_KEY"], ok: !!process.env.ANTHROPIC_API_KEY },
-    { nome: "WhatsApp (uazapi)", cor: "#6FBF92", ini: "W", para: "Notificações e envios pelo WhatsApp da operação.", vars: ["UAZAPI_URL", "UAZAPI_TOKEN", "UAZAPI_ADMIN_TOKEN", "HASHES_WHATSAPP"], ok: !!(URL_UAZ && TOKEN) },
-    { nome: "Supabase", cor: "#86C0A6", ini: "S", para: "Banco, login e Storage dos entregáveis.", vars: ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KEY"], ok: !!process.env.NEXT_PUBLIC_SUPABASE_URL },
-    { nome: "Apify", cor: "#D9A94E", ini: "A", para: "Scraping (leads, inteligência de mercado, GMN).", vars: ["APIFY_TOKEN"], ok: !!process.env.APIFY_TOKEN },
-    { nome: "Site (domínio)", cor: "#E0BC85", ini: "@", para: "URL pública usada nos links de calendário (ICS) e e-mails.", vars: ["NEXT_PUBLIC_SITE_URL"], ok: !!process.env.NEXT_PUBLIC_SITE_URL },
+    { nome: "Anthropic (IA dos agentes)", cor: "#C89B5E", ini: "AI", para: "Faz os agentes responderem de verdade no chat (prompt + RAG) e o resumo diário.", vars: ["ANTHROPIC_API_KEY"], ok: !!process.env.ANTHROPIC_API_KEY, quem: "voce" },
+    { nome: "WhatsApp (uazapi)", cor: "#6FBF92", ini: "W", para: "Notificações, envios e leitura dos grupos.", vars: ["UAZAPI_URL", "UAZAPI_TOKEN", "UAZAPI_ADMIN_TOKEN"], ok: !!(URL_UAZ && TOKEN), quem: "voce" },
+    { nome: "Supabase", cor: "#86C0A6", ini: "S", para: "Banco, login e Storage dos entregáveis.", vars: ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KEY"], ok: !!process.env.NEXT_PUBLIC_SUPABASE_URL, quem: "voce" },
+    { nome: "Rotinas automáticas", cor: "#7FB0FF", ini: "⏱", para: "Deixa o resumo diário e outras rotinas rodarem sozinhas (cron).", vars: ["SUPABASE_SERVICE_ROLE_KEY", "CRON_SECRET"], ok: !!(process.env.SUPABASE_SERVICE_ROLE_KEY && process.env.CRON_SECRET), quem: "voce" },
+    { nome: "Apify", cor: "#D9A94E", ini: "A", para: "Scraping (leads, inteligência de mercado, GMN).", vars: ["APIFY_TOKEN"], ok: !!process.env.APIFY_TOKEN, quem: "voce" },
+    { nome: "Site (domínio)", cor: "#E0BC85", ini: "@", para: "URL pública nos links de calendário (ICS), grupos e e-mails.", vars: ["NEXT_PUBLIC_SITE_URL"], ok: !!process.env.NEXT_PUBLIC_SITE_URL, quem: "voce" },
+    { nome: "Google Drive", cor: "#86C0A6", ini: "D", para: "Pasta por cliente (criar/abrir/validar). Hoje eu opero pela conexão; para o app fazer sozinho, precisa de uma conta de serviço Google.", vars: ["GOOGLE_SERVICE_ACCOUNT_JSON"], ok: false, quem: "eu" },
+  ];
+
+  // Ferramentas de IA de design a plugar — precisam da sua chave/saldo. O Design Master escolhe pelo custo.
+  const designTools: Integ[] = [
+    { nome: "Google Gemini / Nano Banana", cor: "#7a5cff", ini: "G", para: "Geração de imagem no custo médio (bom custo-benefício).", vars: ["GEMINI_API_KEY"], ok: !!process.env.GEMINI_API_KEY, quem: "voce" },
+    { nome: "OpenAI (GPT-Image)", cor: "#31d0aa", ini: "O", para: "Geração/edição de imagem premium.", vars: ["OPENAI_API_KEY"], ok: !!process.env.OPENAI_API_KEY, quem: "voce" },
+    { nome: "Higgsfield", cor: "#ff7a59", ini: "H", para: "Arte premium (uma das opções, não a única).", vars: ["HIGGSFIELD_API_KEY"], ok: !!process.env.HIGGSFIELD_API_KEY, quem: "voce" },
+    { nome: "Canva", cor: "#2fd3ae", ini: "C", para: "Templates e peças rápidas (via conector Canva).", vars: ["CANVA_CONNECTOR"], ok: false, quem: "eu" },
   ];
 
   async function conectar() {
@@ -55,6 +66,21 @@ export default async function Integracoes() {
       return { token, nome };
     } catch (e) { return { erro: String((e as Error)?.message ?? e) }; }
   }
+
+  const renderCard = (i: Integ) => (
+    <div key={i.nome} className="hx-glass" style={{ borderRadius: 14, padding: "15px 16px", borderLeft: `3px solid ${i.ok ? "var(--green)" : i.quem === "eu" ? "var(--accent-2)" : "var(--warn)"}` }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+        <div style={{ width: 34, height: 34, borderRadius: 9, display: "grid", placeItems: "center", background: `color-mix(in srgb, ${i.cor} 18%, transparent)`, color: i.cor, fontSize: 13, fontWeight: 800 }}>{i.ini}</div>
+        <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: 13.5, fontWeight: 700 }}>{i.nome}</div></div>
+        <span style={{ fontSize: 9.5, fontWeight: 700, padding: "2px 7px", borderRadius: 20, background: i.quem === "eu" ? "color-mix(in srgb, var(--accent-2) 16%, transparent)" : "var(--panel-2)", color: i.quem === "eu" ? "var(--accent-2)" : "var(--dim)" }}>{i.quem === "eu" ? "eu opero" : "você configura"}</span>
+      </div>
+      <div style={{ fontSize: 12, color: "var(--mut)", lineHeight: 1.5, marginBottom: 10 }}>{i.para}</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <span className="ex-pill" style={{ background: `color-mix(in srgb, ${i.ok ? "var(--green)" : "var(--warn)"} 16%, transparent)`, color: i.ok ? "var(--green)" : "var(--warn)" }}><i className="ex-dot" />{i.ok ? "Configurada" : i.quem === "eu" ? "Disponível por aqui" : "Falta chave"}</span>
+        {i.vars.map((v) => <code key={v} style={cd}>{v}</code>)}
+      </div>
+    </div>
+  );
 
   return (
     <>
@@ -92,20 +118,16 @@ export default async function Integracoes() {
 
       {/* Mapa de chaves */}
       <div className="ex-grph"><span className="gt">Chaves & tokens</span><span className="gc">{integs.length}</span><span className="gl" /></div>
+      <p style={{ fontSize: 12, color: "var(--mut)", margin: "0 0 10px", lineHeight: 1.55 }}>Selo <b style={{ color: "var(--dim)" }}>você configura</b> = a chave/saldo é sua (Vercel). Selo <b style={{ color: "var(--accent-2)" }}>eu opero</b> = já faço por aqui (não precisa de chave no app agora).</p>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(320px,1fr))", gap: 12 }}>
-        {integs.map((i) => (
-          <div key={i.nome} className="hx-glass" style={{ borderRadius: 14, padding: "15px 16px", borderLeft: `3px solid ${i.ok ? "var(--green)" : "var(--warn)"}` }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-              <div style={{ width: 34, height: 34, borderRadius: 9, display: "grid", placeItems: "center", background: `color-mix(in srgb, ${i.cor} 18%, transparent)`, color: i.cor, fontSize: 13, fontWeight: 800 }}>{i.ini}</div>
-              <div style={{ flex: 1 }}><div style={{ fontSize: 13.5, fontWeight: 700 }}>{i.nome}</div></div>
-              <span className="ex-pill" style={{ background: `color-mix(in srgb, ${i.ok ? "var(--green)" : "var(--warn)"} 16%, transparent)`, color: i.ok ? "var(--green)" : "var(--warn)" }}><i className="ex-dot" />{i.ok ? "Configurada" : "Falta chave"}</span>
-            </div>
-            <div style={{ fontSize: 12, color: "var(--mut)", lineHeight: 1.5, marginBottom: 10 }}>{i.para}</div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-              {i.vars.map((v) => <code key={v} style={cd}>{v}</code>)}
-            </div>
-          </div>
-        ))}
+        {integs.map(renderCard)}
+      </div>
+
+      {/* Ferramentas de IA de design (a plugar) */}
+      <div className="ex-grph" style={{ marginTop: 22 }}><span className="gt">IA de design (a plugar)</span><span className="gc">{designTools.length}</span><span className="gl" /></div>
+      <p style={{ fontSize: 12, color: "var(--mut)", margin: "0 0 10px", lineHeight: 1.55 }}>O Design Master escolhe a ferramenta pelo custo. Para o sistema gerar arte sozinho, cada uma precisa da sua chave/saldo. Enquanto não pluga, os agentes geram sob demanda por mim.</p>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(320px,1fr))", gap: 12 }}>
+        {designTools.map(renderCard)}
       </div>
 
       <div className="hx-glass" style={{ borderRadius: 12, padding: "13px 16px", marginTop: 16, borderLeft: "3px solid var(--accent)" }}>
