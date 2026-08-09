@@ -486,6 +486,34 @@ export async function criarGrupo(_prev: GrupoRes, formData: FormData): Promise<G
   } catch (e) { return { erro: String((e as Error)?.message ?? e) }; }
 }
 
+// ---- Fase B: resumo diário do grupo (rodar manual + adotar demanda) ----
+export async function rodarResumoAgora(formData: FormData) {
+  await exigirAdmin();
+  const clienteId = String(formData.get("clienteId") ?? "");
+  if (!clienteId) return;
+  const supabase = await createClient();
+  const { data: c } = await supabase.from("expand_clientes").select("id, nome, whatsapp_grupo").eq("id", clienteId).maybeSingle();
+  if (!c) return;
+  const { processarResumoCliente } = await import("@/lib/resumo");
+  const r = await processarResumoCliente(supabase, c as { id: string; nome: string; whatsapp_grupo: string | null });
+  const { data: rot } = await supabase.from("expand_rotina").select("tokens_total, custo_total").eq("chave", "resumo-diario").maybeSingle();
+  await supabase.from("expand_rotina").update({ ultima_exec: new Date().toISOString(), tokens_total: Number(rot?.tokens_total ?? 0) + r.tokensIn + r.tokensOut, custo_total: Number(rot?.custo_total ?? 0) + r.custo }).eq("chave", "resumo-diario");
+  revalidatePath(`/expand/clientes/${clienteId}`);
+}
+
+export async function adotarDemanda(formData: FormData) {
+  await exigirAdmin();
+  const clienteId = String(formData.get("clienteId") ?? "");
+  const titulo = String(formData.get("titulo") ?? "").trim();
+  if (!clienteId || !titulo) return;
+  const supabase = await createClient();
+  const { pessoa } = await getPessoa();
+  const { data: mx } = await supabase.from("expand_etapas").select("ordem").eq("cliente_id", clienteId).order("ordem", { ascending: false }).limit(1).maybeSingle();
+  await supabase.from("expand_etapas").insert({ cliente_id: clienteId, titulo, ordem: Number(mx?.ordem ?? 0) + 1, fase: 99, area: "cs", status: "idle", origem: "resumo", visivel_cliente: false, aprovacao: "qualquer" });
+  await logar(supabase, "demanda", `Adotou do resumo do grupo: "${titulo}"`, { cliente_id: clienteId, autor: pessoa.nome });
+  revalidatePath(`/expand/clientes/${clienteId}`);
+}
+
 // ---- Área do Cliente: pasta do Drive ----
 export async function salvarLinkDrive(formData: FormData) {
   await exigirAdmin();

@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { derive, MAT_COR, RISCO_ROTULO, type ClienteRow } from "@/lib/expand";
 import { getAcesso } from "@/lib/expand-acesso";
 import { listarGrupos } from "@/lib/whatsapp";
-import { salvarLinkDrive, salvarGrupoCliente, testarGrupoCliente } from "@/app/expand/actions";
+import { salvarLinkDrive, salvarGrupoCliente, testarGrupoCliente, rodarResumoAgora, adotarDemanda } from "@/app/expand/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -42,6 +42,12 @@ export default async function ClienteHub({ params, searchParams }: { params: Pro
   const { data: lgData } = await supabase.from("expand_log").select("id, tipo, detalhe, autor, criado_em").eq("cliente_id", id).order("criado_em", { ascending: false }).limit(60);
   const logs = (lgData ?? []) as Log[];
   const grupos = isAdmin && aba === "grupo" ? await listarGrupos() : [];
+  type Resumo = { dia: string; resumo: string | null; atividades: string[]; demandas: { titulo: string; urgencia: string; importancia: string; citacao: string }[]; msgs_lidas: number; tokens_in: number; tokens_out: number; custo: number; modelo: string | null };
+  let resumo: Resumo | null = null;
+  if (aba === "grupo") {
+    const { data: rz } = await supabase.from("expand_cliente_resumo").select("dia, resumo, atividades, demandas, msgs_lidas, tokens_in, tokens_out, custo, modelo").eq("cliente_id", id).order("dia", { ascending: false }).limit(1).maybeSingle();
+    resumo = (rz as Resumo) ?? null;
+  }
 
   const extras = etapas.filter((e) => e.origem && e.origem !== "processo");
   const cor = MAT_COR[cli.maturidade ?? ""] ?? "var(--accent)";
@@ -114,10 +120,46 @@ export default async function ClienteHub({ params, searchParams }: { params: Pro
                 <button className="hx-btn hx-btn-primary" type="submit" style={{ padding: "9px 15px", fontSize: 12.5 }}>Salvar grupo</button>
               </form>
               {cli.whatsapp_grupo ? (
-                <form action={testarGrupoCliente}><input type="hidden" name="clienteId" value={id} /><button className="hx-btn hx-btn-ghost" type="submit" style={{ padding: "8px 14px", fontSize: 12.5 }}>📨 Enviar teste ao grupo</button></form>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <form action={testarGrupoCliente}><input type="hidden" name="clienteId" value={id} /><button className="hx-btn hx-btn-ghost" type="submit" style={{ padding: "8px 14px", fontSize: 12.5 }}>📨 Enviar teste</button></form>
+                  <form action={rodarResumoAgora}><input type="hidden" name="clienteId" value={id} /><button className="hx-btn hx-btn-primary" type="submit" style={{ padding: "8px 14px", fontSize: 12.5 }}>🧠 Rodar resumo agora</button></form>
+                </div>
               ) : null}
             </>
           ) : null}
+
+          {resumo ? (
+            <div style={{ marginTop: 16, borderTop: "1px solid var(--line)", paddingTop: 14 }}>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+                <span style={{ fontSize: 13, fontWeight: 700 }}>Resumo do dia</span>
+                <span style={{ fontSize: 11, color: "var(--dim)" }}>{new Date(resumo.dia + "T12:00").toLocaleDateString("pt-BR")} · {resumo.msgs_lidas} msgs · {resumo.tokens_in + resumo.tokens_out} tokens · ~US$ {Number(resumo.custo).toFixed(4)}{resumo.modelo ? ` · ${resumo.modelo}` : ""}</span>
+              </div>
+              <p style={{ fontSize: 13, color: "var(--txt)", lineHeight: 1.6, margin: "0 0 10px" }}>{resumo.resumo || "—"}</p>
+              {resumo.atividades?.length ? (
+                <div style={{ marginBottom: 10 }}>
+                  <p style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: ".04em", color: "var(--dim)", margin: "0 0 4px" }}>Combinados</p>
+                  <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12.5, color: "var(--mut)", lineHeight: 1.6 }}>{resumo.atividades.map((a, i) => <li key={i}>{a}</li>)}</ul>
+                </div>
+              ) : null}
+              {resumo.demandas?.length ? (
+                <div>
+                  <p style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: ".04em", color: "var(--dim)", margin: "0 0 6px" }}>Possíveis demandas <span style={{ color: "var(--warn)" }}>(o PMO decide)</span></p>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {resumo.demandas.map((dm, i) => (
+                      <div key={i} className="hx-glass" style={{ borderRadius: 10, padding: "10px 12px", borderLeft: `3px solid ${dm.urgencia === "alta" ? "var(--red)" : dm.urgencia === "media" ? "var(--warn)" : "var(--dim)"}` }}>
+                        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                          <span style={{ fontSize: 13, fontWeight: 600, flex: 1 }}>{dm.titulo}</span>
+                          <span style={{ fontSize: 10, color: "var(--dim)" }}>urg. {dm.urgencia} · imp. {dm.importancia}</span>
+                          {isAdmin ? <form action={adotarDemanda}><input type="hidden" name="clienteId" value={id} /><input type="hidden" name="titulo" value={dm.titulo} /><button className="hx-btn hx-btn-ghost" type="submit" style={{ padding: "5px 11px", fontSize: 11.5 }}>Adotar → tarefa</button></form> : null}
+                        </div>
+                        {dm.citacao ? <p style={{ fontSize: 11.5, color: "var(--mut)", margin: "6px 0 0", fontStyle: "italic" }}>“{dm.citacao}”</p> : null}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : <p style={{ fontSize: 12, color: "var(--dim)" }}>Nenhuma demanda nova detectada.</p>}
+            </div>
+          ) : isAdmin ? <p style={{ fontSize: 12, color: "var(--dim)", marginTop: 14 }}>Ainda sem resumo. Configure o grupo e clique em “Rodar resumo agora”.</p> : null}
         </div>
       ) : null}
 

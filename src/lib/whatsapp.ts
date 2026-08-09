@@ -24,6 +24,37 @@ export async function enviarWhatsapp(
   }
 }
 
+// Lê as mensagens recentes de um chat/grupo (POST {UAZAPI_URL}/message/find).
+export type MsgGrupo = { autor: string; texto: string; ts: number; nos: boolean };
+export async function lerMensagensGrupo(jid: string, horas = 24, limit = 300): Promise<MsgGrupo[]> {
+  const url = process.env.UAZAPI_URL, token = process.env.UAZAPI_TOKEN;
+  if (!url || !token || !jid) return [];
+  try {
+    const res = await fetch(`${url.replace(/\/$/, "")}/message/find`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json; charset=utf-8", token },
+      body: JSON.stringify({ chatid: jid, limit }),
+      cache: "no-store",
+    });
+    if (!res.ok) return [];
+    const j = (await res.json()) as Record<string, unknown>;
+    const arr = (Array.isArray(j.messages) ? j.messages : []) as Record<string, unknown>[];
+    const corte = Date.now() - horas * 3600 * 1000;
+    return arr
+      .map((m) => {
+        const content = (m.content ?? {}) as Record<string, unknown>;
+        const texto = String(content.text ?? content.caption ?? content.description ?? "");
+        const tsRaw = Number(m.messageTimestamp ?? 0);
+        const ts = tsRaw > 1e12 ? tsRaw : tsRaw * 1000;
+        const nos = Boolean(m.fromMe);
+        const autor = String(m.senderName ?? m.pushName ?? m.sender ?? m.participant ?? (nos ? "Equipe" : "Cliente"));
+        return { autor, texto, ts, nos };
+      })
+      .filter((m) => m.texto.trim() && m.ts >= corte)
+      .sort((a, b) => a.ts - b.ts);
+  } catch { return []; }
+}
+
 // Lista os grupos do número conectado (GET {UAZAPI_URL}/group/list · header token).
 type GRaw = Record<string, unknown>;
 export async function listarGrupos(): Promise<{ jid: string; nome: string }[]> {
