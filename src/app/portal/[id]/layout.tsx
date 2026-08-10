@@ -22,13 +22,9 @@ export default async function PortalLayout({ children, params }: { children: Rea
   const { data: cli } = await supabase.from("expand_cliente_publico").select("nome").eq("id", id).single();
   if (!cli) notFound();
 
-  // Link do grupo oficial de WhatsApp (canal de relacionamento) quando configurado.
-  let grupoLink: string | null = null;
-  if (staff || dono) {
-    const { data: g } = await supabase.from("expand_clientes").select("whatsapp_grupo").eq("id", id).maybeSingle();
-    const jid = (g?.whatsapp_grupo as string | null) ?? null;
-    if (jid) grupoLink = `https://wa.me/?text=${encodeURIComponent("Olá, equipe Expand!")}`;
-  }
+  // Link do grupo oficial de WhatsApp — o botão só aparece quando o link existe.
+  const { data: g } = await supabase.from("expand_clientes").select("whatsapp_grupo_link").eq("id", id).maybeSingle();
+  const grupoLink = (g?.whatsapp_grupo_link as string | null) ?? null;
 
   return (
     <div className={`${cinzel.variable} tema-expand`}>

@@ -483,7 +483,7 @@ export async function criarGrupo(_prev: GrupoRes, formData: FormData): Promise<G
     if (admins.length) { try { await fetch(`${base}/group/updateParticipants`, { method: "POST", headers: H, body: JSON.stringify({ groupjid: jid, action: "promote", participants: admins }) }); } catch { avisos.push("admins não promovidos"); } }
     let link: string | undefined;
     try { const r = await fetch(`${base}/group/inviteLink`, { method: "POST", headers: H, body: JSON.stringify({ groupjid: jid }) }); const jl = (await r.json()) as Record<string, unknown>; link = (jl.link ?? jl.inviteLink ?? jl.url) as string | undefined; } catch { /* opcional */ }
-    if (clienteId) { const supabase = await createClient(); await supabase.from("expand_clientes").update({ whatsapp_grupo: jid, whatsapp_grupo_nome: nome }).eq("id", clienteId); revalidatePath(`/expand/clientes/${clienteId}`); }
+    if (clienteId) { const supabase = await createClient(); await supabase.from("expand_clientes").update({ whatsapp_grupo: jid, whatsapp_grupo_nome: nome, whatsapp_grupo_link: link ?? null }).eq("id", clienteId); revalidatePath(`/expand/clientes/${clienteId}`); }
     return { jid, link, nome, avisos };
   } catch (e) { return { erro: String((e as Error)?.message ?? e) }; }
 }
@@ -664,6 +664,23 @@ export async function salvarGrupoCliente(formData: FormData) {
   const supabase = await createClient();
   await supabase.from("expand_clientes").update({ whatsapp_grupo: jid || null, whatsapp_grupo_nome: nome }).eq("id", clienteId);
   revalidatePath("/expand/board");
+}
+
+// Salva o link de convite do grupo — cola manual, ou busca no uazapi se já houver grupo.
+export async function salvarLinkGrupo(formData: FormData) {
+  await exigirAdmin();
+  const clienteId = String(formData.get("clienteId") ?? "");
+  if (!clienteId) return;
+  const manual = String(formData.get("link") ?? "").trim();
+  const supabase = await createClient();
+  let link: string | null = manual || null;
+  if (!link) {
+    const { data: c } = await supabase.from("expand_clientes").select("whatsapp_grupo").eq("id", clienteId).maybeSingle();
+    const jid = c?.whatsapp_grupo as string | null;
+    if (jid) { const { linkConviteGrupo } = await import("@/lib/whatsapp"); link = await linkConviteGrupo(jid); }
+  }
+  await supabase.from("expand_clientes").update({ whatsapp_grupo_link: link }).eq("id", clienteId);
+  revalidatePath(`/expand/clientes/${clienteId}`);
 }
 
 export async function testarGrupoCliente(formData: FormData) {

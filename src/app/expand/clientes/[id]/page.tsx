@@ -4,11 +4,11 @@ import { createClient } from "@/lib/supabase/server";
 import { derive, MAT_COR, RISCO_ROTULO, type ClienteRow } from "@/lib/expand";
 import { getAcesso } from "@/lib/expand-acesso";
 import { listarGrupos } from "@/lib/whatsapp";
-import { salvarLinkDrive, salvarGrupoCliente, testarGrupoCliente, rodarResumoAgora, adotarDemanda } from "@/app/expand/actions";
+import { salvarLinkDrive, salvarGrupoCliente, testarGrupoCliente, rodarResumoAgora, adotarDemanda, salvarLinkGrupo } from "@/app/expand/actions";
 
 export const dynamic = "force-dynamic";
 
-type Cli = ClienteRow & { whatsapp_grupo?: string | null; whatsapp_grupo_nome?: string | null; drive_folder_url?: string | null; agente_id?: string | null };
+type Cli = ClienteRow & { whatsapp_grupo?: string | null; whatsapp_grupo_nome?: string | null; whatsapp_grupo_link?: string | null; drive_folder_url?: string | null; agente_id?: string | null };
 type Etapa = { id: string; titulo: string; area: string | null; status: string | null; origem: string | null; visivel_cliente: boolean; criado_em: string; data_prevista: string | null };
 type Log = { id: string; tipo: string | null; detalhe: string | null; autor: string | null; criado_em: string };
 
@@ -164,6 +164,21 @@ export default async function ClienteHub({ params, searchParams }: { params: Pro
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   <form action={testarGrupoCliente}><input type="hidden" name="clienteId" value={id} /><button className="hx-btn hx-btn-ghost" type="submit" style={{ padding: "8px 14px", fontSize: 12.5 }}>📨 Enviar teste</button></form>
                   <form action={rodarResumoAgora}><input type="hidden" name="clienteId" value={id} /><button className="hx-btn hx-btn-primary" type="submit" style={{ padding: "8px 14px", fontSize: 12.5 }}>🧠 Rodar resumo agora</button></form>
+                </div>
+              ) : null}
+              {cli.whatsapp_grupo ? (
+                <div style={{ borderTop: "1px solid var(--line)", paddingTop: 12, marginTop: 12 }}>
+                  <p style={{ fontSize: 12, color: "var(--mut)", lineHeight: 1.55, margin: "0 0 8px" }}>
+                    <b style={{ color: "var(--txt)" }}>Link de convite do grupo</b> — liga o botão “Falar com a equipe” no portal do cliente. Cole o link (WhatsApp → grupo → Convidar via link) ou deixe vazio e clique para o sistema buscar.
+                    {cli.whatsapp_grupo_link
+                      ? <><br /><a href={cli.whatsapp_grupo_link} target="_blank" rel="noreferrer" style={{ color: "var(--accent)" }}>{cli.whatsapp_grupo_link}</a></>
+                      : <><br /><span style={{ color: "var(--warn)" }}>Sem link — o botão fica oculto para o cliente.</span></>}
+                  </p>
+                  <form action={salvarLinkGrupo} style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <input type="hidden" name="clienteId" value={id} />
+                    <input name="link" defaultValue={cli.whatsapp_grupo_link ?? ""} placeholder="https://chat.whatsapp.com/…" style={fld} />
+                    <button className="hx-btn hx-btn-primary" type="submit" style={{ padding: "9px 15px", fontSize: 12.5 }}>Salvar / buscar link</button>
+                  </form>
                 </div>
               ) : null}
             </>

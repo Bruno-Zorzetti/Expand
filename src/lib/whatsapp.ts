@@ -24,6 +24,25 @@ export async function enviarWhatsapp(
   }
 }
 
+// Busca o link de convite de um grupo (chat.whatsapp.com/...) no uazapi.
+export async function linkConviteGrupo(jid: string): Promise<string | null> {
+  const url = process.env.UAZAPI_URL, token = process.env.UAZAPI_TOKEN;
+  if (!url || !token || !jid) return null;
+  const base = url.replace(/\/$/, "");
+  const H = { "Content-Type": "application/json; charset=utf-8", token };
+  for (const rota of ["/group/inviteLink", "/group/invitecode", "/group/inviteCode"]) {
+    try {
+      const r = await fetch(`${base}${rota}`, { method: "POST", headers: H, body: JSON.stringify({ groupjid: jid, groupJid: jid }), cache: "no-store" });
+      if (!r.ok) continue;
+      const j = (await r.json()) as Record<string, unknown>;
+      const cand = (j.link ?? j.inviteLink ?? j.url ?? j.inviteCode ?? j.code) as string | undefined;
+      if (!cand) continue;
+      return cand.startsWith("http") ? cand : `https://chat.whatsapp.com/${cand}`;
+    } catch { /* tenta a próxima rota */ }
+  }
+  return null;
+}
+
 // Lê as mensagens recentes de um chat/grupo (POST {UAZAPI_URL}/message/find).
 export type MsgGrupo = { autor: string; texto: string; ts: number; nos: boolean };
 export async function lerMensagensGrupo(jid: string, horas = 24, limit = 300): Promise<MsgGrupo[]> {
