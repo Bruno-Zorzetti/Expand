@@ -42,6 +42,7 @@ export default function ExpandClienteShell({
   const tabs = [
     { href: base, label: "Dashboard" },
     { href: `${base}/contrato`, label: "Produtos" },
+    { href: `${base}/historico`, label: "Histórico" },
     { href: `${base}/aprovacoes`, label: "Aprovações" },
     { href: `${base}/resultados`, label: "Resultados" },
   ];

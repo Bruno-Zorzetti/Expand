@@ -66,12 +66,16 @@ export default async function EsteMes({ params }: { params: Promise<{ id: string
       <div className="ex-hero">
         <div className="eb">Você está aqui</div>
         <h2>Olá, {cli?.nome}</h2>
-        <p>Sua marca está na fase de <b style={{ color: "var(--txt)" }}>{faseNome}</b>. Acompanhe abaixo o que está com você, o que está em produção na Expand e o que já foi entregue.</p>
+        <p>Sua marca está na fase de <b style={{ color: "var(--txt)" }}>{faseNome}</b>. Acompanhe abaixo o que está com você, o que está em produção na Expand e o que já foi entregue. <Link href={`/portal/${id}/historico`} style={{ color: "var(--accent)", fontWeight: 700 }}>Clique numa etapa para ver o histórico ↗</Link></p>
         <div className="ex-track">
           {TRACK.map((s, i) => {
             const de = i ? TRACK[i - 1].ate : 0;
             const st = faseAtual > s.ate ? "done" : faseAtual > de ? "now" : "";
-            return <div key={s.l} className={`ex-st ${st}`}><i>{st === "done" ? "✓" : i + 1}</i><div className="l">{s.l}</div></div>;
+            return (
+              <Link key={s.l} href={`/portal/${id}/historico?e=${i + 1}`} className={`ex-st ${st}`} style={{ textDecoration: "none", color: "inherit" }}>
+                <i>{st === "done" ? "✓" : i + 1}</i><div className="l">{s.l}</div>
+              </Link>
+            );
           })}
         </div>
       </div>
