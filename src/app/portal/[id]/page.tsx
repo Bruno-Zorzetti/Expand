@@ -4,7 +4,6 @@ import { FASES } from "@/lib/expand-esteira";
 import { faseDoCliente, type EtapaRow } from "@/lib/expand-tarefas";
 import { TRACK, CLI_DEVERES } from "@/lib/expand-gov";
 import Ajuda from "@/components/expand/Ajuda";
-import { solicitarDemanda } from "@/app/expand/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -46,6 +45,22 @@ export default async function EsteMes({ params }: { params: Promise<{ id: string
     ok: { i: "✓", c: "var(--green)", bg: "color-mix(in srgb, var(--green) 13%, transparent)" },
   };
 
+  // Frase de status: em 2 segundos o cliente sabe se precisa agir.
+  const totalEntregue = etapas.filter((e) => e.visivel_cliente && e.status === "done").length;
+  const status = pendentes.length
+    ? { t: `${pendentes.length} ${pendentes.length > 1 ? "itens esperam" : "item espera"} sua aprovação`, s: "Sua resposta destrava a próxima entrega.", c: "var(--accent)", i: "✎" }
+    : producao.length
+      ? { t: "Tudo em dia — estamos produzindo", s: `${producao.length} ${producao.length > 1 ? "entregas em andamento" : "entrega em andamento"} agora.`, c: "var(--green)", i: "◐" }
+      : { t: "Tudo em dia", s: "Nada pendente com você no momento.", c: "var(--green)", i: "✓" };
+
+  // Próxima entrega prevista (a data mais próxima ainda no futuro).
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  const prox = etapas
+    .filter((e) => e.visivel_cliente && e.status !== "done" && e.data_prevista)
+    .map((e) => ({ e, d: new Date(String(e.data_prevista) + "T12:00") }))
+    .filter((x) => x.d >= hoje)
+    .sort((a, b) => a.d.getTime() - b.d.getTime())[0] ?? null;
+
   return (
     <>
       <div className="ex-hero">
@@ -61,23 +76,35 @@ export default async function EsteMes({ params }: { params: Promise<{ id: string
         </div>
       </div>
 
+      {/* Frase de status + próxima entrega + prova de valor acumulada */}
+      <div className="hx-glass" style={{ borderRadius: 14, padding: "16px 18px", marginBottom: 16, borderLeft: `4px solid ${status.c}`, display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+        <div style={{ width: 42, height: 42, borderRadius: 12, display: "grid", placeItems: "center", background: `color-mix(in srgb, ${status.c} 15%, transparent)`, color: status.c, fontSize: 20, flexShrink: 0 }}>{status.i}</div>
+        <div style={{ flex: 1, minWidth: 200 }}>
+          <div style={{ fontSize: 16, fontWeight: 800, color: status.c }}>{status.t}</div>
+          <div style={{ fontSize: 12.5, color: "var(--mut)", marginTop: 2 }}>{status.s}</div>
+        </div>
+        {prox ? (
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: ".06em", color: "var(--dim)", fontWeight: 700 }}>Próxima entrega</div>
+            <div style={{ fontSize: 15, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{prox.d.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}</div>
+            <div style={{ fontSize: 11, color: "var(--mut)", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{prox.e.titulo}</div>
+          </div>
+        ) : null}
+        {totalEntregue ? (
+          <div style={{ textAlign: "right", paddingLeft: 16, borderLeft: "1px solid var(--line)" }}>
+            <div style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: ".06em", color: "var(--dim)", fontWeight: 700 }}>Já entregamos</div>
+            <div style={{ fontSize: 19, fontWeight: 800, color: "var(--green)", fontVariantNumeric: "tabular-nums" }}>{totalEntregue}</div>
+            <div style={{ fontSize: 11, color: "var(--mut)" }}>neste contrato</div>
+          </div>
+        ) : null}
+      </div>
+
       <div className="ex-kpis" style={{ marginBottom: 16 }}>
         <div className="ex-kpi hx-glass"><div className="lab">Fase atual</div><div className="val" style={{ fontSize: 16 }}>{faseNome}</div><div className="foot">Fase {faseAtual} de 15</div></div>
         <div className="ex-kpi hx-glass"><div className="lab">Aguardando você</div><div className="val" style={{ color: pendentes.length ? "var(--accent)" : "var(--green)" }}>{pendentes.length}</div><div className="foot">Itens para aprovar</div></div>
         <div className="ex-kpi hx-glass"><div className="lab">Em produção</div><div className="val">{producao.length}</div><div className="foot">A equipe está tocando</div></div>
         <div className="ex-kpi hx-glass"><div className="lab">Já entregue</div><div className="val" style={{ color: "var(--green)" }}>{entregues.length}</div><div className="foot">Concluídos</div></div>
       </div>
-
-      {/* Cliente solicita uma nova demanda → entra na esteira e avisa a equipe */}
-      <details className="hx-glass" style={{ borderRadius: 12, marginBottom: 16, borderLeft: "3px solid var(--accent)" }}>
-        <summary style={{ listStyle: "none", cursor: "pointer", padding: "13px 17px", fontWeight: 700, fontSize: 13.5 }}>＋ Solicitar uma nova demanda <span style={{ fontWeight: 400, fontSize: 12, color: "var(--mut)" }}>· pediu algo novo? registre aqui que a equipe recebe na hora</span></summary>
-        <form action={solicitarDemanda} style={{ display: "grid", gap: 10, padding: "0 17px 16px", borderTop: "1px solid var(--line)", paddingTop: 12 }}>
-          <input type="hidden" name="clienteId" value={id} />
-          <label><span style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".06em", color: "var(--dim)", fontWeight: 700, display: "block", marginBottom: 4 }}>O que você precisa</span><input name="titulo" required placeholder="ex.: Um vídeo extra para a campanha de junho" style={{ width: "100%", background: "var(--bg)", border: "1px solid var(--line-2)", borderRadius: 8, color: "var(--txt)", padding: "9px 11px", fontSize: 13.5, outline: "none", fontFamily: "inherit" }} /></label>
-          <label><span style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".06em", color: "var(--dim)", fontWeight: 700, display: "block", marginBottom: 4 }}>Detalhes (opcional)</span><textarea name="desc" rows={2} placeholder="contexto, prazo desejado, referências…" style={{ width: "100%", background: "var(--bg)", border: "1px solid var(--line-2)", borderRadius: 8, color: "var(--txt)", padding: "9px 11px", fontSize: 13.5, outline: "none", fontFamily: "inherit", resize: "vertical" }} /></label>
-          <div><button className="hx-btn hx-btn-primary" type="submit">Enviar demanda</button></div>
-        </form>
-      </details>
 
       <div className="ex-two">
         <div className="ex-panel hx-glass">
@@ -118,15 +145,21 @@ export default async function EsteMes({ params }: { params: Promise<{ id: string
         </div>
       </div>
 
-      <div className="ex-grph" style={{ marginTop: 24 }}><span className="gt">O combinado — o que depende de você</span><span className="gl" /></div>
-      <div className="ex-cards">
-        {CLI_DEVERES.map((d) => (
-          <div key={d.h} className="hx-glass" style={{ padding: "15px 17px", borderLeft: "3px solid var(--accent)" }}>
-            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 5 }}>{d.h}</div>
-            <div style={{ fontSize: 12, color: "var(--mut)", lineHeight: 1.55 }}>{d.p}</div>
-          </div>
-        ))}
-      </div>
+      {/* Acordeão: aparece só quando o cliente quiser saber (menos carga cognitiva) */}
+      <details className="hx-glass" style={{ borderRadius: 12, marginTop: 24, borderLeft: "3px solid var(--accent)" }}>
+        <summary style={{ listStyle: "none", cursor: "pointer", padding: "13px 17px", fontWeight: 700, fontSize: 13.5, display: "flex", alignItems: "center", gap: 9 }}>
+          <span style={{ color: "var(--accent)" }}>▸</span> Esperamos de você
+          <span style={{ fontWeight: 400, fontSize: 12, color: "var(--mut)" }}>· o que faz seu projeto andar mais rápido</span>
+        </summary>
+        <div className="ex-cards" style={{ padding: "12px 17px 17px", borderTop: "1px solid var(--line)" }}>
+          {CLI_DEVERES.map((d) => (
+            <div key={d.h} className="hx-glass" style={{ padding: "15px 17px", borderLeft: "3px solid var(--accent)" }}>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 5 }}>{d.h}</div>
+              <div style={{ fontSize: 12, color: "var(--mut)", lineHeight: 1.55 }}>{d.p}</div>
+            </div>
+          ))}
+        </div>
+      </details>
     </>
   );
 }

@@ -27,17 +27,21 @@ function Logo() {
 export default function ExpandClienteShell({
   clienteId,
   clienteNome,
+  versiculo,
+  acoes,
   children,
 }: {
   clienteId: string;
   clienteNome: string;
+  versiculo?: { t: string; r: string } | null;
+  acoes?: ReactNode;
   children: ReactNode;
 }) {
   const path = usePathname();
   const base = `/portal/${clienteId}`;
   const tabs = [
-    { href: base, label: "Este Mês" },
-    { href: `${base}/contrato`, label: "Meu PIDE" },
+    { href: base, label: "Dashboard" },
+    { href: `${base}/contrato`, label: "Produtos" },
     { href: `${base}/aprovacoes`, label: "Aprovações" },
     { href: `${base}/resultados`, label: "Resultados" },
   ];
@@ -62,7 +66,14 @@ export default function ExpandClienteShell({
         {tabs.map((t) => <Link key={t.href} href={t.href} className={`ex-ctab${on(t.href) ? " on" : ""}`}>{t.label}</Link>)}
       </div>
       <div className="ex-cmain">{children}</div>
-      <footer className="ex-foot"><span className="fb">EXPAND</span><span>Portal do cliente · acompanhamento do seu PIDE</span></footer>
+      {versiculo ? (
+        <div style={{ textAlign: "center", padding: "26px 20px 6px", maxWidth: 620, margin: "0 auto" }}>
+          <p style={{ fontFamily: "var(--font-cinzel), Georgia, serif", fontSize: 14.5, color: "var(--mut)", lineHeight: 1.65, fontStyle: "italic", margin: 0 }}>“{versiculo.t}”</p>
+          <p style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: "var(--accent)", marginTop: 8 }}>{versiculo.r}</p>
+        </div>
+      ) : null}
+      <footer className="ex-foot"><span className="fb">EXPAND</span><span>Portal do cliente · acompanhamento dos seus produtos</span></footer>
+      {acoes}
     </div>
   );
 }
