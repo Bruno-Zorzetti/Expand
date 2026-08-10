@@ -29,12 +29,14 @@ export default function ExpandClienteShell({
   clienteNome,
   versiculo,
   acoes,
+  sino,
   children,
 }: {
   clienteId: string;
   clienteNome: string;
   versiculo?: { t: string; r: string } | null;
   acoes?: ReactNode;
+  sino?: ReactNode;
   children: ReactNode;
 }) {
   const path = usePathname();
@@ -58,6 +60,7 @@ export default function ExpandClienteShell({
             <div style={{ fontSize: 13, fontWeight: 700 }}>{clienteNome}</div>
             <div style={{ fontSize: 10.5, color: "var(--dim)" }}>Sua conta</div>
           </div>
+          {sino}
           <button className="ex-iconbtn" onClick={toggleTema} title="Tema claro/escuro">
             <svg className="ex-ic" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z" /></svg>
           </button>

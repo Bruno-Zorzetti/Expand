@@ -203,7 +203,11 @@ export async function adicionarLink(formData: FormData) {
   await supabase.from("expand_etapas").update({ status: "run", iniciada_em: new Date().toISOString(), responsavel_atual: pessoa.nome }).eq("id", etapaId).eq("status", "idle");
   const { data: et } = await supabase.from("expand_etapas").select("cliente_id, titulo, visivel_cliente").eq("id", etapaId).maybeSingle();
   await logar(supabase, "link", `Adicionou o link "${nome}"`, { etapa_id: etapaId, cliente_id: (et?.cliente_id as string | null) ?? null, autor: pessoa.nome });
-  if (et?.visivel_cliente) await notificarGrupoCliente(supabase, et.cliente_id as string, `📎 *${et.titulo}* — novo material para sua aprovação:\n${nome}: ${url}`);
+  if (et?.visivel_cliente) {
+    const cid = et.cliente_id as string | null;
+    await notificarGrupoCliente(supabase, cid, `📎 *${et.titulo}* — novo material para sua aprovação:\n${nome}: ${url}`);
+    if (cid) await supabase.from("expand_notificacoes").insert({ cliente_id: cid, tipo: "aprovacao", texto: `Novo material para aprovar: ${nome}`, link: `/portal/${cid}/aprovacoes` });
+  }
   revalidatePath(`/expand/etapa/${etapaId}`);
 }
 
@@ -486,6 +490,21 @@ export async function criarGrupo(_prev: GrupoRes, formData: FormData): Promise<G
     if (clienteId) { const supabase = await createClient(); await supabase.from("expand_clientes").update({ whatsapp_grupo: jid, whatsapp_grupo_nome: nome, whatsapp_grupo_link: link ?? null }).eq("id", clienteId); revalidatePath(`/expand/clientes/${clienteId}`); }
     return { jid, link, nome, avisos };
   } catch (e) { return { erro: String((e as Error)?.message ?? e) }; }
+}
+
+// ---- Notificações do cliente (portal) ----
+export async function marcarNotifCliente(formData: FormData) {
+  const notifId = String(formData.get("notifId") ?? "");
+  if (!notifId) return;
+  const supabase = await createClient();
+  await supabase.from("expand_notificacoes").update({ lida: true }).eq("id", notifId);
+}
+
+// Avisa o cliente no sino do portal. Regra: toda notificação leva a um lugar,
+// exceto alertas/avisos (tipo 'alerta' | 'aviso'), que são informativos.
+export async function notificarCliente(clienteId: string, tipo: string, texto: string, link: string | null) {
+  const supabase = await createClient();
+  await supabase.from("expand_notificacoes").insert({ cliente_id: clienteId, tipo, texto, link });
 }
 
 // ---- Plano de Ação interno (Grupo Expand) ----
