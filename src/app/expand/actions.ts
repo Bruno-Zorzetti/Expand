@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getPessoa } from "@/lib/expand-user";
 import { exigirAdmin } from "@/lib/expand-acesso";
@@ -490,6 +491,30 @@ export async function criarGrupo(_prev: GrupoRes, formData: FormData): Promise<G
     if (clienteId) { const supabase = await createClient(); await supabase.from("expand_clientes").update({ whatsapp_grupo: jid, whatsapp_grupo_nome: nome, whatsapp_grupo_link: link ?? null }).eq("id", clienteId); revalidatePath(`/expand/clientes/${clienteId}`); }
     return { jid, link, nome, avisos };
   } catch (e) { return { erro: String((e as Error)?.message ?? e) }; }
+}
+
+// ---- Diagnóstico do cliente: Temperamento (com arquétipo) ----
+export async function salvarTemperamentoCliente(formData: FormData) {
+  const clienteId = String(formData.get("clienteId") ?? "");
+  const nome = String(formData.get("pessoa_nome") ?? "").trim();
+  if (!clienteId || !nome) return;
+  let respostas: number[] = [];
+  try { respostas = JSON.parse(String(formData.get("respostas") ?? "[]")) as number[]; } catch { respostas = []; }
+  if (!respostas.some(Boolean)) return;
+  const { calcularTemperamento, montarTemperamento } = await import("@/lib/expand-temperamento");
+  const scores = calcularTemperamento(respostas);
+  const r = montarTemperamento(scores);
+  const supabase = await createClient();
+  await supabase.from("expand_diag_cliente").insert({
+    cliente_id: clienteId, tipo: "temperamento",
+    pessoa_nome: nome,
+    pessoa_papel: String(formData.get("pessoa_papel") ?? "").trim() || null,
+    pessoa_email: String(formData.get("pessoa_email") ?? "").trim() || null,
+    respostas, scores, dominante: r.dominante, apoio: r.apoio, rotulo: r.rotulo,
+    segundos: parseInt(String(formData.get("segundos") ?? "0"), 10) || null,
+  });
+  revalidatePath(`/portal/${clienteId}/diagnosticos`);
+  redirect(`/portal/${clienteId}/diagnosticos`);
 }
 
 // ---- Notificações do cliente (portal) ----

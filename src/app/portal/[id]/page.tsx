@@ -45,6 +45,9 @@ export default async function EsteMes({ params }: { params: Promise<{ id: string
     ok: { i: "✓", c: "var(--green)", bg: "color-mix(in srgb, var(--green) 13%, transparent)" },
   };
 
+  const { count: qtdDiag } = await supabase.from("expand_diag_cliente").select("id", { count: "exact", head: true }).eq("cliente_id", id).eq("tipo", "temperamento");
+  const temDiag = (qtdDiag ?? 0) > 0;
+
   // Frase de status: em 2 segundos o cliente sabe se precisa agir.
   const totalEntregue = etapas.filter((e) => e.visivel_cliente && e.status === "done").length;
   const status = pendentes.length
@@ -79,6 +82,19 @@ export default async function EsteMes({ params }: { params: Promise<{ id: string
           })}
         </div>
       </div>
+
+      {/* Convite ao diagnóstico — um por vez, some quando preenchido */}
+      {!temDiag ? (
+        <Link href={`/portal/${id}/diagnosticos?novo=temperamento`} className="hx-glass hx-glass-hover" style={{ display: "flex", alignItems: "center", gap: 15, padding: "16px 18px", marginBottom: 16, borderRadius: 14, borderLeft: "4px solid var(--accent-2)", textDecoration: "none", color: "inherit" }}>
+          <div style={{ width: 42, height: 42, borderRadius: 12, display: "grid", placeItems: "center", background: "color-mix(in srgb, var(--accent-2) 16%, transparent)", color: "var(--accent-2)", fontSize: 20, flexShrink: 0 }}>◈</div>
+          <div style={{ flex: 1, minWidth: 180 }}>
+            <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".07em", color: "var(--dim)", fontWeight: 700 }}>Diagnóstico 1 de 3</div>
+            <div style={{ fontSize: 15, fontWeight: 700 }}>Faça o teste de Temperamento</div>
+            <div style={{ fontSize: 12.5, color: "var(--mut)" }}>5 minutos. Nos ajuda a comunicar e entregar do seu jeito.</div>
+          </div>
+          <span className="hx-btn hx-btn-primary" style={{ padding: "9px 16px", fontSize: 12.5, flexShrink: 0 }}>Começar</span>
+        </Link>
+      ) : null}
 
       {/* Frase de status + próxima entrega + prova de valor acumulada */}
       <div className="hx-glass" style={{ borderRadius: 14, padding: "16px 18px", marginBottom: 16, borderLeft: `4px solid ${status.c}`, display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>

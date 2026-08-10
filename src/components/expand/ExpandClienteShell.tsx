@@ -45,6 +45,7 @@ export default function ExpandClienteShell({
     { href: base, label: "Dashboard" },
     { href: `${base}/contrato`, label: "Produtos" },
     { href: `${base}/historico`, label: "Histórico" },
+    { href: `${base}/diagnosticos`, label: "Diagnósticos" },
     { href: `${base}/aprovacoes`, label: "Aprovações" },
     { href: `${base}/resultados`, label: "Resultados" },
   ];
