@@ -4,15 +4,18 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { QUESTOES_DISC } from "@/lib/expand-disc";
 import { QUESTOES_ARQ } from "@/lib/expand-arquetipo";
+import { QUESTOES_TEMP } from "@/lib/expand-temperamento";
 
+// Ordem definida pelo Bruno: Temperamento → Arquétipo → DISC.
 const TODAS = [
-  ...QUESTOES_DISC.map((q) => ({ q: q.q, sec: "DISC" as const })),
+  ...QUESTOES_TEMP.map((q) => ({ q, sec: "Temperamento" as const })),
   ...QUESTOES_ARQ.map((q) => ({ q, sec: "Arquétipo" as const })),
+  ...QUESTOES_DISC.map((q) => ({ q: q.q, sec: "DISC" as const })),
 ];
 const ESCALA = ["Discordo\ntotalmente", "Discordo", "Neutro", "Concordo", "Concordo\ntotalmente"];
 
 export default function DiagnosticoForm({ perfilId, nome, onSalvar }: {
-  perfilId: string; nome: string; onSalvar: (disc: number[], arqu: number[]) => Promise<void>;
+  perfilId: string; nome: string; onSalvar: (disc: number[], arqu: number[], temp: number[]) => Promise<void>;
 }) {
   const router = useRouter();
   const [i, setI] = useState(0);
@@ -30,9 +33,11 @@ export default function DiagnosticoForm({ perfilId, nome, onSalvar }: {
   async function finalizar() {
     if (ans.some((a) => a === null)) { setI(ans.findIndex((a) => a === null)); return; }
     setEnviando(true);
-    const disc = ans.slice(0, QUESTOES_DISC.length).map((v) => v ?? 3);
-    const arqu = ans.slice(QUESTOES_DISC.length).map((v) => v ?? 3);
-    await onSalvar(disc, arqu);
+    const nT = QUESTOES_TEMP.length, nA = QUESTOES_ARQ.length;
+    const temp = ans.slice(0, nT).map((v) => v ?? 3);
+    const arqu = ans.slice(nT, nT + nA).map((v) => v ?? 3);
+    const disc = ans.slice(nT + nA).map((v) => v ?? 3);
+    await onSalvar(disc, arqu, temp);
     router.push(`/expand/equipe/${perfilId}`);
     router.refresh();
   }

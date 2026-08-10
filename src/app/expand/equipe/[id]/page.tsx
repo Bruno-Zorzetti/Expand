@@ -6,6 +6,8 @@ import PerfilAvatar from "@/components/expand/PerfilAvatar";
 import AgenteChat from "@/components/expand/AgenteChat";
 import type { Perfil } from "@/lib/expand-perfis";
 import { montarDisc, type DiscKey } from "@/lib/expand-disc";
+import { montarBlenda } from "@/lib/expand-disc-blenda";
+import { TEMPERAMENTOS, montarTemperamento, type TempKey as TempKeyT } from "@/lib/expand-temperamento";
 import { montarArquetipo, type ArqKey } from "@/lib/expand-arquetipo";
 import { metricasPessoa, heatmap, type EtapaProd } from "@/lib/expand-produtividade";
 import Heatmap from "@/components/expand/Heatmap";
@@ -151,6 +153,11 @@ export default async function PerfilPage({ params, searchParams }: { params: Pro
   }));
   const comport = p.disc ? montarDisc(p.disc as Record<DiscKey, number>) : null;
   const arq = p.arquetipo ? montarArquetipo(p.arquetipo as Record<ArqKey, number>) : null;
+  const pt = p as typeof p & { temperamento?: Record<string, number> | null; temperamento_dominante?: string | null; temperamento_apoio?: string | null };
+  const rTemp = pt.temperamento ? montarTemperamento(pt.temperamento as Record<TempKeyT, number>) : null;
+  const temper = rTemp ? TEMPERAMENTOS[rTemp.dominante] : null;
+  const rotuloTemp = rTemp?.rotulo ?? "";
+  const blenda = p.disc ? montarBlenda(p.disc as Record<DiscKey, number>).blenda : null;
 
   // Produtividade — só para humanos (o trabalho por-tarefa é deles). Deriva das etapas.
   let prod: ReturnType<typeof metricasPessoa> | null = null;
@@ -272,6 +279,8 @@ export default async function PerfilPage({ params, searchParams }: { params: Pro
                   </div>
                   <div style={{ borderTop: "1px solid var(--line)", marginTop: 10, paddingTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
                     <p style={{ fontSize: 12, color: "var(--mut)", lineHeight: 1.55 }}><b style={{ color: cor }}>DISC:</b> {comport.discDesc}</p>
+                    {blenda ? <p style={{ fontSize: 12, color: "var(--mut)", lineHeight: 1.55 }}><b style={{ color: blenda.cor }}>Blenda {blenda.cod} — {blenda.nome}:</b> {blenda.dinamica} <b style={{ color: "var(--txt)" }}>Como falar com {p.nome.split(" ")[0]}:</b> {blenda.comoFalar}</p> : null}
+                    {temper ? <p style={{ fontSize: 12, color: "var(--mut)", lineHeight: 1.55 }}><b style={{ color: temper.cor }}>Temperamento ({rotuloTemp}) — {temper.arquetipo}:</b> {temper.resumo} <b style={{ color: "var(--txt)" }}>Ponto cego:</b> {temper.luzSombra.sombras[0]}.</p> : null}
                     {arq ? <><p style={{ fontSize: 12, color: "var(--mut)", lineHeight: 1.55 }}><b style={{ color: "var(--accent-2)" }}>Arquétipo ({arq.segmento}):</b> {arq.desc}</p>
                     <p style={{ fontSize: 12, color: "var(--mut)", lineHeight: 1.55, borderLeft: "2px solid var(--green)", paddingLeft: 9 }}><b style={{ color: "var(--green)" }}>Como lidar nas tarefas:</b> {arq.comoLidar}</p></> : null}
                     <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 4 }}>

@@ -4,11 +4,13 @@ import { createClient } from "@/lib/supabase/server";
 import type { Perfil } from "@/lib/expand-perfis";
 import { QUESTOES_DISC, montarDisc, type DiscKey } from "@/lib/expand-disc";
 import { calcularArquetipo, montarArquetipo } from "@/lib/expand-arquetipo";
+import { calcularTemperamento, montarTemperamento } from "@/lib/expand-temperamento";
+import { montarBlenda } from "@/lib/expand-disc-blenda";
 import DiagnosticoForm from "@/components/expand/DiagnosticoForm";
 
 export const dynamic = "force-dynamic";
 
-async function salvarDiagnostico(perfilId: string, disc: number[], arqu: number[]) {
+async function salvarDiagnostico(perfilId: string, disc: number[], arqu: number[], temp: number[]) {
   "use server";
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -21,15 +23,20 @@ async function salvarDiagnostico(perfilId: string, disc: number[], arqu: number[
   const rd = montarDisc(dsum);
   const aScores = calcularArquetipo(arqu);
   const ra = montarArquetipo(aScores);
+  const tScores = calcularTemperamento(temp);
+  const rt = montarTemperamento(tScores);
+  const bl = montarBlenda(dsum);
 
   await supabase.from("expand_perfis").update({
-    disc: dsum, disc_segmento: rd.discSegmento,
+    disc: dsum, disc_segmento: rd.discSegmento, disc_blenda: bl.cod,
     arquetipo: aScores, arquetipo_dominante: ra.dominante,
+    temperamento: tScores, temperamento_dominante: rt.dominante, temperamento_apoio: rt.apoio,
     comportamental_em: new Date().toISOString(),
   }).eq("id", perfilId);
   await supabase.from("expand_diagnosticos").insert({
     perfil_id: perfilId, disc: dsum, disc_segmento: rd.discSegmento,
-    respostas: { disc, arqu, arquetipo: aScores, dominante: ra.dominante },
+    temperamentos: tScores,
+    respostas: { disc, arqu, temp, arquetipo: aScores, dominante: ra.dominante, temperamento: rt.rotulo, blenda: bl.cod },
   });
 }
 
