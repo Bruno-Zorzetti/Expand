@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getPessoa } from "@/lib/expand-user";
 import { exigirAdmin } from "@/lib/expand-acesso";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { siteUrl } from "@/lib/site";
 import { instanciasParaCliente, instanciasDeProduto, type ProdEtapaRow } from "@/lib/expand-tarefas";
 
 type SB = Awaited<ReturnType<typeof createClient>>;
@@ -484,6 +486,42 @@ export async function criarGrupo(_prev: GrupoRes, formData: FormData): Promise<G
     if (clienteId) { const supabase = await createClient(); await supabase.from("expand_clientes").update({ whatsapp_grupo: jid, whatsapp_grupo_nome: nome }).eq("id", clienteId); revalidatePath(`/expand/clientes/${clienteId}`); }
     return { jid, link, nome, avisos };
   } catch (e) { return { erro: String((e as Error)?.message ?? e) }; }
+}
+
+// ---- Equipe: incluir membro + convite de acesso ----
+type ConviteRes = { ok?: boolean; id?: string; nome?: string; link?: string | null; aviso?: string | null; erro?: string } | null;
+function slugPessoa(s: string) {
+  return s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40) || "membro";
+}
+export async function convidarMembro(_prev: ConviteRes, formData: FormData): Promise<ConviteRes> {
+  await exigirAdmin();
+  const nome = String(formData.get("nome") ?? "").trim();
+  const cargo = String(formData.get("cargo") ?? "").trim();
+  const area = String(formData.get("area") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  if (!nome) return { erro: "Informe o nome do membro." };
+  const supabase = await createClient();
+  let id = slugPessoa(nome);
+  const { data: ex } = await supabase.from("expand_perfis").select("id").eq("id", id).maybeSingle();
+  if (ex) id = `${id}-${Math.random().toString(36).slice(2, 5)}`;
+  await supabase.from("expand_perfis").insert({ id, nome, tipo: "humano", cargo: cargo || null, area: area || null, cor: "#2f80ff" });
+
+  let link: string | null = null, aviso: string | null = null;
+  if (email) {
+    const admin = createAdminClient();
+    if (!admin) aviso = "Membro criado no time, mas o convite por link precisa de SUPABASE_SERVICE_ROLE_KEY no Vercel.";
+    else {
+      const { data, error } = await admin.auth.admin.generateLink({ type: "invite", email, options: { redirectTo: `${siteUrl()}/definir-senha` } });
+      if (error) aviso = `Membro criado. O convite não foi gerado: ${error.message} (se o e-mail já tem conta, aprove em Acessos).`;
+      else {
+        link = (data?.properties as { action_link?: string } | undefined)?.action_link ?? null;
+        const uid = data?.user?.id;
+        if (uid) await admin.from("profiles").update({ role: "equipe", expand_membro: id, full_name: nome, email }).eq("id", uid);
+      }
+    }
+  }
+  revalidatePath("/expand/equipe");
+  return { ok: true, id, nome, link, aviso };
 }
 
 // ---- Rotinas (play/pause, intervalo, rodar agora) ----

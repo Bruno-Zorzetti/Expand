@@ -1,5 +1,8 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { getAcesso } from "@/lib/expand-acesso";
+import { convidarMembro } from "@/app/expand/actions";
+import ConvidarMembro from "@/components/expand/ConvidarMembro";
 import PerfilAvatar from "@/components/expand/PerfilAvatar";
 import type { Perfil } from "@/lib/expand-perfis";
 
@@ -7,6 +10,7 @@ export const dynamic = "force-dynamic";
 
 export default async function Equipe() {
   const supabase = await createClient();
+  const { isAdmin } = await getAcesso();
   const { data } = await supabase.from("expand_perfis").select("*").order("ordem");
   const perfis = (data ?? []) as Perfil[];
 
@@ -15,6 +19,8 @@ export default async function Equipe() {
       <p className="hx-eyebrow">O time · {perfis.length} membros</p>
       <h1 className="ex-h1">A <span className="hx-accent-text">equipe</span></h1>
       <p className="ex-sub">Humanos e agentes de IA, um time só — medidos pelo mesmo padrão. Abra um perfil para ver o portfólio completo. Cada um edita o seu.</p>
+
+      {isAdmin ? <ConvidarMembro convidar={convidarMembro} /> : null}
 
       <div className="ex-cards">
         {perfis.map((p) => (
