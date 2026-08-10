@@ -16,6 +16,7 @@ const NAV: { sec: string; items: NavItem[] }[] = [
     items: [
       { href: "/expand", label: "Meu Dia", icon: "grid", eyebrow: "Suas tarefas", badge: 5 },
       { href: "/expand/planejamento", label: "Planejamento", icon: "calendar", eyebrow: "Agenda da semana" },
+      { href: "/expand/plano", label: "Plano de Ação", icon: "list", eyebrow: "Reunião de líderes" },
       { href: "/expand/carteira", label: "Carteira", icon: "folder", eyebrow: "Suas contas" },
     ],
   },

@@ -488,6 +488,30 @@ export async function criarGrupo(_prev: GrupoRes, formData: FormData): Promise<G
   } catch (e) { return { erro: String((e as Error)?.message ?? e) }; }
 }
 
+// ---- Plano de Ação interno (Grupo Expand) ----
+export async function alternarPlanoAcao(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+  const supabase = await createClient();
+  const { pessoa } = await getPessoa();
+  const { data } = await supabase.from("expand_plano_acao").select("status, titulo").eq("id", id).maybeSingle();
+  const feito = data?.status === "done";
+  await supabase.from("expand_plano_acao").update({ status: feito ? "idle" : "done", concluida_em: feito ? null : new Date().toISOString() }).eq("id", id);
+  await logar(supabase, "plano", `${feito ? "Reabriu" : "Concluiu"}: ${data?.titulo ?? id}`, { autor: pessoa.nome });
+  revalidatePath("/expand/plano");
+}
+
+export async function novaAcaoPlano(formData: FormData) {
+  await exigirAdmin();
+  const titulo = String(formData.get("titulo") ?? "").trim();
+  if (!titulo) return;
+  const resp = String(formData.get("responsaveis") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  const data_limite = String(formData.get("data_limite") ?? "").trim() || null;
+  const supabase = await createClient();
+  await supabase.from("expand_plano_acao").insert({ titulo, responsaveis: resp, data_limite, origem: "manual" });
+  revalidatePath("/expand/plano");
+}
+
 // ---- Equipe: incluir membro + convite de acesso ----
 type ConviteRes = { ok?: boolean; id?: string; nome?: string; link?: string | null; aviso?: string | null; erro?: string } | null;
 function slugPessoa(s: string) {
