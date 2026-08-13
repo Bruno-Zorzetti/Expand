@@ -68,6 +68,7 @@ const NAV: { sec: string; items: NavItem[] }[] = [
   {
     sec: "Configurações",
     items: [
+      { href: "/expand/empresa", label: "Empresa", icon: "building", eyebrow: "Identidade & marca", gate: "admin" },
       { href: "/expand/acessos", label: "Acessos", icon: "lock", eyebrow: "Aprovações & papéis", gate: "admin" },
       { href: "/expand/integracoes", label: "Integrações", icon: "plug", eyebrow: "Conexões", gate: "admin" },
       { href: "/expand/estilo", label: "Estilo", icon: "brush", eyebrow: "Design System", gate: "admin" },
@@ -108,6 +109,7 @@ function Ic({ name }: { name: string }) {
     lock: <><rect x="4" y="11" width="16" height="9" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></>,
     tool: <path d="M14.7 6.3a4 4 0 0 0-5.4 5.2L3 17.8 6.2 21l6.3-6.3a4 4 0 0 0 5.2-5.4l-2.6 2.6-2.3-2.3z" />,
     chevron: <path d="M9 6l6 6-6 6" />,
+    building: <><rect x="3" y="9" width="18" height="13" rx="1.5" /><path d="M3 9l9-6 9 6" /><rect x="9" y="15" width="6" height="7" /></>,
   };
   return <svg className="ex-ic" viewBox="0 0 24 24">{paths[name]}</svg>;
 }
