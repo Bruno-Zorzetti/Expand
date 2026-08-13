@@ -517,6 +517,29 @@ export async function salvarTemperamentoCliente(formData: FormData) {
   redirect(`/portal/${clienteId}/diagnosticos`);
 }
 
+// ---- Diagnóstico do cliente: Arquétipo de MARCA (teste do Henrique, 12 arquétipos) ----
+export async function salvarArquetipoMarca(formData: FormData) {
+  const clienteId = String(formData.get("clienteId") ?? "");
+  const nome = String(formData.get("pessoa_nome") ?? "").trim();
+  if (!clienteId || !nome) return;
+  let respostas: number[] = [];
+  try { respostas = JSON.parse(String(formData.get("respostas") ?? "[]")) as number[]; } catch { respostas = []; }
+  if (!respostas.some(Boolean)) return;
+  const { calcularArquetipo, montarArquetipo } = await import("@/lib/expand-arquetipo");
+  const scores = calcularArquetipo(respostas);
+  const r = montarArquetipo(scores);
+  const supabase = await createClient();
+  await supabase.from("expand_diag_cliente").insert({
+    cliente_id: clienteId, tipo: "arquetipo_marca",
+    pessoa_nome: nome,
+    pessoa_papel: String(formData.get("pessoa_papel") ?? "").trim() || null,
+    respostas, scores, dominante: r.dominante, apoio: r.apoio ?? null, rotulo: r.segmento,
+    segundos: parseInt(String(formData.get("segundos") ?? "0"), 10) || null,
+  });
+  revalidatePath(`/portal/${clienteId}/diagnosticos`);
+  redirect(`/portal/${clienteId}/diagnosticos`);
+}
+
 // ---- Notificações do cliente (portal) ----
 export async function marcarNotifCliente(formData: FormData) {
   const notifId = String(formData.get("notifId") ?? "");
@@ -530,6 +553,20 @@ export async function marcarNotifCliente(formData: FormData) {
 export async function notificarCliente(clienteId: string, tipo: string, texto: string, link: string | null) {
   const supabase = await createClient();
   await supabase.from("expand_notificacoes").insert({ cliente_id: clienteId, tipo, texto, link });
+}
+
+// Solicita 1x1 com Humberto (especialista em pessoas) a partir do portal do cliente.
+export async function solicitarHumberto(formData: FormData) {
+  const clienteId = String(formData.get("clienteId") ?? "");
+  const nome = String(formData.get("nome") ?? "").trim();
+  if (!clienteId) return;
+  const supabase = await createClient();
+  const texto = nome ? `${nome} solicitou um 1x1 com o Humberto (diagnóstico comportamental).` : "Solicitação de 1x1 com Humberto recebida pelo portal.";
+  await supabase.from("expand_notificacoes").insert({
+    cliente_id: clienteId, tipo: "alerta",
+    texto, link: `/portal/${clienteId}/diagnosticos`,
+  });
+  revalidatePath(`/portal/${clienteId}/diagnosticos`);
 }
 
 // ---- Plano de Ação interno (Grupo Expand) ----
