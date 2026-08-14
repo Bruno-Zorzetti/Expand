@@ -18,6 +18,7 @@ async function definirAcesso(formData: FormData) {
   const supabase = await createClient();
   const acessos: string[] = [];
   if (formData.get("comercial") === "on") acessos.push("comercial");
+  if (formData.get("pmo") === "on") acessos.push("pmo");
   await supabase.rpc("admin_definir_acesso", {
     p_id: String(formData.get("id")),
     p_role: String(formData.get("role")),
@@ -68,6 +69,9 @@ export default async function Acessos() {
       </label>
       <label style={{ display: "flex", alignItems: "center", gap: 7, alignSelf: "end", padding: "6px 0", fontSize: 12.5, color: "var(--mut)" }} title="Dá acesso ao departamento Comercial (sem ser admin)">
         <input type="checkbox" name="comercial" defaultChecked={p.acessos?.includes("comercial") ?? false} /> Comercial
+      </label>
+      <label style={{ display: "flex", alignItems: "center", gap: 7, alignSelf: "end", padding: "6px 0", fontSize: 12.5, color: "var(--mut)" }} title="Permite ver tarefas de toda a equipe no Meu Dia">
+        <input type="checkbox" name="pmo" defaultChecked={p.acessos?.includes("pmo") ?? false} /> PMO
       </label>
       <button className="hx-btn hx-btn-primary" type="submit" style={{ padding: "8px 14px", fontSize: 12.5, alignSelf: "end" }}>Salvar</button>
     </form>

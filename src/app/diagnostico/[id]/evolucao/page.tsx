@@ -53,7 +53,7 @@ export default async function EvolucaoPage({
     <main className="min-h-screen bg-[#070A12] text-[#EAF0FA]">
       <header className="border-b border-[#1E2740]">
         <div className="mx-auto flex h-16 max-w-3xl items-center justify-between px-6">
-          <span className="font-extrabold tracking-wide">HASHES</span>
+          <span className="font-extrabold tracking-wide">EXPAND</span>
           <Link href={`/diagnostico/${id}`} className="text-sm text-[#8B96AC] hover:text-[#EAF0FA]">
             ← Diagnóstico
           </Link>

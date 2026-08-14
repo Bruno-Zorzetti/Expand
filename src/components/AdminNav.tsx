@@ -22,7 +22,7 @@ export default function AdminNav() {
     <header className="sticky top-0 z-30 border-b border-[var(--line)] bg-[color-mix(in_srgb,var(--bg)_85%,transparent)] backdrop-blur">
       <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 overflow-x-auto px-6">
         <Link href="/admin" className="shrink-0 font-extrabold tracking-wide">
-          HASHES <span className="text-[var(--accent)]">Admin</span>
+          EXPAND <span className="text-[var(--accent)]">Admin</span>
         </Link>
         <nav className="flex shrink-0 items-center gap-1 whitespace-nowrap">
           {ITENS.map((it) => {

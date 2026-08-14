@@ -5,7 +5,7 @@ export default function SiteFooter() {
     <footer className="mt-auto border-t border-[var(--line)]">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-6 py-6 text-sm">
         <p className="text-[var(--dim)]">
-          © {new Date().getFullYear()} HASHES — Marketing e Tecnologia
+          © {new Date().getFullYear()} EXPAND — Operação com IA
         </p>
         <nav className="flex flex-wrap items-center gap-4 text-[var(--mut)]">
           <Link href="/" className="hover:text-[var(--txt)]">Catálogo</Link>

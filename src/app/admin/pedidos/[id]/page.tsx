@@ -174,7 +174,7 @@ export default async function PedidoDetalhe({
     const d = (ord?.dados ?? {}) as Record<string, string>;
     const cockpit = (pr?.cockpit as string) ?? "";
     const AG: Record<string, string> = { gmn: "Léo", leads: "Lara", ebook: "Alan", thumbnail: "Nina" };
-    const agente = AG[cockpit] ?? "IA Hashes";
+    const agente = AG[cockpit] ?? "IA Expand";
     const empresa = r.nome_empresa || r.programa || r.setor || r.mercado || r.nicho || d.negocio || d.nome || d.perfil_nome || "o cliente";
     const foco = r.servico_foco || r.tema || r.objetivo || r.episodio || r.estilo || "";
     const cidade = d.cidade || r.regiao || r.cidade || "";
@@ -188,7 +188,7 @@ export default async function PedidoDetalhe({
         cockpit === "gmn" && diag?.score
           ? `Aumentar a visibilidade local e os contatos, subindo o Health Score de ${diag.score}/100 rumo ao TOP 3 do mapa.`
           : "Gerar resultado concreto para o cliente, com qualidade e dentro do prazo.",
-      quem: `${agente} (IA) + Equipe Hashes (execução e QA) + ${empresa} (aprovações).`,
+      quem: `${agente} (IA) + Equipe Expand (execução e QA) + ${empresa} (aprovações).`,
       onde: cidade || "Digital",
       quando: `Prazo de ${prazo} dias após o briefing${pr?.recorrente ? "; tarefas recorrentes em cadência 7/15/30 dias" : ""}.`,
       como: `Briefing → produção pela IA (${agente}) → curadoria da equipe → aprovação do cliente → entrega.`,
@@ -196,7 +196,7 @@ export default async function PedidoDetalhe({
     };
     const squad = [
       { nome: agente, papel: "Produção (IA)" },
-      { nome: "Equipe Hashes", papel: "Execução e QA" },
+      { nome: "Equipe Expand", papel: "Execução e QA" },
       { nome: empresa, papel: "Aprovações" },
     ];
     await supabase.from("projeto_plano").upsert({ order_id: id, w2h, squad, updated_at: new Date().toISOString() });

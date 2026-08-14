@@ -1,4 +1,4 @@
-// Personas dos agentes de IA da Hashes — cada um com sua área, cor, skills, ferramentas,
+// Personas dos agentes de IA da Expand — cada um com sua área, cor, skills, ferramentas,
 // funções, avaliações e ranking. Nº de trabalhos é calculado do banco (real).
 export type Review = { cliente: string; texto: string; nota: number };
 export type Agente = {
@@ -35,7 +35,7 @@ export const AGENTES: Agente[] = [
       "Metódico e orientado a dados, o Léo é o especialista que trata o seu perfil como um ativo. Ele lê o mercado local, entende o que o Google valoriza e transforma isso em passos claros até o TOP 3 do pacote de 3.",
     hard: ["SEO local", "Google Business Profile", "Ranqueamento no pacote de 3", "Análise de concorrentes", "NAP e citações", "Gestão de avaliações"],
     soft: ["Comunicação clara", "Foco em resultado", "Didática", "Consistência"],
-    ferramentas: ["Google Business Profile API", "Apify (Google Maps)", "Health Score Hashes", "Google Search"],
+    ferramentas: ["Google Business Profile API", "Apify (Google Maps)", "Health Score Expand", "Google Search"],
     funcoes: ["Diagnóstico gratuito", "Plano de otimização", "Posts e avaliações", "Monitoramento mensal"],
     ranking: "TOP 1 local",
     nota: 4.9,

@@ -6,12 +6,12 @@ const ROTULO: Record<Status, string> = { feito: "Entregue", andamento: "Em andam
 
 const FASES: Fase[] = [
   {
-    n: "0", titulo: "Fundação da plataforma", origem: "Hashes", status: "feito", prog: 100,
+    n: "0", titulo: "Fundação da plataforma", origem: "Plataforma", status: "feito", prog: 100,
     entregas: ["Next.js + Supabase + design system (tokens, vidro, glow)", "Login, papéis e RLS", "Catálogo lendo do banco"],
     prazo: "Concluído",
   },
   {
-    n: "1", titulo: "Produtos, agentes e integrações", origem: "Hashes", status: "feito", prog: 100,
+    n: "1", titulo: "Produtos, agentes e integrações", origem: "Plataforma", status: "feito", prog: 100,
     entregas: ["Catálogo + páginas de produto + briefing", "Agentes (Léo, Lara, Nina, Alan) com persona, skills e avaliações", "CRM de clientes, WhatsApp (uazapi), diagnóstico do Google Meu Negócio"],
     prazo: "Concluído",
   },
@@ -46,7 +46,7 @@ const FASES: Fase[] = [
     prazo: "Concluído",
   },
   {
-    n: "6", titulo: "Painel do cliente unificado", origem: "Expand + Hashes", status: "feito", prog: 100,
+    n: "6", titulo: "Painel do cliente unificado", origem: "Expand", status: "feito", prog: 100,
     entregas: [
       "/cliente é o painel único no tema Expand: card do PIDE + serviços contratados (orders); painel azul antigo aposentado",
       "Acesso do cliente real ao portal do PIDE com privacidade — view segura (nome/fase/contrato) + RLS por conta; scores internos nunca expostos",
@@ -178,7 +178,7 @@ export default async function Roadmap({ searchParams }: { searchParams: Promise<
     <>
       <p className="hx-eyebrow">Entregas & prazos</p>
       <h1 className="ex-h1">Roadmap do <span className="hx-accent-text">projeto</span></h1>
-      <p className="ex-sub">O que já foi construído (na Hashes e na Expand) e o que vem pela frente, com prazo estimado. Reúne tudo que fizemos e as novas demandas da Expand num plano só.</p>
+      <p className="ex-sub">O que já foi construído e o que vem pela frente, com prazo estimado. Reúne tudo que foi feito e as novas demandas num plano só.</p>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
         <a href="/expand/roadmap" style={tab(!startup)}>🔧 Construção</a>

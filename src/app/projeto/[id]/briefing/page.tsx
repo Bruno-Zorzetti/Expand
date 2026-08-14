@@ -87,7 +87,7 @@ export default async function BriefingProjetoPage({ params }: { params: Promise<
     <main className="hx-ambient min-h-screen text-[var(--txt)]">
       <header className="border-b border-[var(--line)]">
         <div className="mx-auto flex h-16 max-w-2xl items-center justify-between px-6">
-          <span className="font-extrabold tracking-wide">HASHES</span>
+          <span className="font-extrabold tracking-wide">EXPAND</span>
           <Link href={`/projeto/${id}`} className="text-sm text-[var(--mut)] hover:text-[var(--txt)]">
             ← Acompanhamento
           </Link>

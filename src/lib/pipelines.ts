@@ -44,8 +44,8 @@ export const PIPELINES: Record<string, EtapaBase[]> = {
 
 export const RESP_LABEL: Record<string, string> = {
   cliente: "Você",
-  ia: "IA Hashes",
-  equipe: "Equipe Hashes",
+  ia: "IA Expand",
+  equipe: "Equipe Expand",
 };
 // nomes de ícone (ver components/Icon.tsx) — sem emojis
 export const RESP_ICON: Record<string, string> = { cliente: "briefcase", ia: "cpu", equipe: "users" };

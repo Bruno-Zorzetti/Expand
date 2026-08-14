@@ -127,11 +127,6 @@ export default async function ProcessoProduto({ params, searchParams }: { params
 
   return (
     <>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}><Link href="/expand/produtos" className="ex-back">← Produtos</Link></div>
-      <p className="hx-eyebrow">Processo do produto · {prod.category ?? ""}</p>
-      <h1 className="ex-h1">{prod.name} — <span className="hx-accent-text">processo</span></h1>
-      <p className="ex-sub">As fases e etapas que a operação instancia para cada conta deste produto. Um projeto de sucesso é o mais previsível possível — acompanhe prazos e SLA nas 3 vistas. <Ajuda t="Editar aqui muda o que vira tarefa nas próximas contas iniciadas: título, área, responsável, agente, SLA, quantidade e visibilidade ao cliente." /></p>
-
       <div className="ex-kpis" style={{ marginBottom: 14 }}>
         <div className="ex-kpi hx-glass"><div className="lab">Fases</div><div className="val hx-accent-text">{fases.length}</div><div className="foot">Blocos do processo</div></div>
         <div className="ex-kpi hx-glass"><div className="lab">Etapas</div><div className="val hx-accent-text">{etapas.length}</div><div className="foot">Tarefas instanciáveis</div></div>

@@ -24,18 +24,18 @@ export default async function SiteHeader() {
   return (
     <header className="sticky top-0 z-30 border-b border-[var(--line)] bg-[color-mix(in_srgb,var(--bg)_82%,transparent)] backdrop-blur">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-        <Link href="/hashes" className="flex items-center gap-2 font-extrabold tracking-wide text-[var(--txt)]">
+        <Link href="/expand" className="flex items-center gap-2 font-extrabold tracking-wide text-[var(--txt)]">
           <span className="relative grid h-7 w-6 place-items-center">
             <svg viewBox="0 0 26 30" fill="none" className="absolute inset-0">
               <path d="M13 1 24 7.5v15L13 29 2 22.5v-15L13 1Z" stroke="var(--accent)" strokeWidth="1.6" />
             </svg>
-            <b className="relative text-[12px] font-black text-[var(--accent)]">H</b>
+            <b className="relative text-[12px] font-black text-[var(--accent)]">E</b>
           </span>
-          HASHES
+          EXPAND
         </Link>
 
         <nav className="flex items-center gap-2 text-sm">
-          <Link href="/hashes" className="rounded-lg px-3 py-1.5 text-[var(--mut)] hover:text-[var(--txt)]">
+          <Link href="/expand/produtos" className="rounded-lg px-3 py-1.5 text-[var(--mut)] hover:text-[var(--txt)]">
             Catálogo
           </Link>
           <Link href="/agentes" className="rounded-lg px-3 py-1.5 text-[var(--mut)] hover:text-[var(--txt)]">

@@ -6,8 +6,8 @@ const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Hashes — Plataforma",
-  description: "Marketing e tecnologia. Você preenche, a IA produz, você aprova.",
+  title: "Expand — Plataforma",
+  description: "Operação inteligente. Equipe humana + IA executando para os seus clientes.",
 };
 
 // Aplica tema (claro/escuro) e cor de acento salvos ANTES da página pintar (sem flash).

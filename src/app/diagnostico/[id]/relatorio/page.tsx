@@ -64,7 +64,7 @@ export default async function RelatorioPage({ params }: { params: Promise<{ id: 
       <div className="mx-auto max-w-3xl px-8 py-10">
         <div className="flex items-center justify-between border-b-2 border-slate-900 pb-4">
           <div>
-            <p className="text-2xl font-black tracking-tight text-slate-900">HASHES</p>
+            <p className="text-2xl font-black tracking-tight text-slate-900">EXPAND</p>
             <p className="text-xs text-slate-500">Diagnóstico Google Meu Negócio · +100 empresas analisadas</p>
           </div>
           <p className="text-xs text-slate-500">{new Date(diag.created_at).toLocaleDateString("pt-BR")}</p>

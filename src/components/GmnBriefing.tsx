@@ -191,7 +191,7 @@ export default function GmnBriefing({
 
             {passo === "nome" && (
               <div>
-                <input autoFocus value={busca.nome} onChange={(e) => setBusca((s) => ({ ...s, nome: e.target.value }))} onKeyDown={(e) => e.key === "Enter" && busca.nome.trim().length >= 2 && buscarPerfil()} placeholder="Ex: Hashes Marketing" className={bigInput} />
+                <input autoFocus value={busca.nome} onChange={(e) => setBusca((s) => ({ ...s, nome: e.target.value }))} onKeyDown={(e) => e.key === "Enter" && busca.nome.trim().length >= 2 && buscarPerfil()} placeholder="Ex: Grupo Expand" className={bigInput} />
                 <button disabled={buscando || busca.nome.trim().length < 2} onClick={buscarPerfil} className="hx-btn hx-btn-primary mt-5 disabled:opacity-50">
                   {buscando ? "Procurando..." : "Localizar meu perfil"}
                 </button>

@@ -44,7 +44,7 @@ export const FRAMEWORKS: Record<"home" | "agente" | "produto", Framework> = {
       { id: "como", tipo: "passos", titulo: "Como funciona", ux: "Reduzir fricção/dúvida", ui: "3 passos numerados (01/02/03) em cards", visual: "glow-icon" },
       { id: "servicos", tipo: "grid", titulo: "Serviços", ux: "Escolher um caminho", ui: "Grid de cards de produto (1 CTA cada)", acao: "Começar", visual: "thumbs" },
       { id: "prova", tipo: "prova", titulo: "Prova", ux: "Gerar confiança", ui: "Número real + mini-case com contexto", visual: "screenshot" },
-      { id: "fechar", tipo: "cta", titulo: "Fechamento", ux: "Converter indeciso", ui: "Banda grande com glow + headline gigante", acao: "Falar com a Hashes", visual: "nenhum" },
+      { id: "fechar", tipo: "cta", titulo: "Fechamento", ux: "Converter indeciso", ui: "Banda grande com glow + headline gigante", acao: "Falar com a equipe", visual: "nenhum" },
     ],
   },
   agente: {
@@ -56,7 +56,7 @@ export const FRAMEWORKS: Record<"home" | "agente" | "produto", Framework> = {
       { id: "faz", tipo: "lista", titulo: "O que ele faz", ux: "Explicar capacidades", ui: "Bullets curtos com ícones", visual: "glow-icon" },
       { id: "entregas", tipo: "grid", titulo: "Entregas", ux: "Levar ao produto", ui: "Cards dos produtos que o agente gera", acao: "Começar", visual: "thumbs" },
       { id: "prova", tipo: "prova", titulo: "Prova", ux: "Confiança", ui: "Um resultado real do agente", visual: "screenshot" },
-      { id: "falar", tipo: "cta", titulo: "Falar", ux: "Converter", ui: "CTA único", acao: "Falar com a Hashes", visual: "nenhum" },
+      { id: "falar", tipo: "cta", titulo: "Falar", ux: "Converter", ui: "CTA único", acao: "Falar com a equipe", visual: "nenhum" },
     ],
   },
   produto: {

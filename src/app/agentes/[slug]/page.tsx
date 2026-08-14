@@ -62,7 +62,7 @@ export default async function AgentePage({ params }: { params: Promise<{ slug: s
             <p className="mt-5 max-w-xl text-[var(--mut)]">{ag.persona}</p>
             <div className="mt-7 flex flex-wrap gap-3">
               <Link href="#produtos" className="hx-btn px-6 py-3 text-white" style={{ background: `linear-gradient(135deg, ${ag.cor}, ${ag.cor2})` }}>Ver o que entrega</Link>
-              <Link href="/contato" className="hx-btn hx-btn-ghost px-6 py-3">Falar com a Hashes</Link>
+              <Link href="/contato" className="hx-btn hx-btn-ghost px-6 py-3">Falar com a equipe</Link>
             </div>
           </div>
 

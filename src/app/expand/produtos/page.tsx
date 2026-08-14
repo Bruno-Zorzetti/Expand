@@ -43,7 +43,7 @@ export default async function ProdutosCRUD() {
             {p.name} {p.popular ? <span className="ex-chip" style={{ marginLeft: 6, ["--ac" as string]: "var(--accent)" }}>Popular</span> : null}{!p.active ? <span className="ex-pill" style={{ marginLeft: 6, color: "var(--dim)" }}>rascunho</span> : null}
             <div className="am">{p.category ?? "—"} · {p.recorrente ? `R$ ${p.preco_mensal ?? "—"}/mês` : p.price ? `R$ ${p.price}` : (p.delivery ?? "—")} · /{p.slug}</div>
           </div>
-          <Link href={`/expand/produtos/${p.slug}/processo`} className="ex-arqbtn" style={{ color: "var(--accent)" }}>Processo</Link>
+          <Link href={`/expand/produtos/${p.slug}`} className="ex-arqbtn" style={{ color: "var(--accent)" }}>Abrir</Link>
           <Link href={`/expand/produtos/novo?edit=${p.slug}`} className="ex-arqbtn">Editar</Link>
           <form action={removerProduto}><input type="hidden" name="id" value={p.id} /><button className="ex-arqbtn no" type="submit">Excluir</button></form>
         </div>

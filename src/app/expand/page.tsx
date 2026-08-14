@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { derive, contasDe, type ClienteRow } from "@/lib/expand";
 import { getPessoa } from "@/lib/expand-user";
+import { getAcesso } from "@/lib/expand-acesso";
 import { type EtapaRow } from "@/lib/expand-tarefas";
 import { AREAS, AG_NOME } from "@/lib/expand-esteira";
 import { iniciarEtapa, concluirEtapa, salvarNota, excluirNota, justificarAtraso } from "@/app/expand/actions";
@@ -17,17 +18,20 @@ function slaDias(sla: string | null): number | null {
   return null;
 }
 const diasDesde = (iso: string | null) => (iso ? (Date.now() - new Date(iso).getTime()) / 864e5 : null);
+const TZ = "America/Sao_Paulo";
+function brISO(): string { return new Intl.DateTimeFormat("sv", { timeZone: TZ }).format(new Date()); }
 function isoMonday(offsetSemanas = 0): string {
-  const d = new Date(); const day = d.getDay();
-  d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day) + offsetSemanas * 7);
+  const base = brISO(); const d = new Date(base + "T12:00:00Z"); const dow = d.getUTCDay();
+  d.setUTCDate(d.getUTCDate() + (dow === 0 ? -6 : 1 - dow) + offsetSemanas * 7);
   return d.toISOString().slice(0, 10);
 }
-function addISO(iso: string, n: number) { const d = new Date(iso + "T00:00:00"); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); }
+function addISO(iso: string, n: number) { const d = new Date(iso + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
 const PMO = ["ana", "pedro", "gerente-projetos"];
+const saudacao = () => { const h = parseInt(new Intl.DateTimeFormat("pt-BR", { hour: "numeric", hour12: false, timeZone: TZ }).format(new Date())); return h < 12 ? "Bom dia" : h < 18 ? "Boa tarde" : "Boa noite"; };
 
-function Cal({ marcados }: { marcados: { dia: number; marco: boolean }[] }) {
-  const hoje = new Date(); const y = hoje.getFullYear(), m = hoje.getMonth();
-  const inicio = new Date(y, m, 1).getDay(); const dias = new Date(y, m + 1, 0).getDate();
+function Cal({ marcados, hojeISO }: { marcados: { dia: number; marco: boolean }[]; hojeISO: string }) {
+  const [sy, sm1, sd] = hojeISO.split("-").map(Number); const m = sm1 - 1;
+  const inicio = new Date(sy, m, 1).getDay(); const dias = new Date(sy, m + 1, 0).getDate();
   const map = new Map<number, boolean>(); marcados.forEach((x) => map.set(x.dia, map.get(x.dia) || x.marco));
   const cont = new Map<number, number>(); marcados.forEach((x) => cont.set(x.dia, (cont.get(x.dia) ?? 0) + 1));
   const cells: (number | null)[] = []; for (let i = 0; i < inicio; i++) cells.push(null); for (let d = 1; d <= dias; d++) cells.push(d);
@@ -37,7 +41,7 @@ function Cal({ marcados }: { marcados: { dia: number; marco: boolean }[] }) {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 3 }}>
         {cells.map((d, i) => {
           if (d == null) return <span key={i} />;
-          const ehHoje = d === hoje.getDate(); const n = cont.get(d) ?? 0; const marco = map.get(d);
+          const ehHoje = d === sd; const n = cont.get(d) ?? 0; const marco = map.get(d);
           return (
             <div key={i} style={{ aspectRatio: "1", borderRadius: 6, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontSize: 10, position: "relative", border: ehHoje ? "1px solid var(--accent)" : "1px solid transparent", background: n ? "color-mix(in srgb, var(--accent) 12%, transparent)" : "var(--panel-2)", color: ehHoje ? "var(--accent)" : "var(--mut)", fontWeight: ehHoje ? 800 : 400 }}>
               {d}{marco ? <span style={{ position: "absolute", top: 1, right: 3, color: "var(--accent)", fontSize: 7 }}>◆</span> : n ? <span style={{ position: "absolute", bottom: 2, width: 4, height: 4, borderRadius: "50%", background: "var(--accent)" }} /> : null}
@@ -81,6 +85,7 @@ export default async function MeuDia({ searchParams }: { searchParams: Promise<{
   const sp = await searchParams;
   const range = sp.range ?? "dia";
   const { pessoa } = await getPessoa();
+  const acesso = await getAcesso();
   const supabase = await createClient();
 
   const { data } = await supabase.from("expand_clientes").select("*").eq("ativo", true);
@@ -93,22 +98,26 @@ export default async function MeuDia({ searchParams }: { searchParams: Promise<{
   const { data: etData } = await supabase.from("expand_etapas").select("*")
     .or(`responsavel_atual.eq.${pessoa.nome},responsavel.ilike.%${nomeSafe}%`).order("ordem").limit(300);
   let myEtapas = (etData ?? []) as EtapaRow[];
-  // visibilidade: PMO vê tudo; equipe vê só até a próxima semana
-  const veTudo = PMO.includes(pessoa.id);
+  // visibilidade: PMO e admin vêem 2 semanas; equipe vê só esta semana
+  const veTudo = PMO.includes(pessoa.id) || acesso.isAdmin || acesso.acessos.includes("pmo");
   if (!veTudo) myEtapas = myEtapas.filter((e) => !e.data_prevista || (e.data_prevista as string) < isoMonday(2));
 
-  // filtro do painel por horizonte (Hoje / Semana / Mês)
-  const hoje = new Date(); const y = hoje.getFullYear(), m = hoje.getMonth();
-  const hojeISO = hoje.toISOString().slice(0, 10);
-  const inicio = range === "mes" ? `${y}-${String(m + 1).padStart(2, "0")}-01` : range === "semana" ? isoMonday(0) : hojeISO;
-  const fim = range === "mes" ? new Date(y, m + 1, 0).toISOString().slice(0, 10) : range === "semana" ? addISO(isoMonday(1), -1) : hojeISO;
-  const noHoriz = (e: EtapaRow) => e.status === "run" || e.bloqueado || !e.data_prevista || (e.data_prevista <= hojeISO) || (e.data_prevista >= inicio && e.data_prevista <= fim);
-
-  const atrasadaDe = (e: EtapaRow) => e.status === "run" && !e.bloqueado && slaDias(e.sla) != null && (diasDesde(e.iniciada_em) ?? 0) > slaDias(e.sla)!;
+  // filtro do painel por horizonte (Hoje / Semana / Mês) — datas em fuso de Brasília
+  const hojeISO = brISO();
+  const [yy, mm] = hojeISO.split("-").map(Number); // mm é 1-indexed
+  const inicio = range === "mes" ? `${yy}-${String(mm).padStart(2, "0")}-01` : range === "semana" ? isoMonday(0) : hojeISO;
+  const fim = range === "mes" ? `${yy}-${String(mm).padStart(2, "0")}-${String(new Date(yy, mm, 0).getDate()).padStart(2, "0")}` : range === "semana" ? addISO(isoMonday(1), -1) : hojeISO;
+  const atrasadaDe = (e: EtapaRow) =>
+    e.bloqueado ||
+    (e.status === "run" && slaDias(e.sla) != null && (diasDesde(e.iniciada_em) ?? 0) > slaDias(e.sla)!) ||
+    (e.status === "idle" && !!e.data_prevista && e.data_prevista < hojeISO);
+  const noHoriz = (e: EtapaRow) =>
+    e.status === "run" || atrasadaDe(e) || !e.data_prevista ||
+    (e.data_prevista >= hojeISO && e.data_prevista <= fim);
   const ativas = myEtapas.filter((e) => (e.status === "run" || e.status === "idle") && noHoriz(e));
-  const atrasadas = ativas.filter((e) => atrasadaDe(e) || e.bloqueado);
-  const emExec = ativas.filter((e) => e.status === "run" && !atrasadaDe(e) && !e.bloqueado);
-  const fila = ativas.filter((e) => e.status === "idle" && !e.bloqueado);
+  const atrasadas = ativas.filter((e) => atrasadaDe(e));
+  const emExec = ativas.filter((e) => e.status === "run" && !atrasadaDe(e));
+  const fila = ativas.filter((e) => e.status === "idle" && !atrasadaDe(e));
   const concluidas = myEtapas.filter((e) => e.status === "done" && e.concluida_em && e.concluida_em.slice(0, 10) >= inicio && e.concluida_em.slice(0, 10) <= fim);
 
   const ids = myEtapas.map((e) => e.id);
@@ -125,14 +134,14 @@ export default async function MeuDia({ searchParams }: { searchParams: Promise<{
   const icsUrl = perfMe?.ics_token ? `${site}/api/calendario/${perfMe.ics_token}.ics` : null;
 
   const marcados = myEtapas.map((e) => { const iso = e.data_prevista ? e.data_prevista + "T00:00:00" : (e.concluida_em ?? e.iniciada_em); return iso ? { dia: new Date(iso).getDate(), marco: e.marco, mes: new Date(iso).getMonth() } : null; })
-    .filter((x): x is { dia: number; marco: boolean; mes: number } => !!x && x.mes === m);
+    .filter((x): x is { dia: number; marco: boolean; mes: number } => !!x && x.mes === mm - 1);
 
   const totalAtivas = atrasadas.length + emExec.length + fila.length;
 
   return (
     <>
-      <p className="hx-eyebrow">{hoje.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })} · {pessoa.papel}</p>
-      <h1 className="ex-h1">Bom dia, <span className="hx-accent-text">{pessoa.nome}</span></h1>
+      <p className="hx-eyebrow">{new Date(hojeISO + "T12:00:00Z").toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })} · {pessoa.papel}</p>
+      <h1 className="ex-h1">{saudacao()}, <span className="hx-accent-text">{pessoa.nome}</span></h1>
       <p className="ex-sub">Suas tarefas — atrasadas e bloqueadas primeiro. Filtre por Hoje / Semana / Mês, abra pra executar, e acompanhe o time e o calendário ao lado.</p>
 
       <div className="ex-chips" style={{ marginBottom: 14 }}>
@@ -155,7 +164,7 @@ export default async function MeuDia({ searchParams }: { searchParams: Promise<{
             return (
               <div key={t as string}>
                 <div className="ex-grph"><span className="gt" style={{ color: c as string }}>{t as string}</span><span className="gc">{a.length}</span><span className="gl" /></div>
-                {a.map((e) => <Tarefa key={e.id} e={e} cliNome={cliMap.get(e.cliente_id) ?? "—"} atrasada={atrasadaDe(e) || e.bloqueado} />)}
+                {a.map((e) => <Tarefa key={e.id} e={e} cliNome={cliMap.get(e.cliente_id) ?? "—"} atrasada={atrasadaDe(e)} />)}
               </div>
             );
           })}
@@ -177,7 +186,7 @@ export default async function MeuDia({ searchParams }: { searchParams: Promise<{
         <aside>
           <div className="ex-panel hx-glass">
             <div className="ph"><span className="pt">Calendário</span><span style={{ marginLeft: "auto", fontSize: 10.5, color: "var(--dim)" }}>◆ marcos · • tarefas</span></div>
-            <div className="pb"><Cal marcados={marcados} /></div>
+            <div className="pb"><Cal marcados={marcados} hojeISO={hojeISO} /></div>
           </div>
 
           <div className="ex-panel hx-glass">

@@ -2,75 +2,97 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { useState, useEffect, useRef, type ReactNode } from "react";
 import AssistentesDock from "@/components/expand/AssistentesDock";
 import Notificacoes, { type Notif } from "@/components/expand/Notificacoes";
 
 type Pessoa = { id: string; nome: string; papel: string; ini: string };
-
 type Sub = { href: string; label: string; external?: boolean };
-type NavItem = { href: string; label: string; icon: string; eyebrow: string; badge?: number; external?: boolean; gate?: "admin" | "comercial"; sub?: Sub[] };
-const NAV: { sec: string; items: NavItem[] }[] = [
+type NavItem = {
+  href: string; label: string; icon: string; eyebrow: string;
+  badge?: number; external?: boolean; gate?: "admin" | "comercial"; sub?: Sub[];
+};
+type NavSec = { id: string; sec: string; items: NavItem[] };
+
+const NAV: NavSec[] = [
   {
-    sec: "Meu trabalho",
+    id: "operacao",
+    sec: "Operação & Atividades",
     items: [
-      { href: "/expand", label: "Meu Dia", icon: "grid", eyebrow: "Suas tarefas", badge: 5 },
-      { href: "/expand/planejamento", label: "Planejamento", icon: "calendar", eyebrow: "Agenda da semana" },
+      { href: "/expand", label: "Hub do Dia", icon: "grid", eyebrow: "Suas tarefas hoje" },
+      { href: "/expand/planejamento", label: "Calendário", icon: "calendar", eyebrow: "Agenda e planejamento" },
       { href: "/expand/plano", label: "Plano de Ação", icon: "list", eyebrow: "Reunião de líderes" },
-      { href: "/expand/carteira", label: "Carteira", icon: "folder", eyebrow: "Suas contas" },
+      { href: "/expand/board", label: "Board de Atividades", icon: "kanban", eyebrow: "Estado das contas" },
+      { href: "/expand/ritmo", label: "Rituais & SLA", icon: "activity", eyebrow: "Cadência da operação" },
     ],
   },
   {
-    sec: "Entrega",
+    id: "produtos",
+    sec: "Produtos & Equipe",
     items: [
-      { href: "/expand/board", label: "Board de Entrega", icon: "layers", eyebrow: "Estado da conta" },
-      { href: "/expand/fluxo", label: "Fluxograma", icon: "branch", eyebrow: "Etapas" },
-      { href: "/expand/contrato", label: "Linha do Contrato", icon: "calendar", eyebrow: "12 meses" },
-      { href: "/expand/ritmo", label: "Ritmo e Governança", icon: "activity", eyebrow: "Rituais e SLA" },
-      { href: "/expand/produtos", label: "Produtos", icon: "box", eyebrow: "Catálogo" },
+      { href: "/expand/produtos", label: "Produtos", icon: "box", eyebrow: "Catálogo e processos" },
+      { href: "/expand/carteira", label: "Clientes", icon: "folder", eyebrow: "Carteira e dossiês" },
+      {
+        href: "/expand/equipe", label: "Time & Agentes", icon: "idcard", eyebrow: "Humanos + IA",
+        sub: [
+          { href: "/expand/organograma", label: "Organograma" },
+          { href: "/expand/squads", label: "Squads" },
+        ],
+      },
     ],
   },
   {
-    sec: "Time & Conteúdo",
+    id: "ferramentas",
+    sec: "Ferramentas & Conhecimento",
     items: [
-      { href: "/expand/equipe", label: "Equipe & Agentes", icon: "idcard", eyebrow: "Time único · humanos + IA" },
-      { href: "/expand/organograma", label: "Organograma", icon: "tree", eyebrow: "Estrutura do time" },
-      { href: "/expand/squads", label: "Squads", icon: "squad", eyebrow: "Time por projeto" },
-      { href: "/expand/biblioteca", label: "Biblioteca", icon: "library", eyebrow: "Conhecimento" },
+      {
+        href: "/expand/biblioteca", label: "Conhecimento", icon: "library", eyebrow: "Metodologia Expand",
+        sub: [
+          { href: "/expand/comercial/playbook", label: "Playbook 3F" },
+          { href: "/expand/comercial/funis", label: "Funis de Vendas" },
+          { href: "/expand/comercial/objecoes", label: "Contorno de Objeções" },
+        ],
+      },
       { href: "/expand/apresentacoes", label: "Apresentações", icon: "slides", eyebrow: "Editor de decks" },
-      { href: "/expand/perfis", label: "Perfis de Cliente", icon: "users", eyebrow: "Dossiê comportamental" },
-      { href: "/expand/ferramentas", label: "Ferramentas", icon: "tool", eyebrow: "Criar grupo, slides…", gate: "admin", sub: [
-        { href: "/expand/ferramentas/grupo", label: "Criar grupo" },
-        { href: "/expand/apresentacoes", label: "Criar slides" },
-      ] },
+      {
+        href: "/expand/ferramentas", label: "Ferramentas", icon: "tool", eyebrow: "Utilitários da operação",
+        gate: "admin",
+        sub: [
+          { href: "/expand/ferramentas/grupo", label: "Criar grupo WA" },
+          { href: "/expand/apresentacoes", label: "Criar slides" },
+        ],
+      },
     ],
   },
   {
+    id: "comercial",
     sec: "Comercial",
     items: [
-      { href: "/expand/comercial", label: "Hoje · Placar", icon: "target", eyebrow: "Gamificação", gate: "comercial" },
-      { href: "/expand/comercial/meta", label: "A Meta", icon: "activity", eyebrow: "Calculadora", gate: "comercial" },
-      { href: "/expand/comercial/playbook", label: "Playbook 3F", icon: "book", eyebrow: "Método 3F", gate: "comercial" },
-      { href: "/expand/comercial/funis", label: "Funis", icon: "filter", eyebrow: "Prospecção", gate: "comercial" },
-      { href: "/expand/comercial/objecoes", label: "Objeções", icon: "shield", eyebrow: "Contorno", gate: "comercial" },
+      { href: "/expand/comercial", label: "Hoje · Placar", icon: "target", eyebrow: "Gamificação diária", gate: "comercial" },
+      { href: "/expand/comercial/meta", label: "A Meta", icon: "coin", eyebrow: "Calculadora de vendas", gate: "comercial" },
+      { href: "/expand/comercial/semana", label: "A Semana", icon: "squad", eyebrow: "Placar Luiz × Pedro", gate: "comercial" },
+      { href: "/expand/comercial/guia", label: "O Guia", icon: "book", eyebrow: "Como usar o sistema", gate: "comercial" },
     ],
   },
   {
-    sec: "Gestão & Dados",
+    id: "financeiro",
+    sec: "Financeiro",
     items: [
-      { href: "/expand/gestao", label: "Gestão", icon: "kanban", eyebrow: "Painel Monday · tudo", gate: "admin" },
-      { href: "/expand/financas", label: "Finanças", icon: "coin", eyebrow: "DRE & valuation", gate: "admin" },
+      { href: "/expand/financas", label: "Finanças", icon: "bars", eyebrow: "DRE & valuation", gate: "admin" },
       { href: "/expand/roadmap", label: "Roadmap", icon: "map", eyebrow: "Entregas & prazos", gate: "admin" },
-      { href: "/expand/rotinas", label: "Rotinas", icon: "activity", eyebrow: "Automações & tokens", gate: "admin" },
-      { href: "/expand/log", label: "Log", icon: "list", eyebrow: "Auditoria do sistema", gate: "admin" },
     ],
   },
   {
+    id: "config",
     sec: "Configurações",
     items: [
       { href: "/expand/empresa", label: "Empresa", icon: "building", eyebrow: "Identidade & marca", gate: "admin" },
       { href: "/expand/acessos", label: "Acessos", icon: "lock", eyebrow: "Aprovações & papéis", gate: "admin" },
+      { href: "/expand/rbac", label: "Permissões RBAC", icon: "shield", eyebrow: "Matriz de acessos", gate: "admin" },
       { href: "/expand/integracoes", label: "Integrações", icon: "plug", eyebrow: "Conexões", gate: "admin" },
+      { href: "/expand/rotinas", label: "Rotinas", icon: "zap", eyebrow: "Automações & tokens", gate: "admin" },
+      { href: "/expand/gestao", label: "Visão Geral", icon: "layers", eyebrow: "Painel administrativo", gate: "admin" },
+      { href: "/expand/log", label: "Log", icon: "list", eyebrow: "Auditoria do sistema", gate: "admin" },
       { href: "/expand/estilo", label: "Estilo", icon: "brush", eyebrow: "Design System", gate: "admin" },
     ],
   },
@@ -109,7 +131,10 @@ function Ic({ name }: { name: string }) {
     lock: <><rect x="4" y="11" width="16" height="9" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></>,
     tool: <path d="M14.7 6.3a4 4 0 0 0-5.4 5.2L3 17.8 6.2 21l6.3-6.3a4 4 0 0 0 5.2-5.4l-2.6 2.6-2.3-2.3z" />,
     chevron: <path d="M9 6l6 6-6 6" />,
+    chevdown: <path d="M6 9l6 6 6-6" />,
     building: <><rect x="3" y="9" width="18" height="13" rx="1.5" /><path d="M3 9l9-6 9 6" /><rect x="9" y="15" width="6" height="7" /></>,
+    bars: <><rect x="3" y="3" width="18" height="4" rx="1.5" /><rect x="3" y="10" width="13" height="4" rx="1.5" /><rect x="3" y="17" width="9" height="4" rx="1.5" /></>,
+    grip: <><circle cx="9" cy="6" r="1.2" /><circle cx="15" cy="6" r="1.2" /><circle cx="9" cy="12" r="1.2" /><circle cx="15" cy="12" r="1.2" /><circle cx="9" cy="18" r="1.2" /><circle cx="15" cy="18" r="1.2" /></>,
   };
   return <svg className="ex-ic" viewBox="0 0 24 24">{paths[name]}</svg>;
 }
@@ -162,19 +187,133 @@ export default function ExpandShell({
   marcarTodas?: () => Promise<void>;
   children: ReactNode;
 }) {
-  const podeVer = (it: NavItem) => !it.gate || (it.gate === "admin" ? isAdmin : isAdmin || acessos.includes(it.gate));
   const path = usePathname();
   const router = useRouter();
+
+  // sub-item open state (in-session)
   const [aberto, setAberto] = useState<Record<string, boolean>>({});
+
+  // section collapsed state (persisted)
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+
+  // per-section item order (persisted; values are ordered href arrays)
+  const [order, setOrder] = useState<Record<string, string[]>>({});
+
+  // drag state
+  const dragRef = useRef<{ sec: string; fromIdx: number } | null>(null);
+  const [dropTarget, setDropTarget] = useState<{ sec: string; idx: number } | null>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") { e.preventDefault(); searchRef.current?.focus(); searchRef.current?.select(); }
+      if (e.key === "Escape" && document.activeElement === searchRef.current) searchRef.current?.blur();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  useEffect(() => {
+    try {
+      const c = JSON.parse(localStorage.getItem("ex-nav-collapsed") ?? "{}");
+      const o = JSON.parse(localStorage.getItem("ex-nav-order") ?? "{}");
+      setCollapsed(c);
+      setOrder(o);
+    } catch { /* noop */ }
+  }, []);
+
   function trocarPessoa(id: string) {
     document.cookie = `expand_pessoa=${id}; path=/; max-age=31536000`;
     router.refresh();
   }
-  const all = NAV.flatMap((s) => s.items);
-  const active =
-    [...all].sort((a, b) => b.href.length - a.href.length).find((i) =>
-      i.href === "/expand" ? path === "/expand" : path.startsWith(i.href),
-    ) ?? all[0];
+
+  function podeVer(it: NavItem) {
+    return !it.gate || (it.gate === "admin" ? isAdmin : isAdmin || acessos.includes(it.gate));
+  }
+
+  function toggleSection(id: string) {
+    setCollapsed(prev => {
+      const next = { ...prev, [id]: !prev[id] };
+      try { localStorage.setItem("ex-nav-collapsed", JSON.stringify(next)); } catch { /* noop */ }
+      return next;
+    });
+  }
+
+  function getDisplayedItems(sec: NavSec): NavItem[] {
+    const filtered = sec.items.filter(podeVer);
+    const ord = order[sec.id];
+    if (!ord?.length) return filtered;
+    const byHref = new Map(filtered.map(i => [i.href, i]));
+    const sorted = ord.map(h => byHref.get(h)).filter(Boolean) as NavItem[];
+    const rest = filtered.filter(i => !ord.includes(i.href));
+    return [...sorted, ...rest];
+  }
+
+  function handleDragStart(e: React.DragEvent, secId: string, idx: number) {
+    dragRef.current = { sec: secId, fromIdx: idx };
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", "");
+  }
+
+  function handleDragOver(e: React.DragEvent, secId: string, idx: number) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDropTarget({ sec: secId, idx });
+  }
+
+  function handleDrop(e: React.DragEvent, secId: string, toIdx: number) {
+    e.preventDefault();
+    const dr = dragRef.current;
+    if (!dr || dr.sec !== secId || dr.fromIdx === toIdx) { setDropTarget(null); return; }
+
+    setOrder(prev => {
+      const sec = NAV.find(s => s.id === secId)!;
+      const displayed = getDisplayedItemsForSec(sec, prev);
+      const hrefs = displayed.map(i => i.href);
+      const [moved] = hrefs.splice(dr.fromIdx, 1);
+      hrefs.splice(toIdx, 0, moved);
+      const next = { ...prev, [secId]: hrefs };
+      try { localStorage.setItem("ex-nav-order", JSON.stringify(next)); } catch { /* noop */ }
+      return next;
+    });
+
+    dragRef.current = null;
+    setDropTarget(null);
+  }
+
+  // stable helper (without closure over state) to avoid stale closure in handleDrop
+  function getDisplayedItemsForSec(sec: NavSec, ord: Record<string, string[]>): NavItem[] {
+    const filtered = sec.items.filter(podeVer);
+    const savedOrd = ord[sec.id];
+    if (!savedOrd?.length) return filtered;
+    const byHref = new Map(filtered.map(i => [i.href, i]));
+    const sorted = savedOrd.map(h => byHref.get(h)).filter(Boolean) as NavItem[];
+    const rest = filtered.filter(i => !savedOrd.includes(i.href));
+    return [...sorted, ...rest];
+  }
+
+  // active item detection (longest-prefix wins)
+  const activeHref = (() => {
+    const all = NAV.flatMap(s => s.items.flatMap(i => [
+      i.href,
+      ...(i.sub ?? []).map(sub => sub.href),
+    ]));
+    return [...all]
+      .sort((a, b) => b.length - a.length)
+      .find(h => h === "/expand" ? path === "/expand" : path.startsWith(h)) ?? "/expand";
+  })();
+
+  const activeInfo = (() => {
+    for (const s of NAV) {
+      for (const item of s.items) {
+        for (const sub of item.sub ?? []) {
+          if (sub.href === activeHref) return { label: sub.label, eyebrow: item.eyebrow };
+        }
+        if (item.href === activeHref) return { label: item.label, eyebrow: item.eyebrow };
+      }
+    }
+    return { label: "Hub do Dia", eyebrow: "Suas tarefas hoje" };
+  })();
 
   return (
     <div className="ex-shell hx-ambient">
@@ -185,71 +324,127 @@ export default function ExpandShell({
           <Logo />
           <div><div className="ex-bn">EXPAND</div><div className="ex-bs">Motor de Trabalho</div></div>
         </div>
-        {NAV.map((s) => {
-          const items = s.items.filter(podeVer);
-          if (!items.length) return null;
-          return (
-          <div key={s.sec}>
-            <div className="ex-navsec">{s.sec}</div>
-            {items.map((it) => {
-              if (it.sub?.length) {
-                const open = aberto[it.href] ?? it.sub.some((s) => path.startsWith(s.href));
-                return (
-                  <div key={it.href}>
-                    <button
-                      type="button"
-                      onClick={() => setAberto((a) => ({ ...a, [it.href]: !open }))}
-                      className={`ex-navi${it.sub.some((s) => path.startsWith(s.href)) ? " on" : ""}`}
-                      style={{ width: "100%", background: "transparent", border: "none", cursor: "pointer", textAlign: "left", font: "inherit", color: "inherit" }}
-                    >
-                      <Ic name={it.icon} />
-                      {it.label}
-                      <span style={{ marginLeft: "auto", display: "inline-flex", transform: open ? "rotate(90deg)" : "none", transition: "transform .15s" }}><Ic name="chevron" /></span>
-                    </button>
-                    {open ? it.sub.map((s) => (
-                      <Link
-                        key={s.href}
-                        href={s.href}
-                        {...(s.external ? { target: "_blank", rel: "noreferrer" } : {})}
-                        onClick={() => document.body.classList.remove("ex-nav-open")}
-                        className={`ex-navi${path.startsWith(s.href) ? " on" : ""}`}
-                        style={{ paddingLeft: 40, fontSize: 12.5 }}
+
+        <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden" }}>
+          {NAV.map((s) => {
+            const items = getDisplayedItems(s);
+            if (!items.length) return null;
+            const isCollapsed = !!collapsed[s.id];
+
+            return (
+              <div key={s.id}>
+                {/* Section header — clickable to collapse */}
+                <button
+                  type="button"
+                  onClick={() => toggleSection(s.id)}
+                  className="ex-navsec-hd"
+                >
+                  <span>{s.sec}</span>
+                  <span style={{ transition: "transform .2s", transform: isCollapsed ? "rotate(-90deg)" : "none", display: "inline-flex" }}>
+                    <Ic name="chevdown" />
+                  </span>
+                </button>
+
+                {!isCollapsed && items.map((it, idx) => {
+                  const isActive = it.href === activeHref || (it.sub ?? []).some(s => s.href === activeHref);
+                  const hasOpenSub = aberto[it.href] ?? (it.sub ?? []).some(s => path.startsWith(s.href));
+
+                  if (it.sub?.length) {
+                    return (
+                      <div
+                        key={it.href}
+                        className={`ex-navi-row${dropTarget?.sec === s.id && dropTarget?.idx === idx ? " drop-active" : ""}`}
+                        onDragOver={(e) => handleDragOver(e, s.id, idx)}
+                        onDrop={(e) => handleDrop(e, s.id, idx)}
+                        onDragLeave={() => setDropTarget(null)}
                       >
-                        {s.label}
+                        <span
+                          className="ex-grip"
+                          draggable
+                          onDragStart={(e) => { e.stopPropagation(); handleDragStart(e, s.id, idx); }}
+                          onDragEnd={() => { setDropTarget(null); dragRef.current = null; }}
+                        >
+                          <Ic name="grip" />
+                        </span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <button
+                            type="button"
+                            onClick={() => setAberto(a => ({ ...a, [it.href]: !hasOpenSub }))}
+                            className={`ex-navi${isActive ? " on" : ""}`}
+                            style={{ width: "100%", background: "transparent", border: "none", cursor: "pointer", textAlign: "left", font: "inherit", color: "inherit", margin: 0 }}
+                          >
+                            <Ic name={it.icon} />
+                            {it.label}
+                            <span style={{ marginLeft: "auto", display: "inline-flex", transform: hasOpenSub ? "rotate(90deg)" : "none", transition: "transform .15s" }}>
+                              <Ic name="chevron" />
+                            </span>
+                          </button>
+                          {hasOpenSub && it.sub!.map((sub) => (
+                            <Link
+                              key={sub.href}
+                              href={sub.href}
+                              {...(sub.external ? { target: "_blank", rel: "noreferrer" } : {})}
+                              onClick={() => document.body.classList.remove("ex-nav-open")}
+                              className={`ex-navi${sub.href === activeHref ? " on" : ""}`}
+                              style={{ paddingLeft: 40, fontSize: 12.5, margin: 0 }}
+                            >
+                              {sub.label}
+                            </Link>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return it.external ? (
+                    <div key={it.href} className={`ex-navi-row${dropTarget?.sec === s.id && dropTarget?.idx === idx ? " drop-active" : ""}`}
+                      onDragOver={(e) => handleDragOver(e, s.id, idx)}
+                      onDrop={(e) => handleDrop(e, s.id, idx)}
+                      onDragLeave={() => setDropTarget(null)}
+                    >
+                      <span className="ex-grip" draggable onDragStart={(e) => { e.stopPropagation(); handleDragStart(e, s.id, idx); }} onDragEnd={() => { setDropTarget(null); dragRef.current = null; }}>
+                        <Ic name="grip" />
+                      </span>
+                      <a
+                        href={it.href}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={() => document.body.classList.remove("ex-nav-open")}
+                        className="ex-navi"
+                        style={{ flex: 1, margin: 0 }}
+                      >
+                        <Ic name={it.icon} />
+                        {it.label}
+                        <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--dim)" }}>↗</span>
+                      </a>
+                    </div>
+                  ) : (
+                    <div key={it.href} className={`ex-navi-row${dropTarget?.sec === s.id && dropTarget?.idx === idx ? " drop-active" : ""}`}
+                      onDragOver={(e) => handleDragOver(e, s.id, idx)}
+                      onDrop={(e) => handleDrop(e, s.id, idx)}
+                      onDragLeave={() => setDropTarget(null)}
+                    >
+                      <span className="ex-grip" draggable onDragStart={(e) => { e.stopPropagation(); handleDragStart(e, s.id, idx); }} onDragEnd={() => { setDropTarget(null); dragRef.current = null; }}>
+                        <Ic name="grip" />
+                      </span>
+                      <Link
+                        href={it.href}
+                        onClick={() => document.body.classList.remove("ex-nav-open")}
+                        className={`ex-navi${isActive ? " on" : ""}`}
+                        style={{ flex: 1, margin: 0 }}
+                      >
+                        <Ic name={it.icon} />
+                        {it.label}
+                        {it.badge ? <span className="ex-badge">{it.badge}</span> : null}
                       </Link>
-                    )) : null}
-                  </div>
-                );
-              }
-              return it.external ? (
-                <a
-                  key={it.href}
-                  href={it.href}
-                  target="_blank"
-                  rel="noreferrer"
-                  onClick={() => document.body.classList.remove("ex-nav-open")}
-                  className="ex-navi"
-                >
-                  <Ic name={it.icon} />
-                  {it.label}
-                  <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--dim)" }}>↗</span>
-                </a>
-              ) : (
-                <Link
-                  key={it.href}
-                  href={it.href}
-                  onClick={() => document.body.classList.remove("ex-nav-open")}
-                  className={`ex-navi${it.href === active.href ? " on" : ""}`}
-                >
-                  <Ic name={it.icon} />
-                  {it.label}
-                  {it.badge ? <span className="ex-badge">{it.badge}</span> : null}
-                </Link>
-              );
-            })}
-          </div>
-          );
-        })}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+
         <div className="ex-usr">
           <div className="ex-uav">{pessoa.ini}</div>
           <div><div className="ex-un">{pessoa.nome}</div><div className="ex-ur">{pessoa.papel}</div></div>
@@ -259,10 +454,11 @@ export default function ExpandShell({
       <div className="ex-wrap">
         <div className="ex-topbar">
           <button className="ex-burger" onClick={toggleNav} aria-label="Menu"><Ic name="menu" /></button>
-          <div className="ex-tbtt"><small>{active.eyebrow}</small>{active.label}</div>
+          <div className="ex-tbtt"><small>{activeInfo.eyebrow}</small>{activeInfo.label}</div>
           <div className="ex-search">
             <Ic name="search" />
-            <input placeholder="Buscar conta, etapa, pessoa…" />
+            <input ref={searchRef} placeholder="Buscar conta, etapa, pessoa…" style={{ flex: 1, minWidth: 0, width: "auto" }} />
+            <kbd style={{ fontSize: 10, padding: "1px 5px", borderRadius: 4, background: "var(--panel-2)", border: "1px solid var(--line-2)", color: "var(--dim)", pointerEvents: "none", flexShrink: 0 }}>Ctrl K</kbd>
           </div>
           <div className="ex-tbr">
             {podeTrocar ? (
@@ -276,7 +472,9 @@ export default function ExpandShell({
               </select>
             ) : null}
             <button className="ex-iconbtn" onClick={toggleTema} title="Tema claro/escuro"><Ic name="moon" /></button>
-            {marcarLida && marcarTodas ? <Notificacoes notas={notif} marcarLida={marcarLida} marcarTodas={marcarTodas} /> : <button className="ex-iconbtn" title="Notificações"><Ic name="bell" /></button>}
+            {marcarLida && marcarTodas
+              ? <Notificacoes notas={notif} marcarLida={marcarLida} marcarTodas={marcarTodas} />
+              : <button className="ex-iconbtn" title="Notificações"><Ic name="bell" /></button>}
             <div className="ex-tbav">{pessoa.ini}</div>
           </div>
         </div>

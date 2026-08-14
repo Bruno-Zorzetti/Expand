@@ -88,7 +88,7 @@ export default function EstiloPage() {
     <main className="hx-ambient min-h-screen text-[var(--txt)]">
       <header className="sticky top-0 z-20 border-b border-[var(--line)] bg-[color-mix(in_srgb,var(--bg)_82%,transparent)] backdrop-blur">
         <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-6">
-          <span className="font-extrabold tracking-wide">HASHES</span>
+          <span className="font-extrabold tracking-wide">EXPAND</span>
           <div className="flex items-center gap-3">
             <ThemeControls variant="toggle" />
             <Link href="/" className="text-sm text-[var(--mut)] hover:text-[var(--txt)]">Início</Link>
@@ -255,7 +255,7 @@ export default function EstiloPage() {
             {/* PDF / relatório */}
             <div className="hx-glass p-4">
               <div className="rounded-lg bg-white p-3 text-slate-800">
-                <p className="text-[10px] font-black">HASHES · Relatório</p>
+                <p className="text-[10px] font-black">EXPAND · Relatório</p>
                 <div className="mt-2 flex items-center gap-2">
                   <span className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-black text-white" style={{ background: "#2F80FF" }}>52</span>
                   <div className="flex-1"><div className="h-1 w-full rounded bg-slate-200" /><div className="mt-1 h-1 w-2/3 rounded bg-slate-200" /></div>

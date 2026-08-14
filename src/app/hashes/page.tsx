@@ -138,8 +138,8 @@ export default async function HashesHome() {
           <h2 className="text-4xl font-black leading-[1.05] tracking-tight sm:text-6xl">
             Não sabe por onde <span className="hx-accent-text">começar?</span>
           </h2>
-          <p className="max-w-md text-[var(--mut)]">Conta seu objetivo e a Hashes indica o melhor caminho.</p>
-          <Link href="/contato" className="hx-btn hx-btn-primary mt-4 px-8 py-3.5 text-base">Falar com a Hashes</Link>
+          <p className="max-w-md text-[var(--mut)]">Conta seu objetivo e a equipe indica o melhor caminho.</p>
+          <Link href="/contato" className="hx-btn hx-btn-primary mt-4 px-8 py-3.5 text-base">Falar com a equipe</Link>
         </div>
       </section>
       <SiteFooter />
