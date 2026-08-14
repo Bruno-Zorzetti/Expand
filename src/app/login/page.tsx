@@ -39,6 +39,19 @@ function LoginInner() {
   const [senha, setSenha] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingGoogle, setLoadingGoogle] = useState(false);
+
+  async function entrarComGoogle() {
+    setLoadingGoogle(true);
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(destino)}`,
+        queryParams: { access_type: "offline", prompt: "consent" },
+      },
+    });
+    if (error) { setMsg(error.message); setLoadingGoogle(false); }
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -93,6 +106,34 @@ function LoginInner() {
           <div style={{ display: "flex", gap: 8, marginBottom: 18 }}>
             <button onClick={() => setMode("login")} style={tab(mode === "login")}>Entrar</button>
             <button onClick={() => setMode("signup")} style={tab(mode === "signup")}>Criar conta</button>
+          </div>
+
+          {/* Google OAuth */}
+          <button
+            type="button"
+            onClick={entrarComGoogle}
+            disabled={loadingGoogle}
+            style={{
+              width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+              padding: "11px 14px", borderRadius: 10, marginBottom: 14, cursor: "pointer",
+              border: "1px solid var(--line-2)", background: "var(--bg)", color: "var(--txt)",
+              fontSize: 14, fontFamily: "inherit", fontWeight: 600, opacity: loadingGoogle ? 0.6 : 1,
+            }}
+          >
+            {/* Google G icon */}
+            <svg width="18" height="18" viewBox="0 0 48 48" fill="none">
+              <path d="M47.5 24.5c0-1.6-.1-3.2-.4-4.7H24.3v8.9h13c-.6 3-2.3 5.5-4.9 7.2v5.9h7.9c4.6-4.2 7.2-10.4 7.2-17.3z" fill="#4285F4"/>
+              <path d="M24.3 48c6.5 0 11.9-2.1 15.9-5.8l-7.9-5.9c-2.1 1.4-4.8 2.2-8 2.2-6.1 0-11.3-4.1-13.1-9.6H2.9v6.1C6.8 42.8 15 48 24.3 48z" fill="#34A853"/>
+              <path d="M11.2 28.9c-.5-1.4-.7-2.9-.7-4.5s.3-3.1.7-4.5v-6H2.9A23.7 23.7 0 0 0 .3 24.4c0 3.8.9 7.4 2.6 10.6l8.3-6.1z" fill="#FBBC05"/>
+              <path d="M24.3 9.5c3.4 0 6.5 1.2 8.9 3.5l6.6-6.6C35.7 2.4 30.3 0 24.3 0 15 0 6.8 5.2 2.9 13l8.3 6.1c1.8-5.4 7-9.6 13.1-9.6z" fill="#EA4335"/>
+            </svg>
+            {loadingGoogle ? "Redirecionando..." : "Entrar com Google"}
+          </button>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+            <div style={{ flex: 1, height: 1, background: "var(--line-2)" }} />
+            <span style={{ fontSize: 12, color: "var(--dim)" }}>ou use e-mail</span>
+            <div style={{ flex: 1, height: 1, background: "var(--line-2)" }} />
           </div>
 
           <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 11 }}>
