@@ -4,7 +4,7 @@ import { exigirAdmin } from "@/lib/expand-acesso";
 
 export const dynamic = "force-dynamic";
 
-type Perfil = { id: string; full_name: string | null; email: string | null; role: string; expand_membro: string | null; expand_cliente: string | null; acessos: string[] | null; created_at: string };
+type Perfil = { id: string; full_name: string | null; email: string | null; role: string; expand_membro: string | null; expand_cliente: string | null; acessos: string[] | null; created_at: string; tipo_acesso: string | null };
 const ROLE_ROTULO: Record<string, { l: string; c: string }> = {
   pendente: { l: "Pendente", c: "var(--warn)" },
   admin: { l: "Admin (diretoria)", c: "var(--accent)" },
@@ -47,12 +47,19 @@ export default async function Acessos() {
     <form key={p.id} action={definirAcesso} className="hx-glass" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10, padding: "12px 14px", borderRadius: 12, borderLeft: `3px solid ${ROLE_ROTULO[p.role]?.c ?? "var(--dim)"}` }}>
       <input type="hidden" name="id" value={p.id} />
       <div style={{ flex: 1, minWidth: 200 }}>
-        <div style={{ fontSize: 13.5, fontWeight: 700, color: "var(--txt)" }}>{p.full_name || "—"}</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 13.5, fontWeight: 700, color: "var(--txt)" }}>{p.full_name || "—"}</span>
+          {p.tipo_acesso && (
+            <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".05em", padding: "2px 7px", borderRadius: 6, background: p.tipo_acesso === "equipe" ? "color-mix(in srgb, var(--green) 15%, transparent)" : "color-mix(in srgb, var(--accent) 15%, transparent)", color: p.tipo_acesso === "equipe" ? "var(--green)" : "var(--accent)" }}>
+              {p.tipo_acesso === "equipe" ? "◆ Equipe" : "★ Cliente"}
+            </span>
+          )}
+        </div>
         <div style={{ fontSize: 11.5, color: "var(--dim)" }}>{p.email || p.id.slice(0, 8)} · desde {new Date(p.created_at).toLocaleDateString("pt-BR")}</div>
       </div>
       <label style={{ display: "flex", flexDirection: "column", gap: 3 }}>
         <span style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: ".05em", color: "var(--dim)", fontWeight: 700 }}>Papel</span>
-        <select name="role" defaultValue={p.role} style={fld}>
+        <select name="role" defaultValue={p.role === "pendente" && p.tipo_acesso ? p.tipo_acesso : p.role} style={fld}>
           <option value="pendente">Pendente (sem acesso)</option>
           <option value="equipe">Equipe</option>
           <option value="admin">Admin (diretoria)</option>

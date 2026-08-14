@@ -53,30 +53,62 @@ function Cal({ marcados, hojeISO }: { marcados: { dia: number; marco: boolean }[
   );
 }
 
+function StatusChip({ status, atrasada, bloqueado }: { status: string; atrasada?: boolean; bloqueado?: boolean }) {
+  if (bloqueado) return <span style={{ fontSize: 10.5, fontWeight: 700, padding: "3px 8px", borderRadius: 6, background: "color-mix(in srgb,var(--red) 12%,transparent)", color: "var(--red)", letterSpacing: ".02em" }}>● Bloqueada</span>;
+  if (atrasada) return <span style={{ fontSize: 10.5, fontWeight: 700, padding: "3px 8px", borderRadius: 6, background: "color-mix(in srgb,var(--red) 12%,transparent)", color: "var(--red)", letterSpacing: ".02em" }}>⚠ Atrasada</span>;
+  if (status === "run") return <span style={{ fontSize: 10.5, fontWeight: 700, padding: "3px 8px", borderRadius: 6, background: "color-mix(in srgb,var(--accent) 14%,transparent)", color: "var(--accent)", letterSpacing: ".02em" }}>▶ Em execução</span>;
+  return <span style={{ fontSize: 10.5, fontWeight: 700, padding: "3px 8px", borderRadius: 6, background: "var(--panel-2)", color: "var(--dim)", letterSpacing: ".02em" }}>○ Na fila</span>;
+}
+
 function Tarefa({ e, cliNome, atrasada }: { e: EtapaRow; cliNome: string; atrasada?: boolean }) {
   const ar = e.area ? AREAS[e.area] : null;
-  const cor = e.bloqueado || atrasada ? "var(--red)" : e.status === "run" ? "var(--accent)" : "var(--dim)";
+  const corBorda = e.bloqueado || atrasada ? "var(--red)" : e.status === "run" ? "var(--accent)" : "var(--line-2)";
   const ajuda = `${e.gatilho ? `Começa: ${e.gatilho}. ` : ""}Conclui quando: ${e.criterio ?? "—"}. Responsável: ${e.responsavel_atual ?? e.responsavel}.`;
   return (
-    <div className="ex-arq hx-glass" style={{ marginBottom: 6, borderLeft: `3px solid ${cor}`, flexWrap: "wrap" }}>
-      <div className="an" style={{ minWidth: 0 }}>
-        {e.marco ? <span style={{ color: "var(--accent)" }}>◆ </span> : null}{e.titulo}
-        <span className="ex-help" title={ajuda}>?</span>
-        {e.bloqueado ? <span className="ex-pill" style={{ marginLeft: 6, background: "color-mix(in srgb,var(--red) 15%,transparent)", color: "var(--red)" }}>bloqueada</span> : null}
-        {e.chamado ? <span className="ex-pill" style={{ marginLeft: 6, background: "color-mix(in srgb,var(--warn) 15%,transparent)", color: "var(--warn)" }}>chamado</span> : null}
-        <div className="am"><b style={{ color: "var(--accent)" }}>{cliNome}</b>{ar ? ` · ${ar.n}` : ""}{e.agente ? ` · ⚡${AG_NOME[e.agente]}` : ""} · SLA {e.sla}{atrasada ? " · atrasada" : ""}</div>
-        {atrasada ? (
-          <form action={justificarAtraso} style={{ display: "flex", gap: 5, marginTop: 5 }}>
-            <input type="hidden" name="etapaId" value={e.id} />
-            <input name="justificativa" defaultValue={e.justificativa ?? ""} placeholder="justificativa rápida do atraso…" style={{ flex: 1, minWidth: 120, background: "var(--bg)", border: "1px solid color-mix(in srgb,var(--red) 30%,var(--line-2))", borderRadius: 7, color: "var(--txt)", padding: "5px 8px", fontSize: 11.5, outline: "none", fontFamily: "inherit" }} />
-            <button className="ex-arqbtn" type="submit">ok</button>
-          </form>
-        ) : null}
+    <div className="hx-glass" style={{ marginBottom: 8, borderLeft: `3px solid ${corBorda}`, borderRadius: 12, padding: "12px 14px" }}>
+      {/* Linha 1: título + chips */}
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 8, flexWrap: "wrap", marginBottom: 6 }}>
+        <span style={{ flex: 1, fontSize: 13.5, fontWeight: 700, color: "var(--txt)", minWidth: 0, lineHeight: 1.3 }}>
+          {e.marco ? <span style={{ color: "var(--accent)", marginRight: 4 }}>◆</span> : null}
+          {e.titulo}
+          <span className="ex-help" title={ajuda} style={{ marginLeft: 5, fontSize: 11, color: "var(--dim)", cursor: "help" }}>?</span>
+        </span>
+        <StatusChip status={e.status} atrasada={atrasada} bloqueado={e.bloqueado ?? false} />
       </div>
-      {e.status === "run" && e.iniciada_em ? <Timer start={e.iniciada_em} /> : null}
-      <Link href={`/expand/etapa/${e.id}`} className="ex-arqbtn">Abrir</Link>
-      {e.status === "idle" ? <form action={iniciarEtapa}><input type="hidden" name="etapaId" value={e.id} /><button className="ex-arqbtn ok" type="submit">▶ Executar</button></form> : null}
-      {e.status === "run" ? <form action={concluirEtapa}><input type="hidden" name="etapaId" value={e.id} /><button className="ex-arqbtn ok" type="submit">✓ Concluir</button></form> : null}
+
+      {/* Linha 2: meta info */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+        <span style={{ fontSize: 11, padding: "2px 7px", borderRadius: 5, background: "color-mix(in srgb, var(--accent) 10%, transparent)", color: "var(--accent)", fontWeight: 600 }}>
+          {cliNome}
+        </span>
+        {ar && <span style={{ fontSize: 11, padding: "2px 7px", borderRadius: 5, background: "var(--panel-2)", color: "var(--mut)" }}>{ar.n}</span>}
+        {e.agente && <span style={{ fontSize: 11, padding: "2px 7px", borderRadius: 5, background: "var(--panel-2)", color: "var(--mut)" }}>⚡ {AG_NOME[e.agente]}</span>}
+        {e.sla && <span style={{ fontSize: 11, padding: "2px 7px", borderRadius: 5, background: "var(--panel-2)", color: atrasada ? "var(--red)" : "var(--mut)" }}>⏱ {e.sla}</span>}
+        {e.chamado && <span style={{ fontSize: 11, padding: "2px 7px", borderRadius: 5, background: "color-mix(in srgb,var(--warn) 15%,transparent)", color: "var(--warn)" }}>chamado aberto</span>}
+      </div>
+
+      {/* Campo de justificativa se atrasada */}
+      {atrasada && (
+        <form action={justificarAtraso} style={{ display: "flex", gap: 5, marginBottom: 10 }}>
+          <input type="hidden" name="etapaId" value={e.id} />
+          <input name="justificativa" defaultValue={e.justificativa ?? ""} placeholder="Justificativa do atraso…" style={{ flex: 1, minWidth: 120, background: "var(--bg)", border: "1px solid color-mix(in srgb,var(--red) 30%,var(--line-2))", borderRadius: 7, color: "var(--txt)", padding: "5px 8px", fontSize: 11.5, outline: "none", fontFamily: "inherit" }} />
+          <button className="ex-arqbtn" type="submit">salvar</button>
+        </form>
+      )}
+
+      {/* Linha de ações */}
+      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+        {e.status === "run" && e.iniciada_em ? <Timer start={e.iniciada_em} /> : null}
+        <div style={{ marginLeft: "auto", display: "flex", gap: 5 }}>
+          <Link href={`/expand/etapa/${e.id}`} className="ex-arqbtn">Detalhes</Link>
+          {e.status === "idle" && (
+            <form action={iniciarEtapa}><input type="hidden" name="etapaId" value={e.id} /><button className="ex-arqbtn ok" type="submit">▶ Iniciar</button></form>
+          )}
+          {e.status === "run" && (
+            <form action={concluirEtapa}><input type="hidden" name="etapaId" value={e.id} /><button className="ex-arqbtn ok" type="submit">✓ Concluir</button></form>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
