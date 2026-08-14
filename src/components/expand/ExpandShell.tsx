@@ -68,6 +68,7 @@ const NAV: NavSec[] = [
     id: "comercial",
     sec: "Comercial",
     items: [
+      { href: "/expand/comercial/pipeline", label: "Funil CRM", icon: "filter", eyebrow: "Pipeline de vendas", gate: "comercial" },
       { href: "/expand/comercial", label: "Hoje · Placar", icon: "target", eyebrow: "Gamificação diária", gate: "comercial" },
       { href: "/expand/comercial/meta", label: "A Meta", icon: "coin", eyebrow: "Calculadora de vendas", gate: "comercial" },
       { href: "/expand/comercial/semana", label: "A Semana", icon: "squad", eyebrow: "Placar Luiz × Pedro", gate: "comercial" },

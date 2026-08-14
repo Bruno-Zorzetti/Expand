@@ -36,9 +36,29 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const ehAgente = pf.tipo === "agente";
   const nome = pf.nome as string;
 
+  // Retrieval — recência + grafo de conhecimento (Phase 1)
   const { data: conh } = await supabase.from("expand_conhecimento")
-    .select("tipo, titulo, conteudo").eq("agente_id", id).order("criado_em", { ascending: false }).limit(24);
-  const base = (conh ?? []).map((c) => `[${c.tipo}] ${c.titulo}: ${c.conteudo}`).join("\n");
+    .select("tipo, titulo, conteudo").eq("agente_id", id).order("criado_em", { ascending: false }).limit(20);
+  const recentes = (conh ?? []).map((c) => `[${c.tipo}] ${c.titulo}: ${c.conteudo}`).join("\n");
+
+  // Graph traversal: busca entidades relacionadas à mensagem atual
+  const { data: ents } = await supabase.from("expand_conhecimento_entidades")
+    .select("id, nome, descricao, tipo").or(`agente_id.eq.${id},agente_id.is.null`).limit(60);
+  const palavras = mensagem.toLowerCase().split(/\s+/).filter((w) => w.length > 3);
+  const match = (ents ?? []).find((e) =>
+    palavras.some((p) => e.nome.toLowerCase().includes(p) || (e.descricao ?? "").toLowerCase().includes(p))
+  );
+  let grafCtx = "";
+  if (match) {
+    const { data: grafo } = await supabase.rpc("grafo_expandir", { inicio: match.id, max_hops: 2 });
+    const ids = new Set((grafo ?? []).map((r: { entidade_id: string }) => r.entidade_id));
+    const nos = (ents ?? []).filter((e) => ids.has(e.id));
+    if (nos.length > 0) {
+      grafCtx = "\n=== CONTEXTO DO GRAFO DE CONHECIMENTO ===\n"
+        + nos.map((e) => `[${e.tipo}] ${e.nome}${e.descricao ? `: ${e.descricao}` : ""}`).join("\n");
+    }
+  }
+  const base = recentes + grafCtx;
 
   // atividades atuais desta pessoa/agente (para o chat ser útil sobre o trabalho real)
   const nomeSafe = nome.replace(/[,()]/g, " ");
