@@ -5,5 +5,5 @@ export function siteUrl(): string {
   if (s && !/localhost|127\.0\.0\.1/.test(s)) return s.replace(/\/$/, "");
   const v = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
   if (v) return `https://${v.replace(/\/$/, "")}`;
-  return "https://expand-hazel.vercel.app";
+  return "https://expand.hshs.com.br";
 }

@@ -1,7 +1,12 @@
-import { type NextRequest } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 
 export async function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  const publicas = ["/", "/login", "/auth/callback"];
+  if (publicas.some((p) => pathname === p || pathname.startsWith("/api/public"))) {
+    return NextResponse.next();
+  }
   return await updateSession(request);
 }
 

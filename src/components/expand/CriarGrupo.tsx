@@ -27,7 +27,7 @@ export default function CriarGrupo({ clientes, siteUrl, criar }: { clientes: Cli
     const c = clientes.find((x) => x.id === id);
     if (!c) return;
     if (!nome) setNome(`Oficial · ${c.nome} · Expand`);
-    const base = (siteUrl || "https://expand-hazel.vercel.app").replace(/\/$/, "");
+    const base = (siteUrl || "https://expand.hshs.com.br").replace(/\/$/, "");
     const linhas = [
       `Bem-vindo(a) ao grupo oficial de trabalho — ${c.nome} · Grupo Expand 👋`,
       ``,

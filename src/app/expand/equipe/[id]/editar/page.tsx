@@ -59,7 +59,7 @@ export default async function Editar({ params }: { params: Promise<{ id: string 
     .select("id, full_name, email, role")
     .eq("expand_membro", id).maybeSingle();
   const conta = contaData as { id: string; full_name: string | null; email: string | null; role: string } | null;
-  const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://expand-hazel.vercel.app";
+  const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://expand.hshs.com.br";
   const icsUrl = (p as unknown as { ics_token?: string }).ics_token
     ? `${site}/api/calendario/${(p as unknown as { ics_token: string }).ics_token}.ics`
     : null;
