@@ -34,13 +34,19 @@ export default async function Acessos() {
   const supabase = await createClient();
   const { data: pData } = await supabase.rpc("admin_listar_perfis");
   const perfis = (pData ?? []) as Perfil[];
-  const { data: pessoasData } = await supabase.from("expand_perfis").select("id, nome, tipo").eq("tipo", "humano").order("nome");
-  const pessoas = (pessoasData ?? []) as { id: string; nome: string }[];
+  const { data: pessoasData } = await supabase.from("expand_perfis").select("id, nome, tipo, ics_token, cargo").eq("tipo", "humano").order("nome");
+  const pessoas = (pessoasData ?? []) as { id: string; nome: string; ics_token: string | null; cargo: string | null }[];
   const { data: clientesData } = await supabase.from("expand_clientes").select("id, nome").order("nome");
   const clientes = (clientesData ?? []) as { id: string; nome: string }[];
+  const { data: equipeData } = await supabase.from("expand_equipe").select("id, nome, papel").order("ordem");
+  const equipe = (equipeData ?? []) as { id: string; nome: string; papel: string }[];
+
+  const membroLinkado = new Set(perfis.map((p) => p.expand_membro).filter(Boolean));
+  const semConta = equipe.filter((e) => !membroLinkado.has(e.id));
 
   const pendentes = perfis.filter((p) => p.role === "pendente");
   const ativos = perfis.filter((p) => p.role !== "pendente");
+  const site = process.env.NEXT_PUBLIC_SITE_URL ?? "";
   const fld: React.CSSProperties = { background: "var(--bg)", border: "1px solid var(--line-2)", borderRadius: 8, color: "var(--txt)", padding: "6px 8px", fontSize: 12.5, outline: "none", fontFamily: "inherit" };
 
   const Linha = (p: Perfil) => (
@@ -96,6 +102,39 @@ export default async function Acessos() {
         <div className="ex-kpi hx-glass"><div className="lab">Equipe</div><div className="val">{ativos.filter((p) => p.role === "equipe").length}</div><div className="foot">Com acesso operacional</div></div>
         <div className="ex-kpi hx-glass"><div className="lab">Clientes</div><div className="val">{ativos.filter((p) => p.role === "cliente").length}</div><div className="foot">Com portal</div></div>
       </div>
+
+      {/* Equipe sem conta — onboarding pendente */}
+      {semConta.length > 0 && (
+        <>
+          <div className="ex-grph"><span className="gt" style={{ color: "var(--red)" }}>Equipe sem acesso à plataforma</span><span className="gc">{semConta.length}</span><span className="gl" /></div>
+          <div className="hx-glass" style={{ padding: "14px 16px", borderRadius: 12, borderLeft: "3px solid var(--red)", marginBottom: 22 }}>
+            <p style={{ fontSize: 13, color: "var(--mut)", marginBottom: 12, lineHeight: 1.5 }}>
+              Estas pessoas da equipe ainda não criaram conta. Peça que acessem <b style={{ color: "var(--txt)" }}>/login</b> → "Criar conta" → "Sou da equipe", e depois aprove aqui linkando ao perfil certo.
+            </p>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {semConta.map((e) => {
+                const pf = pessoas.find((p) => p.id === e.id);
+                const icsUrl = pf?.ics_token && site ? `${site}/api/calendario/${pf.ics_token}.ics` : null;
+                return (
+                  <div key={e.id} className="hx-glass" style={{ padding: "10px 13px", borderRadius: 10, minWidth: 200, flex: "1 1 200px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
+                      <span style={{ fontSize: 13.5, fontWeight: 700 }}>{e.nome}</span>
+                      <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 5, background: "color-mix(in srgb,var(--red) 12%,transparent)", color: "var(--red)", fontWeight: 700 }}>Sem conta</span>
+                    </div>
+                    <div style={{ fontSize: 11.5, color: "var(--dim)", marginBottom: 8 }}>{e.papel}</div>
+                    {icsUrl && (
+                      <div>
+                        <div style={{ fontSize: 10, color: "var(--dim)", marginBottom: 3 }}>Link do calendário (compartilhar com {e.nome.split(" ")[0]}):</div>
+                        <code style={{ fontSize: 9.5, color: "var(--accent)", background: "var(--bg)", border: "1px solid var(--line-2)", borderRadius: 6, padding: "4px 7px", display: "block", wordBreak: "break-all" }}>{icsUrl}</code>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      )}
 
       <div className="ex-grph"><span className="gt" style={{ color: "var(--warn)" }}>Aguardando aprovação</span><span className="gc">{pendentes.length}</span><span className="gl" /></div>
       {pendentes.length ? (
