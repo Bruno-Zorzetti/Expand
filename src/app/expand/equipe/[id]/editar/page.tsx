@@ -54,6 +54,16 @@ export default async function Editar({ params }: { params: Promise<{ id: string 
   const p = data as Perfil;
   if (!(me?.role === "admin" || (me?.expand_membro as string | null) === id)) redirect(`/expand/equipe/${id}`);
 
+  // Acesso: conta vinculada a este perfil
+  const { data: contaData } = await supabase.from("profiles")
+    .select("id, full_name, email, role")
+    .eq("expand_membro", id).maybeSingle();
+  const conta = contaData as { id: string; full_name: string | null; email: string | null; role: string } | null;
+  const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://expand-hazel.vercel.app";
+  const icsUrl = (p as unknown as { ics_token?: string }).ics_token
+    ? `${site}/api/calendario/${(p as unknown as { ics_token: string }).ics_token}.ics`
+    : null;
+
   const { data: td } = await supabase.from("expand_perfis").select("id, nome, cargo").order("ordem");
   const todos = (td ?? []) as { id: string; nome: string; cargo: string | null }[];
 
@@ -136,6 +146,63 @@ export default async function Editar({ params }: { params: Promise<{ id: string 
             </div>
           </div>
         ) : null}
+
+        {/* Seção de Acesso à plataforma — visível para admin ou para o próprio membro */}
+        {p.tipo !== "agente" && (
+          <div className="ex-panel hx-glass" style={{ marginBottom: 16 }}>
+            <div className="ph"><span className="pt">Acesso à plataforma</span></div>
+            <div className="pb" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              {/* Status da conta */}
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{
+                  width: 10, height: 10, borderRadius: "50%", flexShrink: 0,
+                  background: conta ? "var(--green)" : "var(--red)",
+                }}/>
+                <div>
+                  <div style={{ fontSize: 13.5, fontWeight: 700, color: "var(--txt)" }}>
+                    {conta ? `Conta vinculada — ${conta.full_name || conta.id.slice(0, 8)}` : "Sem conta na plataforma"}
+                  </div>
+                  <div style={{ fontSize: 11.5, color: "var(--dim)" }}>
+                    {conta
+                      ? `${conta.email || conta.id.slice(0, 8)} · Papel: ${conta.role}`
+                      : `Peça que acesse /login → "Criar conta" → "Sou da equipe" e depois aprove em `}
+                    {!conta && <a href="/expand/acessos" style={{ color: "var(--accent)" }}>/expand/acessos</a>}
+                  </div>
+                </div>
+                {me?.role === "admin" && (
+                  <a href="/expand/acessos" className="hx-btn hx-btn-ghost" style={{ marginLeft: "auto", padding: "5px 12px", fontSize: 12, textDecoration: "none" }}>
+                    Gerenciar acesso →
+                  </a>
+                )}
+              </div>
+
+              {/* ICS Calendar URL */}
+              {icsUrl ? (
+                <div>
+                  <div style={{ fontSize: 12, color: "var(--dim)", marginBottom: 6, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".05em" }}>
+                    Link do calendário (Google Calendar / Apple Calendar / Outlook)
+                  </div>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <code style={{
+                      flex: 1, fontSize: 11.5, color: "var(--accent)", background: "var(--bg)",
+                      border: "1px solid var(--line-2)", borderRadius: 8, padding: "8px 12px",
+                      wordBreak: "break-all", display: "block",
+                    }}>
+                      {icsUrl}
+                    </code>
+                  </div>
+                  <p style={{ fontSize: 11, color: "var(--dim)", marginTop: 6, lineHeight: 1.5 }}>
+                    Cole este link em "Adicionar por URL" no Google Calendar ou Outlook para sincronizar as tarefas com datas.
+                  </p>
+                </div>
+              ) : (
+                <p style={{ fontSize: 12.5, color: "var(--dim)" }}>
+                  Nenhum token de calendário gerado. Contate o admin para gerar via SQL: <code style={{ fontSize: 11 }}>UPDATE expand_perfis SET ics_token = gen_random_uuid()::text WHERE id = '{id}'</code>
+                </p>
+              )}
+            </div>
+          </div>
+        )}
 
         <button className="hx-btn hx-btn-primary" type="submit">Salvar perfil</button>
       </form>
