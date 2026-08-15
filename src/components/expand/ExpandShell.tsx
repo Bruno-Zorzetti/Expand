@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useRef, type ReactNode } from "react";
 import AssistentesDock from "@/components/expand/AssistentesDock";
 import Notificacoes, { type Notif } from "@/components/expand/Notificacoes";
+import { createClient } from "@/lib/supabase/client";
 
 type Pessoa = { id: string; nome: string; papel: string; ini: string };
 type Sub = { href: string; label: string; external?: boolean };
@@ -218,6 +219,25 @@ export default function ExpandShell({
   const dragRef = useRef<{ sec: string; fromIdx: number } | null>(null);
   const [dropTarget, setDropTarget] = useState<{ sec: string; idx: number } | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
+  const menuTopRef = useRef<HTMLDivElement>(null);
+  const menuSideRef = useRef<HTMLDivElement>(null);
+  const [showTopMenu, setShowTopMenu] = useState(false);
+  const [showSideMenu, setShowSideMenu] = useState(false);
+
+  async function sair() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    window.location.assign("/login");
+  }
+
+  useEffect(() => {
+    function handleOutsideClick(e: MouseEvent) {
+      if (menuTopRef.current && !menuTopRef.current.contains(e.target as Node)) setShowTopMenu(false);
+      if (menuSideRef.current && !menuSideRef.current.contains(e.target as Node)) setShowSideMenu(false);
+    }
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, []);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -460,9 +480,26 @@ export default function ExpandShell({
           })}
         </div>
 
-        <div className="ex-usr">
-          <div className="ex-uav">{pessoa.ini}</div>
-          <div><div className="ex-un">{pessoa.nome}</div><div className="ex-ur">{pessoa.papel}</div></div>
+        <div ref={menuSideRef} style={{ position: "relative" }}>
+          <button
+            className="ex-usr"
+            onClick={() => setShowSideMenu(v => !v)}
+            style={{ cursor: "pointer", background: "none", border: "none", padding: 0, font: "inherit", color: "inherit", width: "100%", textAlign: "left" }}
+          >
+            <div className="ex-uav">{pessoa.ini}</div>
+            <div><div className="ex-un">{pessoa.nome}</div><div className="ex-ur">{pessoa.papel}</div></div>
+          </button>
+          {showSideMenu && (
+            <div style={{ position: "absolute", bottom: "calc(100% + 8px)", left: 0, right: 0, background: "var(--panel-2)", border: "1px solid var(--line-2)", borderRadius: 12, padding: 6, zIndex: 200, boxShadow: "0 -8px 32px rgba(0,0,0,.25)" }}>
+              <Link href={`/expand/equipe/${pessoa.id}`} onClick={() => setShowSideMenu(false)} style={{ display: "block", padding: "9px 12px", borderRadius: 8, fontSize: 13, color: "var(--txt)", textDecoration: "none", fontWeight: 600 }}>
+                Editar perfil
+              </Link>
+              <div style={{ height: 1, background: "var(--line-2)", margin: "4px 0" }} />
+              <button onClick={sair} style={{ display: "block", width: "100%", textAlign: "left", padding: "9px 12px", borderRadius: 8, fontSize: 13, color: "#e05555", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>
+                Sair
+              </button>
+            </div>
+          )}
         </div>
       </aside>
 
@@ -490,7 +527,27 @@ export default function ExpandShell({
             {marcarLida && marcarTodas
               ? <Notificacoes notas={notif} marcarLida={marcarLida} marcarTodas={marcarTodas} />
               : <button className="ex-iconbtn" title="Notificações"><Ic name="bell" /></button>}
-            <div className="ex-tbav">{pessoa.ini}</div>
+            <div ref={menuTopRef} style={{ position: "relative" }}>
+              <button
+                className="ex-tbav"
+                onClick={() => setShowTopMenu(v => !v)}
+                title="Menu do usuário"
+                style={{ cursor: "pointer", background: "none", border: "none", padding: 0, font: "inherit", color: "inherit" }}
+              >
+                {pessoa.ini}
+              </button>
+              {showTopMenu && (
+                <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, background: "var(--panel-2)", border: "1px solid var(--line-2)", borderRadius: 12, padding: 6, minWidth: 180, zIndex: 200, boxShadow: "0 8px 32px rgba(0,0,0,.25)" }}>
+                  <Link href={`/expand/equipe/${pessoa.id}`} onClick={() => setShowTopMenu(false)} style={{ display: "block", padding: "9px 12px", borderRadius: 8, fontSize: 13.5, color: "var(--txt)", textDecoration: "none", fontWeight: 600 }}>
+                    Editar perfil
+                  </Link>
+                  <div style={{ height: 1, background: "var(--line-2)", margin: "4px 0" }} />
+                  <button onClick={sair} style={{ display: "block", width: "100%", textAlign: "left", padding: "9px 12px", borderRadius: 8, fontSize: 13.5, color: "#e05555", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>
+                    Sair
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

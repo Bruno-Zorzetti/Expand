@@ -7,10 +7,16 @@ import { createClient } from "@/lib/supabase/client";
 
 const cinzel = Cinzel({ variable: "--font-cinzel", subsets: ["latin"], weight: ["500", "600", "700"] });
 
-function Logo({ size = 52 }: { size?: number }) {
+function LogoMark({ size = 52 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 100 100" fill="none" style={{ flexShrink: 0 }}>
-      <defs><linearGradient id="lgg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#E0BC85" /><stop offset="55%" stopColor="#A07644" /><stop offset="100%" stopColor="#E0BC85" /></linearGradient></defs>
+      <defs>
+        <linearGradient id="lgg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#E8CC96" />
+          <stop offset="45%" stopColor="#C8A84E" />
+          <stop offset="100%" stopColor="#E8CC96" />
+        </linearGradient>
+      </defs>
       <circle cx="50" cy="50" r="41" stroke="url(#lgg)" strokeWidth="3.4" />
       <path d="M32 19 L70 74" stroke="url(#lgg)" strokeWidth="3.4" strokeLinecap="round" />
       <path d="M69 19 L38 63" stroke="url(#lgg)" strokeWidth="3.4" strokeLinecap="round" />
@@ -22,7 +28,7 @@ function Logo({ size = 52 }: { size?: number }) {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<main className={`${cinzel.variable} tema-expand hx-ambient`} style={{ minHeight: "100vh" }} />}>
+    <Suspense fallback={<main className={`${cinzel.variable} tema-expand`} style={{ minHeight: "100vh", background: "#071610" }} />}>
       <LoginInner />
     </Suspense>
   );
@@ -48,19 +54,6 @@ function LoginInner() {
   const [senha, setSenha] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [loadingGoogle, setLoadingGoogle] = useState(false);
-
-  async function entrarComGoogle() {
-    setLoadingGoogle(true);
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(destino)}`,
-        queryParams: { access_type: "offline", prompt: "consent" },
-      },
-    });
-    if (error) { setMsg(error.message); setLoadingGoogle(false); }
-  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -98,51 +91,74 @@ function LoginInner() {
 
   return (
     <main
-      className={`${cinzel.variable} tema-expand hx-ambient`}
+      className={`${cinzel.variable} tema-expand`}
       style={{ minHeight: "100vh", display: "flex", alignItems: "stretch" }}
     >
-      {/* Lado esquerdo — branding */}
+      {/* Lado esquerdo — branding com fundo verde */}
       <div
-        style={{
-          flex: 1, display: "none", flexDirection: "column", justifyContent: "center",
-          padding: "60px 64px", borderRight: "1px solid var(--line-2)",
-          // show on wider screens via inline media won't work — handled by @media in className
-        }}
         className="ex-login-left"
+        style={{
+          flex: 1, display: "none", flexDirection: "column",
+          justifyContent: "center", alignItems: "center",
+          position: "relative", overflow: "hidden",
+          background: "linear-gradient(155deg, #04110B 0%, #0A2117 35%, #0F2D1E 60%, #071610 100%)",
+        }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 48 }}>
-          <Logo size={56} />
-          <div>
-            <div style={{ fontFamily: "var(--font-cinzel), Georgia, serif", fontSize: 34, fontWeight: 700, letterSpacing: "0.04em", color: "var(--txt)" }}>EXPAND</div>
-            <div style={{ fontSize: 11, letterSpacing: "0.24em", textTransform: "uppercase", color: "var(--accent)" }}>Motor de Trabalho</div>
+        {/* Luz difusa superior direita */}
+        <div style={{
+          position: "absolute", inset: 0, pointerEvents: "none",
+          background: "radial-gradient(ellipse 55% 45% at 72% 22%, rgba(70,160,100,0.13) 0%, transparent 65%)",
+        }} />
+        {/* Reflexo suave inferior esquerdo */}
+        <div style={{
+          position: "absolute", inset: 0, pointerEvents: "none",
+          background: "radial-gradient(ellipse 45% 55% at 20% 85%, rgba(30,90,55,0.14) 0%, transparent 65%)",
+        }} />
+        {/* Textura sutil via SVG noise */}
+        <svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0.04, pointerEvents: "none" }} aria-hidden="true">
+          <filter id="noise">
+            <feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch" />
+            <feColorMatrix type="saturate" values="0" />
+          </filter>
+          <rect width="100%" height="100%" filter="url(#noise)" />
+        </svg>
+
+        {/* Conteúdo central */}
+        <div style={{ position: "relative", textAlign: "center", padding: "60px 64px", display: "flex", flexDirection: "column", alignItems: "center", gap: 0 }}>
+          <LogoMark size={100} />
+          <div style={{
+            fontFamily: "var(--font-cinzel), Georgia, serif",
+            fontSize: 52, fontWeight: 700, letterSpacing: "0.1em",
+            color: "#C8A84E", marginTop: 28, lineHeight: 1,
+            textShadow: "0 0 60px rgba(200,168,78,0.3)",
+          }}>
+            EXPAND
           </div>
-        </div>
-        <h2 style={{ fontSize: 28, fontWeight: 700, lineHeight: 1.3, color: "var(--txt)", marginBottom: 20, maxWidth: 340 }}>
-          Tudo o que a operação precisa, num lugar só.
-        </h2>
-        <p style={{ fontSize: 14.5, color: "var(--mut)", lineHeight: 1.7, maxWidth: 360, marginBottom: 40 }}>
-          Tarefas, pipeline comercial, portal do cliente, agentes de IA e memória de equipe — integrados e organizados pela Expand.
-        </p>
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          {[
-            { icon: "◆", txt: "Painel de tarefas em tempo real" },
-            { icon: "⚡", txt: "Agentes de IA por função e cliente" },
-            { icon: "▶", txt: "Pipeline de vendas + CRM integrado" },
-          ].map(({ icon, txt }) => (
-            <div key={txt} style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 13.5, color: "var(--mut)" }}>
-              <span style={{ color: "var(--accent)", width: 20, textAlign: "center" }}>{icon}</span>
-              {txt}
-            </div>
-          ))}
+          <div style={{
+            fontSize: 11, letterSpacing: "0.32em", textTransform: "uppercase",
+            color: "rgba(200,168,78,0.55)", marginTop: 10,
+          }}>
+            Motor de Trabalho
+          </div>
+          <div style={{
+            marginTop: 48, width: 40, height: 1,
+            background: "linear-gradient(90deg, transparent, rgba(200,168,78,0.4), transparent)",
+          }} />
+          <p style={{
+            marginTop: 32, fontSize: 13.5, color: "rgba(180,220,200,0.45)",
+            lineHeight: 1.8, maxWidth: 300, letterSpacing: "0.02em",
+          }}>
+            Tarefas, pipeline, portal do cliente e agentes de IA — integrados e organizados.
+          </p>
         </div>
       </div>
 
       {/* Lado direito — formulário */}
-      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, background: "var(--bg)" }}>
         <div style={{ width: "100%", maxWidth: 420 }}>
           {/* Logo mobile */}
           <div className="ex-login-logo-mobile" style={{ textAlign: "center", marginBottom: 28, display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
-            <Logo size={44} />
+            <LogoMark size={44} />
             <div>
               <div style={{ fontFamily: "var(--font-cinzel), Georgia, serif", fontSize: 26, fontWeight: 700, letterSpacing: "0.04em", color: "var(--txt)" }}>EXPAND</div>
               <div style={{ fontSize: 10, letterSpacing: "0.22em", textTransform: "uppercase", color: "var(--accent)" }}>Motor de Trabalho</div>
@@ -154,33 +170,6 @@ function LoginInner() {
             <div style={{ display: "flex", gap: 6, marginBottom: 22, background: "var(--panel-2)", borderRadius: 12, padding: 4 }}>
               <button onClick={() => { setTab("login"); setTipo(null); setMsg(null); }} style={tabStyle(tab === "login")}>Entrar</button>
               <button onClick={() => { setTab("signup"); setMsg(null); }} style={tabStyle(tab === "signup")}>Criar conta</button>
-            </div>
-
-            {/* Google OAuth */}
-            <button
-              type="button"
-              onClick={entrarComGoogle}
-              disabled={loadingGoogle}
-              style={{
-                width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
-                padding: "11px 14px", borderRadius: 10, marginBottom: 16, cursor: "pointer",
-                border: "1px solid var(--line-2)", background: "var(--bg)", color: "var(--txt)",
-                fontSize: 14, fontFamily: "inherit", fontWeight: 600, opacity: loadingGoogle ? 0.6 : 1, transition: "opacity .15s",
-              }}
-            >
-              <svg width="18" height="18" viewBox="0 0 48 48" fill="none">
-                <path d="M47.5 24.5c0-1.6-.1-3.2-.4-4.7H24.3v8.9h13c-.6 3-2.3 5.5-4.9 7.2v5.9h7.9c4.6-4.2 7.2-10.4 7.2-17.3z" fill="#4285F4"/>
-                <path d="M24.3 48c6.5 0 11.9-2.1 15.9-5.8l-7.9-5.9c-2.1 1.4-4.8 2.2-8 2.2-6.1 0-11.3-4.1-13.1-9.6H2.9v6.1C6.8 42.8 15 48 24.3 48z" fill="#34A853"/>
-                <path d="M11.2 28.9c-.5-1.4-.7-2.9-.7-4.5s.3-3.1.7-4.5v-6H2.9A23.7 23.7 0 0 0 .3 24.4c0 3.8.9 7.4 2.6 10.6l8.3-6.1z" fill="#FBBC05"/>
-                <path d="M24.3 9.5c3.4 0 6.5 1.2 8.9 3.5l6.6-6.6C35.7 2.4 30.3 0 24.3 0 15 0 6.8 5.2 2.9 13l8.3 6.1c1.8-5.4 7-9.6 13.1-9.6z" fill="#EA4335"/>
-              </svg>
-              {loadingGoogle ? "Redirecionando..." : tab === "login" ? "Entrar com Google" : "Cadastrar com Google"}
-            </button>
-
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-              <div style={{ flex: 1, height: 1, background: "var(--line-2)" }} />
-              <span style={{ fontSize: 11.5, color: "var(--dim)" }}>ou use e-mail</span>
-              <div style={{ flex: 1, height: 1, background: "var(--line-2)" }} />
             </div>
 
             {/* Escolha de tipo no cadastro */}
