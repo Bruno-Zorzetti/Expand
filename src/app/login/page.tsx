@@ -54,6 +54,7 @@ function LoginInner() {
   const [senha, setSenha] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [cadastroOk, setCadastroOk] = useState<{ tipo: Tipo } | null>(null);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -70,16 +71,19 @@ function LoginInner() {
         email, password: senha,
         options: { data: { full_name: nome, tipo_acesso: tipo } },
       });
-      if (error) setMsg(error.message);
-      else {
-        setMsg(tipo === "equipe"
-          ? "Conta criada! A equipe de gestão precisa aprovar seu acesso. Você receberá um aviso quando liberado."
-          : "Conta criada! Nossa equipe irá validar seu acesso em breve. Fique de olho no e-mail.");
-        setTab("login");
-        setTipo(null);
+      if (error) {
+        setMsg(error.message === "User already registered" ? "Este e-mail já possui uma conta. Faça login ou redefina sua senha." : error.message);
+      } else {
+        setCadastroOk({ tipo });
+        setNome(""); setEmail(""); setSenha(""); setTipo(null);
       }
     }
     setLoading(false);
+  }
+
+  function fecharModal() {
+    setCadastroOk(null);
+    setTab("login");
   }
 
   const tabStyle = (on: boolean): React.CSSProperties => ({
@@ -249,6 +253,72 @@ function LoginInner() {
           </div>
         </div>
       </div>
+
+      {/* Modal de confirmação de cadastro */}
+      {cadastroOk && (
+        <div
+          style={{
+            position: "fixed", inset: 0, zIndex: 500,
+            background: "rgba(4,17,11,0.75)", backdropFilter: "blur(6px)",
+            display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
+          }}
+          onClick={fecharModal}
+        >
+          <div
+            style={{
+              background: "var(--panel-2)", border: "1px solid var(--line-2)",
+              borderRadius: 22, padding: "36px 32px", maxWidth: 440, width: "100%",
+              textAlign: "center", boxShadow: "0 24px 64px rgba(0,0,0,0.4)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* ícone de sucesso */}
+            <div style={{
+              width: 64, height: 64, borderRadius: "50%",
+              background: "linear-gradient(135deg,rgba(200,168,78,0.15),rgba(200,168,78,0.06))",
+              border: "1px solid rgba(200,168,78,0.3)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 28, margin: "0 auto 24px",
+            }}>
+              ✓
+            </div>
+
+            <div style={{ fontFamily: "var(--font-cinzel,Georgia,serif)", fontSize: 13, letterSpacing: "0.22em", textTransform: "uppercase", color: "var(--accent)", marginBottom: 10 }}>
+              Conta criada
+            </div>
+
+            <h2 style={{ fontSize: 22, fontWeight: 700, color: "var(--txt)", marginBottom: 14, lineHeight: 1.3 }}>
+              {cadastroOk.tipo === "equipe"
+                ? "Aguardando aprovação da equipe"
+                : "Aguardando validação de acesso"}
+            </h2>
+
+            <p style={{ fontSize: 14, color: "var(--mut)", lineHeight: 1.7, marginBottom: 10 }}>
+              {cadastroOk.tipo === "equipe"
+                ? "Seu cadastro foi recebido. Um administrador vai revisar e liberar seu acesso — você receberá um aviso por e-mail assim que aprovado."
+                : "Seu cadastro foi recebido. Nossa equipe validará seu acesso em breve e você receberá uma confirmação por e-mail."}
+            </p>
+
+            <p style={{ fontSize: 12.5, color: "var(--dim)", lineHeight: 1.6, marginBottom: 28, padding: "10px 12px", borderRadius: 10, background: "var(--panel)", border: "1px solid var(--line-2)" }}>
+              {cadastroOk.tipo === "equipe"
+                ? "Enquanto isso, o acesso ao painel fica restrito. Nenhuma ação adicional é necessária da sua parte."
+                : "Se precisar de suporte, entre em contato diretamente com o seu responsável na Expand."}
+            </p>
+
+            <button
+              onClick={fecharModal}
+              style={{
+                width: "100%", padding: "13px 16px", borderRadius: 12, border: "none",
+                background: "linear-gradient(135deg,var(--accent),var(--accent-2,var(--accent)))",
+                color: "#0A1512", fontSize: 15, fontWeight: 700, cursor: "pointer",
+                fontFamily: "inherit",
+              }}
+            >
+              Entendido — ir para o login
+            </button>
+          </div>
+        </div>
+      )}
 
       <style>{`
         @media (min-width: 860px) {
