@@ -244,6 +244,36 @@ export async function removerArquivo(formData: FormData) {
   revalidatePath(`/expand/etapa/${etapaId}`);
 }
 
+// ---- Cria uma tarefa/evento direto pelo calendário ----
+export async function criarEtapaCal(formData: FormData) {
+  const titulo = String(formData.get("titulo") ?? "").trim();
+  const tipo = String(formData.get("tipo") ?? "reuniao");
+  const clienteId = String(formData.get("clienteId") ?? "");
+  const date = String(formData.get("date") ?? "").trim();
+  const membroNome = String(formData.get("membroNome") ?? "").trim();
+  if (!titulo || !clienteId) return;
+  const supabase = await createClient();
+  const { pessoa } = await getPessoa();
+  const { data: inserted } = await supabase.from("expand_etapas").insert({
+    titulo,
+    area: tipo,
+    responsavel: membroNome || pessoa.nome,
+    responsavel_atual: membroNome || pessoa.nome,
+    status: "idle",
+    marco: false,
+    data_prevista: date || null,
+    cliente_id: clienteId,
+  }).select("id").single();
+  if (inserted?.id) {
+    await logar(supabase, "criacao", `Criou evento de calendário: ${titulo} (${tipo})`, {
+      etapa_id: inserted.id as string,
+      cliente_id: clienteId,
+      autor: pessoa.nome,
+    });
+  }
+  revalidatePath("/expand/planejamento");
+}
+
 // ---- Agenda: data prevista da tarefa (planejamento semanal) ----
 export async function agendarEtapa(formData: FormData) {
   const etapaId = String(formData.get("etapaId") ?? "");

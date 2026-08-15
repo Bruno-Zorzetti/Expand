@@ -14,14 +14,17 @@ export default async function ExpandLayout({ children }: { children: ReactNode }
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
-  const { data: me } = await supabase.from("profiles").select("role, acessos").eq("id", user.id).single();
+  const { data: me } = await supabase.from("profiles").select("role, acessos, expand_modulos").eq("id", user.id).single();
   const role = (me?.role as string) ?? "pendente";
   if (role === "cliente") redirect("/cliente");
   if (!["admin", "equipe"].includes(role)) redirect("/aguardando"); // pendente / sem papel
 
   const { pessoa, equipe } = await getPessoa();
   const isAdmin = role === "admin";
-  const acessos = (me?.acessos as string[] | null) ?? [];
+  // acessos = permissões legacy (ex: "comercial") + módulos RBAC (ex: "tarefas.meudia")
+  const acessosBase = (me?.acessos as string[] | null) ?? [];
+  const modulos = (me?.expand_modulos as string[] | null) ?? [];
+  const acessos = [...new Set([...acessosBase, ...modulos])];
 
   const { data: nData } = await supabase.from("expand_notificacoes")
     .select("id, tipo, texto, link, lida, criado_em").eq("membro_id", pessoa.id)

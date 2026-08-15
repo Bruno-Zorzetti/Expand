@@ -10,55 +10,50 @@ type Pessoa = { id: string; nome: string; papel: string; ini: string };
 type Sub = { href: string; label: string; external?: boolean };
 type NavItem = {
   href: string; label: string; icon: string; eyebrow: string;
-  badge?: number; external?: boolean; gate?: "admin" | "comercial"; sub?: Sub[];
+  badge?: number; external?: boolean; gate?: string; sub?: Sub[];
 };
 type NavSec = { id: string; sec: string; items: NavItem[] };
 
 const NAV: NavSec[] = [
   {
-    id: "operacao",
-    sec: "Operação & Atividades",
+    id: "tarefas",
+    sec: "Tarefas",
     items: [
-      { href: "/expand/v2", label: "Hub do Dia", icon: "grid", eyebrow: "Suas tarefas · Monday-style" },
-      { href: "/expand/planejamento", label: "Calendário", icon: "calendar", eyebrow: "Agenda pessoal da equipe" },
-      { href: "/expand/plano", label: "Plano de Ação", icon: "list", eyebrow: "Reunião de líderes" },
-      { href: "/expand/board", label: "Board de Atividades", icon: "kanban", eyebrow: "Estado das contas" },
+      { href: "/expand/v2",           label: "Meu Dia",             icon: "grid",     eyebrow: "Suas tarefas de hoje",       gate: "tarefas.meudia" },
+      { href: "/expand/planejamento", label: "Calendário",          icon: "calendar", eyebrow: "Agenda pessoal",             gate: "tarefas.calendario" },
+      { href: "/expand/plano",        label: "Plano de Ação",       icon: "list",     eyebrow: "Objetivos e ações",          gate: "tarefas.plano" },
+      { href: "/expand/board",        label: "Board de Atividades", icon: "kanban",   eyebrow: "Kanban das contas",          gate: "tarefas.board" },
     ],
   },
   {
-    id: "produtos",
-    sec: "Produtos & Equipe",
+    id: "projetos",
+    sec: "Projetos",
     items: [
-      { href: "/expand/produtos", label: "Produtos", icon: "box", eyebrow: "Catálogo e processos" },
-      { href: "/expand/carteira", label: "Clientes", icon: "folder", eyebrow: "Carteira e dossiês" },
+      { href: "/expand/produtos",  label: "Produtos", icon: "box",    eyebrow: "Catálogo e processos", gate: "projetos.produtos" },
       {
-        href: "/expand/equipe", label: "Time & Agentes", icon: "idcard", eyebrow: "Humanos + IA",
+        href: "/expand/equipe", label: "Equipe", icon: "idcard", eyebrow: "Humanos + Agentes IA",
+        gate: "projetos.equipe",
         sub: [
-          { href: "/expand/organograma", label: "Organograma" },
-          { href: "/expand/squads", label: "Squads" },
+          { href: "/expand/equipe/humanos", label: "Humanos" },
+          { href: "/expand/equipe/agentes", label: "Agentes IA" },
         ],
       },
+      { href: "/expand/carteira",  label: "Clientes", icon: "folder", eyebrow: "Carteira e dossiês",   gate: "projetos.clientes" },
     ],
   },
   {
     id: "ferramentas",
-    sec: "Ferramentas & Conhecimento",
+    sec: "Ferramentas",
     items: [
+      { href: "/expand/ferramentas/grupos",  label: "Criador de Grupos",        icon: "users",   eyebrow: "WhatsApp e squads",     gate: "ferramentas.grupos" },
+      { href: "/expand/apresentacoes",       label: "Criador de Apresentações", icon: "slides",  eyebrow: "Decks e slides",         gate: "ferramentas.apresentacoes" },
       {
-        href: "/expand/biblioteca", label: "Conhecimento", icon: "library", eyebrow: "Metodologia Expand",
+        href: "/expand/conhecimento", label: "Biblioteca de Conhecimento", icon: "library", eyebrow: "Metodologia Expand",
+        gate: "ferramentas.conhecimento",
         sub: [
-          { href: "/expand/comercial/playbook", label: "Playbook 3F" },
-          { href: "/expand/comercial/funis", label: "Funis de Vendas" },
-          { href: "/expand/comercial/objecoes", label: "Contorno de Objeções" },
-        ],
-      },
-      { href: "/expand/apresentacoes", label: "Apresentações", icon: "slides", eyebrow: "Editor de decks" },
-      {
-        href: "/expand/ferramentas", label: "Ferramentas", icon: "tool", eyebrow: "Utilitários da operação",
-        gate: "admin",
-        sub: [
-          { href: "/expand/ferramentas/grupo", label: "Criar grupo WA" },
-          { href: "/expand/apresentacoes", label: "Criar slides" },
+          { href: "/expand/conhecimento/playbook",  label: "Playbook" },
+          { href: "/expand/conhecimento/funil",     label: "Funil de Vendas" },
+          { href: "/expand/conhecimento/objecoes",  label: "Objeções" },
         ],
       },
     ],
@@ -67,34 +62,38 @@ const NAV: NavSec[] = [
     id: "comercial",
     sec: "Comercial",
     items: [
-      { href: "/expand/comercial/pipeline", label: "Funil CRM", icon: "filter", eyebrow: "Pipeline de vendas", gate: "comercial" },
-      { href: "/expand/comercial", label: "Hoje · Placar", icon: "target", eyebrow: "Gamificação diária", gate: "comercial" },
-      { href: "/expand/comercial/meta", label: "A Meta", icon: "coin", eyebrow: "Calculadora de vendas", gate: "comercial" },
-      { href: "/expand/comercial/semana", label: "A Semana", icon: "squad", eyebrow: "Placar Luiz × Pedro", gate: "comercial" },
-      { href: "/expand/comercial/guia", label: "O Guia", icon: "book", eyebrow: "Como usar o sistema", gate: "comercial" },
+      { href: "/expand/comercial",          label: "Dashboard",      icon: "bars",   eyebrow: "Visão geral comercial",   gate: "comercial.dashboard" },
+      { href: "/expand/comercial/pipeline", label: "Funil de Vendas", icon: "filter", eyebrow: "Pipeline CRM",           gate: "comercial.funil" },
+      { href: "/expand/comercial/placar",   label: "Placar",          icon: "target", eyebrow: "Gamificação diária",     gate: "comercial.placar" },
+      { href: "/expand/comercial/meta",     label: "Meta",            icon: "coin",   eyebrow: "Calculadora de vendas",  gate: "comercial.meta" },
+      { href: "/expand/comercial/guia",     label: "Guia",            icon: "book",   eyebrow: "Como usar o sistema",    gate: "comercial.guia" },
     ],
   },
   {
     id: "financeiro",
     sec: "Financeiro",
     items: [
-      { href: "/expand/financas", label: "Finanças", icon: "bars", eyebrow: "DRE & valuation", gate: "admin" },
-      { href: "/expand/roadmap", label: "Roadmap", icon: "map", eyebrow: "Entregas & prazos", gate: "admin" },
+      { href: "/expand/financas",           label: "Dashboard", icon: "bars",     eyebrow: "DRE & valuation",             gate: "financeiro.dashboard" },
+      { href: "/expand/financas/dre",       label: "DRE",       icon: "activity", eyebrow: "Demonstrativo de resultados", gate: "financeiro.dre" },
+      { href: "/expand/financas/metas",     label: "Metas",     icon: "target",   eyebrow: "Metas financeiras",           gate: "financeiro.metas" },
+      { href: "/expand/financas/realizado", label: "Realizado", icon: "list",     eyebrow: "Resultados realizados",       gate: "financeiro.realizado" },
+      { href: "/expand/financas/pagar",     label: "A Pagar",   icon: "coin",     eyebrow: "Contas a pagar",              gate: "financeiro.pagar" },
+      { href: "/expand/financas/receber",   label: "A Receber", icon: "zap",      eyebrow: "Contas a receber",            gate: "financeiro.receber" },
     ],
   },
   {
     id: "config",
     sec: "Configurações",
     items: [
-      { href: "/expand/empresa", label: "Empresa", icon: "building", eyebrow: "Identidade, marca & rituais", gate: "admin" },
-      { href: "/expand/ritmo", label: "Rituais & Governança", icon: "activity", eyebrow: "Daily, Weekly, Check-in…", gate: "admin" },
-      { href: "/expand/acessos", label: "Acessos", icon: "lock", eyebrow: "Aprovações & papéis", gate: "admin" },
-      { href: "/expand/rbac", label: "Permissões RBAC", icon: "shield", eyebrow: "Matriz de acessos", gate: "admin" },
-      { href: "/expand/integracoes", label: "Integrações", icon: "plug", eyebrow: "Conexões", gate: "admin" },
-      { href: "/expand/rotinas", label: "Rotinas", icon: "zap", eyebrow: "Automações & tokens", gate: "admin" },
-      { href: "/expand/gestao", label: "Visão Geral", icon: "layers", eyebrow: "Painel administrativo", gate: "admin" },
-      { href: "/expand/log", label: "Log", icon: "list", eyebrow: "Auditoria do sistema", gate: "admin" },
-      { href: "/expand/estilo", label: "Estilo", icon: "brush", eyebrow: "Design System", gate: "admin" },
+      { href: "/expand/empresa",      label: "Empresa",        icon: "building", eyebrow: "Identidade e marca",       gate: "admin" },
+      { href: "/expand/ritmo",        label: "Ritmos",         icon: "activity", eyebrow: "Daily, Weekly, Check-in",  gate: "admin" },
+      { href: "/expand/acessos",      label: "Acessos",        icon: "lock",     eyebrow: "Aprovações e papéis",      gate: "admin" },
+      { href: "/expand/rbac",         label: "RBAC",           icon: "shield",   eyebrow: "Matriz de permissões",     gate: "admin" },
+      { href: "/expand/integracoes",  label: "Integração",     icon: "plug",     eyebrow: "Conexões externas",        gate: "admin" },
+      { href: "/expand/rotinas",      label: "Rotinas",        icon: "zap",      eyebrow: "Automações e tokens",      gate: "admin" },
+      { href: "/expand/gestao",       label: "Visão Geral",    icon: "layers",   eyebrow: "Painel administrativo",    gate: "admin" },
+      { href: "/expand/log",          label: "Log",            icon: "list",     eyebrow: "Auditoria do sistema",     gate: "admin" },
+      { href: "/expand/estilo",       label: "Folha de Estilo", icon: "brush",   eyebrow: "Design System",           gate: "admin" },
     ],
   },
 ];

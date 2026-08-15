@@ -12,7 +12,7 @@ export default async function Planejamento({
 }) {
   const sp = await searchParams;
   const initialView: Vista =
-    sp.v === "dia" || sp.v === "mes" ? sp.v : "semana";
+    sp.v === "dia" || sp.v === "semana" ? sp.v : "mes";
   const initialDate = sp.d ?? new Date().toISOString().slice(0, 10);
 
   const { pessoa, equipe } = await getPessoa();
