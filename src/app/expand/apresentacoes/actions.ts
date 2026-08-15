@@ -127,8 +127,6 @@ Transforme todo o conteúdo acima em ${qtdSlides} slides profissionais e visualm
   }
 }
 
-export { TEMPLATES };
-
 // ── Editor de slides (deck salvo no Supabase) ─────────────────────────────────
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath as _rp } from "next/cache";
