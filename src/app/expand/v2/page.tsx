@@ -16,57 +16,85 @@ type Et = {
   fase: number; ordem: number;
 };
 
-type EffSt = "late" | "run" | "wait" | "idle" | "done";
+// ── Status system ────────────────────────────────────────────────────────────
+type EffSt  = "late" | "run" | "wait" | "idle" | "done";
+type Urgval = "urgente" | "alta" | "normal" | "baixa";
+
 const ST: Record<EffSt, { l: string; c: string; bg: string; bdr: string }> = {
-  late: { l: "Atrasada",     c: "var(--red)",    bg: "color-mix(in srgb,var(--red) 10%,transparent)",    bdr: "var(--red)"    },
-  run:  { l: "Em andamento", c: "var(--accent)",  bg: "color-mix(in srgb,var(--accent) 10%,transparent)", bdr: "var(--accent)" },
-  wait: { l: "Em revisão",   c: "var(--warn)",   bg: "color-mix(in srgb,var(--warn) 10%,transparent)",   bdr: "var(--warn)"   },
-  idle: { l: "A fazer",      c: "var(--dim)",    bg: "var(--panel-2)",                                    bdr: "var(--line-2)" },
-  done: { l: "Concluída",    c: "var(--green)",  bg: "color-mix(in srgb,var(--green) 10%,transparent)",  bdr: "var(--green)"  },
+  late: { l: "Atrasada",     c: "var(--red)",   bg: "color-mix(in srgb,var(--red) 10%,transparent)",    bdr: "var(--red)"    },
+  run:  { l: "Em andamento", c: "var(--accent)", bg: "color-mix(in srgb,var(--accent) 10%,transparent)", bdr: "var(--accent)" },
+  wait: { l: "Em revisão",   c: "var(--warn)",  bg: "color-mix(in srgb,var(--warn) 10%,transparent)",   bdr: "var(--warn)"   },
+  idle: { l: "A fazer",      c: "var(--dim)",   bg: "var(--panel-2)",                                    bdr: "var(--line-2)" },
+  done: { l: "Concluída",    c: "var(--green)", bg: "color-mix(in srgb,var(--green) 10%,transparent)",  bdr: "var(--green)"  },
 };
 const COLS: EffSt[] = ["late", "run", "wait", "idle", "done"];
 
+const URG: Record<Urgval, { l: string; c: string; bg: string; bdr: string; emoji: string }> = {
+  urgente: { l: "Urgente", c: "var(--red)",    bg: "color-mix(in srgb,var(--red) 10%,transparent)",    bdr: "var(--red)",    emoji: "🔴" },
+  alta:    { l: "Alta",    c: "var(--warn)",   bg: "color-mix(in srgb,var(--warn) 10%,transparent)",   bdr: "var(--warn)",   emoji: "🟠" },
+  normal:  { l: "Normal",  c: "var(--accent)", bg: "color-mix(in srgb,var(--accent) 10%,transparent)", bdr: "var(--accent)", emoji: "🔵" },
+  baixa:   { l: "Baixa",  c: "var(--dim)",    bg: "var(--panel-2)",                                    bdr: "var(--line-2)", emoji: "⚪" },
+};
+const URG_ORDER: Urgval[] = ["urgente", "alta", "normal", "baixa"];
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
 function slaDias(sla: string | null) {
   if (!sla) return null;
   const md = sla.toLowerCase().match(/(\d+)\s*dia/); if (md) return Number(md[1]);
-  const mh = sla.toLowerCase().match(/(\d+)\s*h/); if (mh) return Math.max(1, Math.round(Number(mh[1]) / 24));
+  const mh = sla.toLowerCase().match(/(\d+)\s*h/);   if (mh) return Math.max(1, Math.round(Number(mh[1]) / 24));
   return null;
 }
-
 function diasDesde(iso: string | null) {
   if (!iso) return null;
   return (Date.now() - new Date(iso).getTime()) / 864e5;
 }
+function addDays(d: Date, n: number): Date {
+  const x = new Date(d); x.setDate(x.getDate() + n); return x;
+}
 
+// ── Page ─────────────────────────────────────────────────────────────────────
 export default async function V2({ searchParams }: { searchParams: Promise<Record<string, string>> }) {
   const sp = await searchParams;
-  const view   = (sp.v   as string) || "lista";
-  const scope  = (sp.s   as string) || "mine";
-  const grupo  = (sp.g   as string) || "cliente";
+  const view   = (sp.v  as string) || "lista";
+  const grupo  = (sp.g  as string) || "cliente";
+
+  const { pessoa }  = await getPessoa();
+  const { isAdmin } = await getAcesso();
+
+  // Default scope: admin → all, equipe → mine
+  const defaultScope = isAdmin ? "all" : "mine";
+  const scope = (sp.s as string) || defaultScope;
+
   const filtroCli  = (sp.c  as string) || "";
   const filtroSt   = (sp.st as string) || "";
   const filtroArea = (sp.a  as string) || "";
   const filtroResp = (sp.r  as string) || "";
 
-  const { pessoa }  = await getPessoa();
-  const { isAdmin } = await getAcesso();
-  const supabase    = await createClient();
+  const supabase = await createClient();
 
-  // Build query
+  // Main tasks query
   let q = supabase.from("expand_etapas")
     .select("id,titulo,cliente_id,area,responsavel,responsavel_atual,agente,sla,status,iniciada_em,concluida_em,data_prevista,marco,bloqueado,fase,ordem")
     .order("fase").order("ordem");
 
-  if (scope === "mine") {
+  if (scope === "mine")
     q = q.or(`responsavel_atual.eq.${pessoa.nome},responsavel.ilike.%${pessoa.nome}%`);
-  }
   if (filtroCli)  q = q.eq("cliente_id", filtroCli);
   if (filtroArea) q = q.eq("area", filtroArea);
 
   const { data: etData } = await q.limit(600);
   let etapas = (etData ?? []) as Et[];
 
-  // Pending approvals map
+  // Dashboard needs ALL tasks (no scope filter)
+  let etapasDash: Et[] = [];
+  if (view === "dash") {
+    const { data: allData } = await supabase.from("expand_etapas")
+      .select("id,titulo,cliente_id,area,responsavel,responsavel_atual,sla,status,iniciada_em,concluida_em,data_prevista,marco,bloqueado,fase,ordem,agente")
+      .order("fase").limit(600);
+    etapasDash = (allData ?? []) as Et[];
+  }
+
+  // Pending approvals
   const pendMap = new Map<string, number>();
   if (etapas.length) {
     const ids = etapas.map(e => e.id);
@@ -80,8 +108,10 @@ export default async function V2({ searchParams }: { searchParams: Promise<Recor
   const clientes = (cliData ?? []) as { id: string; nome: string }[];
   const cliMap   = new Map(clientes.map(c => [c.id, c.nome]));
 
-  const hojeISO = new Intl.DateTimeFormat("sv", { timeZone: "America/Sao_Paulo" }).format(new Date());
+  const hojeISO  = new Intl.DateTimeFormat("sv", { timeZone: "America/Sao_Paulo" }).format(new Date());
+  const hojeDate = new Date(hojeISO + "T00:00:00");
 
+  // ── Computed status ──────────────────────────────────────────────────────
   function eff(e: Et): EffSt {
     if (e.status === "done") return "done";
     if (e.bloqueado) return "late";
@@ -95,13 +125,33 @@ export default async function V2({ searchParams }: { searchParams: Promise<Recor
     return "idle";
   }
 
+  // ── Urgency (derived) ────────────────────────────────────────────────────
+  function urgencia(e: Et): Urgval {
+    const s = eff(e);
+    if (s === "done") return "baixa";
+    if (s === "late") return "urgente";
+    if (e.marco)      return "alta";
+    if (s === "run") {
+      const d = slaDias(e.sla), el = diasDesde(e.iniciada_em);
+      if (d != null && el != null && el >= d - 1) return "urgente";
+    }
+    if (e.data_prevista) {
+      const daysUntil = (new Date(e.data_prevista + "T12:00").getTime() - Date.now()) / 864e5;
+      if (daysUntil <= 1)  return "urgente";
+      if (daysUntil <= 3)  return "alta";
+    }
+    return "normal";
+  }
+
+  // Apply status/resp filters after eff computation
   if (filtroSt)   etapas = etapas.filter(e => eff(e) === filtroSt);
   if (filtroResp) etapas = etapas.filter(e => (e.responsavel_atual ?? e.responsavel) === filtroResp);
 
   const stats = { total: etapas.length, late: 0, run: 0, done: 0, idle: 0, wait: 0 };
   etapas.forEach(e => { const s = eff(e); stats[s]++; });
+  const pct = stats.total ? Math.round(stats.done / stats.total * 100) : 0;
 
-  // QS builder
+  // ── QS builder ───────────────────────────────────────────────────────────
   const qs = (patch: Partial<Record<string, string>>) => {
     const base: Record<string, string> = { v: view, s: scope, g: grupo };
     if (filtroCli)  base.c  = filtroCli;
@@ -116,30 +166,134 @@ export default async function V2({ searchParams }: { searchParams: Promise<Recor
   const resps = [...new Set(etapas.map(e => e.responsavel_atual ?? e.responsavel).filter(Boolean))].sort() as string[];
   const areas = [...new Set(etapas.map(e => e.area).filter(Boolean))].sort() as string[];
 
+  // ── Gantt helpers ────────────────────────────────────────────────────────
+  const GANTT_DAYS = 35; // window: T-10 to T+25
+  const gStart = addDays(hojeDate, -10);
+  const gEnd   = addDays(hojeDate, 25);
+  const todayPct = (10 / GANTT_DAYS) * 100; // today is at 10/35 = 28.6%
+
+  function ganttPos(e: Et): { left: number; width: number } | null {
+    if (!e.data_prevista) return null;
+    const end   = new Date(e.data_prevista + "T00:00");
+    const dSla  = slaDias(e.sla) ?? 3;
+    const start = e.iniciada_em
+      ? new Date(e.iniciada_em.slice(0, 10) + "T00:00")
+      : new Date(end.getTime() - dSla * 864e5);
+
+    const leftRaw  = (start.getTime() - gStart.getTime()) / (864e5 * GANTT_DAYS) * 100;
+    const widthRaw = (end.getTime() - start.getTime())    / (864e5 * GANTT_DAYS) * 100;
+    const left   = Math.max(0, leftRaw);
+    const right  = Math.min(100, leftRaw + widthRaw);
+    const width  = Math.max(1, right - left);
+    return right > 0 && left < 100 ? { left, width } : null;
+  }
+
+  // Gantt header: day markers every 5 days
+  const ganttHeaders: { pct: number; label: string }[] = [];
+  for (let i = 0; i <= GANTT_DAYS; i += 5) {
+    const d = addDays(gStart, i);
+    ganttHeaders.push({
+      pct: (i / GANTT_DAYS) * 100,
+      label: d.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }),
+    });
+  }
+
+  // ── Grouping helper ──────────────────────────────────────────────────────
+  type GrupoItem = { label: string; items: Et[]; cor: string };
+  function buildGrupos(): Map<string, GrupoItem> {
+    const m = new Map<string, GrupoItem>();
+    if (grupo === "area") {
+      etapas.forEach(e => {
+        const k = e.area ?? "_none";
+        if (!m.has(k)) m.set(k, { label: AREAS[k]?.n ?? "Sem área", items: [], cor: AREAS[k]?.cor ?? "var(--dim)" });
+        m.get(k)!.items.push(e);
+      });
+    } else if (grupo === "responsavel") {
+      etapas.forEach(e => {
+        const k = e.responsavel_atual ?? e.responsavel ?? "_none";
+        if (!m.has(k)) m.set(k, { label: k === "_none" ? "Sem responsável" : k, items: [], cor: "var(--accent)" });
+        m.get(k)!.items.push(e);
+      });
+    } else if (grupo === "urgencia") {
+      URG_ORDER.forEach(u => {
+        m.set(u, { label: `${URG[u].emoji} ${URG[u].l}`, items: [], cor: URG[u].c });
+      });
+      etapas.forEach(e => m.get(urgencia(e))!.items.push(e));
+      // remove empty urgency groups
+      for (const [k, v] of m) if (!v.items.length) m.delete(k);
+    } else { // cliente
+      etapas.forEach(e => {
+        const k = e.cliente_id;
+        if (!m.has(k)) m.set(k, { label: cliMap.get(k) ?? "—", items: [], cor: "var(--accent)" });
+        m.get(k)!.items.push(e);
+      });
+    }
+    return m;
+  }
+
+  // ── Dashboard data ───────────────────────────────────────────────────────
+  const dashSource = view === "dash" ? etapasDash : etapas;
+  const dashPendMap = new Map<string, number>(pendMap); // reuse existing for dash
+
+  function effDash(e: Et): EffSt {
+    if (e.status === "done") return "done";
+    if (e.bloqueado) return "late";
+    if (dashPendMap.get(e.id)) return "wait";
+    if (e.status === "run") {
+      const d = slaDias(e.sla), el = diasDesde(e.iniciada_em);
+      if (d != null && el != null && el > d) return "late";
+      return "run";
+    }
+    if (e.status === "idle" && e.data_prevista && e.data_prevista < hojeISO) return "late";
+    return "idle";
+  }
+
+  const cliDash = new Map<string, { total: number; done: number; late: number; run: number }>();
+  dashSource.forEach(e => {
+    if (!cliDash.has(e.cliente_id)) cliDash.set(e.cliente_id, { total: 0, done: 0, late: 0, run: 0 });
+    const g = cliDash.get(e.cliente_id)!;
+    g.total++;
+    const s = effDash(e);
+    if (s === "done") g.done++;
+    if (s === "late") g.late++;
+    if (s === "run")  g.run++;
+  });
+
+  const teamDash = new Map<string, { total: number; done: number; late: number }>();
+  dashSource.forEach(e => {
+    const k = e.responsavel_atual ?? e.responsavel ?? "Sem responsável";
+    if (!teamDash.has(k)) teamDash.set(k, { total: 0, done: 0, late: 0 });
+    const g = teamDash.get(k)!;
+    g.total++;
+    const s = effDash(e);
+    if (s === "done") g.done++;
+    if (s === "late") g.late++;
+  });
+
+  const recentDone = dashSource
+    .filter(e => e.status === "done" && e.concluida_em)
+    .sort((a, b) => (b.concluida_em ?? "").localeCompare(a.concluida_em ?? ""))
+    .slice(0, 8);
+
+  // ── Inline styles ────────────────────────────────────────────────────────
   const selCss: React.CSSProperties = {
     background: "var(--bg)", border: "1px solid var(--line-2)", borderRadius: 8,
     color: "var(--txt)", padding: "6px 10px", fontSize: 12, outline: "none",
     fontFamily: "inherit", cursor: "pointer",
   };
 
-  const pct = stats.total ? Math.round(stats.done / stats.total * 100) : 0;
-
-  // Board card renderer
+  // ── Board card ───────────────────────────────────────────────────────────
   function BoardCard(e: Et) {
-    const s  = eff(e);
-    const st = ST[s];
-    const ar = e.area ? AREAS[e.area] : null;
+    const s   = eff(e);
+    const st  = ST[s];
+    const ar  = e.area ? AREAS[e.area] : null;
     const resp = e.responsavel_atual ?? e.responsavel;
-    const isPast = e.data_prevista && e.data_prevista < hojeISO;
+    const isPast  = e.data_prevista && e.data_prevista < hojeISO;
     const dateStr = e.data_prevista
-      ? new Date(e.data_prevista + "T12:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })
-      : null;
+      ? new Date(e.data_prevista + "T12:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }) : null;
 
     return (
-      <div key={e.id} className="hx-glass" style={{
-        borderRadius: 10, padding: "12px 14px", marginBottom: 8,
-        borderLeft: `3px solid ${st.bdr}`,
-      }}>
+      <div key={e.id} className="hx-glass" style={{ borderRadius: 10, padding: "12px 14px", marginBottom: 8, borderLeft: `3px solid ${st.bdr}` }}>
         <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--txt)", marginBottom: 7, lineHeight: 1.35 }}>
           {e.marco && <span style={{ color: "var(--accent)", marginRight: 4 }}>◆</span>}
           {e.titulo}
@@ -150,23 +304,13 @@ export default async function V2({ searchParams }: { searchParams: Promise<Recor
               {cliMap.get(e.cliente_id)}
             </span>
           )}
-          {ar && (
-            <span style={{ fontSize: 10.5, padding: "2px 7px", borderRadius: 5, background: "var(--panel-2)", color: ar.cor, fontWeight: 600 }}>{ar.n}</span>
-          )}
-          {e.agente && (
-            <span style={{ fontSize: 10.5, padding: "2px 7px", borderRadius: 5, background: "var(--panel-2)", color: "var(--dim)" }}>
-              ⚡ {AG_NOME[e.agente] ?? e.agente}
-            </span>
-          )}
+          {ar && <span style={{ fontSize: 10.5, padding: "2px 7px", borderRadius: 5, background: "var(--panel-2)", color: ar.cor, fontWeight: 600 }}>{ar.n}</span>}
+          {e.agente && <span style={{ fontSize: 10.5, padding: "2px 7px", borderRadius: 5, background: "var(--panel-2)", color: "var(--dim)" }}>⚡ {AG_NOME[e.agente] ?? e.agente}</span>}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
           {resp && <span style={{ fontSize: 11, color: "var(--dim)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{resp}</span>}
           {e.sla && <span style={{ fontSize: 10.5, color: "var(--mut)" }}>SLA {e.sla}</span>}
-          {dateStr && (
-            <span style={{ fontSize: 10.5, fontWeight: 600, color: isPast ? "var(--red)" : "var(--mut)" }}>
-              {isPast ? "⚠ " : "📅 "}{dateStr}
-            </span>
-          )}
+          {dateStr && <span style={{ fontSize: 10.5, fontWeight: 600, color: isPast ? "var(--red)" : "var(--mut)" }}>{isPast ? "⚠ " : "📅 "}{dateStr}</span>}
           <div style={{ display: "flex", gap: 4, marginLeft: "auto" }}>
             <Link href={`/expand/etapa/${e.id}`} style={{ fontSize: 10.5, padding: "3px 8px", borderRadius: 6, border: "1px solid var(--line-2)", color: "var(--dim)", textDecoration: "none", lineHeight: "normal" }}>→</Link>
             {e.status === "idle" && (
@@ -187,48 +331,34 @@ export default async function V2({ searchParams }: { searchParams: Promise<Recor
     );
   }
 
-  // ---- List view helpers ----
-  type Grupo = { label: string; items: Et[]; cor: string };
+  const modeLabel = isAdmin ? "Gestão" : "Colaborador";
+  const modeColor = isAdmin ? "var(--warn)" : "var(--accent)";
 
-  function buildGrupos(): Map<string, Grupo> {
-    const m = new Map<string, Grupo>();
-    if (grupo === "area") {
-      etapas.forEach(e => {
-        const k = e.area ?? "_none";
-        if (!m.has(k)) m.set(k, { label: AREAS[k]?.n ?? "Sem área", items: [], cor: AREAS[k]?.cor ?? "var(--dim)" });
-        m.get(k)!.items.push(e);
-      });
-    } else if (grupo === "responsavel") {
-      etapas.forEach(e => {
-        const k = e.responsavel_atual ?? e.responsavel ?? "_none";
-        if (!m.has(k)) m.set(k, { label: k === "_none" ? "Sem responsável" : k, items: [], cor: "var(--accent)" });
-        m.get(k)!.items.push(e);
-      });
-    } else {
-      etapas.forEach(e => {
-        const k = e.cliente_id;
-        if (!m.has(k)) m.set(k, { label: cliMap.get(k) ?? "—", items: [], cor: "var(--accent)" });
-        m.get(k)!.items.push(e);
-      });
-    }
-    return m;
-  }
-
+  // ════════════════════════════════════════════════════════════════════════
   return (
     <>
-      {/* Header */}
+      {/* ── Header ────────────────────────────────────────────────── */}
       <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap", marginBottom: 2 }}>
-        <p className="hx-eyebrow">Gestão de tarefas · {pessoa.nome}</p>
-        <span style={{ fontSize: 10.5, padding: "2px 8px", borderRadius: 20, background: "color-mix(in srgb,var(--accent) 18%,transparent)", color: "var(--accent)", fontWeight: 700, letterSpacing: ".04em" }}>v2.0 BETA</span>
+        <p className="hx-eyebrow">Sistema de gestão · {pessoa.nome}</p>
+        <span style={{ fontSize: 10.5, padding: "2px 8px", borderRadius: 20, background: "color-mix(in srgb,var(--accent) 18%,transparent)", color: "var(--accent)", fontWeight: 700, letterSpacing: ".04em" }}>v2.0</span>
+        <span style={{ fontSize: 10.5, padding: "2px 8px", borderRadius: 20, background: `color-mix(in srgb,${modeColor} 15%,transparent)`, color: modeColor, fontWeight: 600 }}>
+          {modeLabel}
+        </span>
       </div>
       <h1 className="ex-h1">Sistema de <span className="hx-accent-text">Gestão</span></h1>
 
-      {/* View switcher + scope */}
+      {/* ── View switcher ─────────────────────────────────────────── */}
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 14 }}>
         <div style={{ display: "flex", background: "var(--panel-2)", borderRadius: 10, padding: 3, gap: 2 }}>
-          {([["lista", "📋 Lista"], ["board", "🗂 Board"], ["timeline", "📅 Agenda"]] as [string, string][]).map(([v, l]) => (
+          {([
+            ["lista",     "📋 Lista"],
+            ["board",     "🗂 Board"],
+            ["gantt",     "📊 Gantt"],
+            ["timeline",  "📅 Agenda"],
+            ["dash",      "⚡ Dashboard"],
+          ] as [string, string][]).map(([v, l]) => (
             <Link key={v} href={qs({ v })} style={{
-              padding: "6px 14px", fontSize: 12, fontWeight: view === v ? 700 : 500,
+              padding: "6px 13px", fontSize: 12, fontWeight: view === v ? 700 : 500,
               borderRadius: 8, textDecoration: "none",
               background: view === v ? "var(--bg)" : "transparent",
               color: view === v ? "var(--accent)" : "var(--dim)",
@@ -238,148 +368,83 @@ export default async function V2({ searchParams }: { searchParams: Promise<Recor
           ))}
         </div>
 
-        <span style={{ width: 1, height: 20, background: "var(--line)", flexShrink: 0 }} />
+        {/* Scope (hidden in dash — always global) */}
+        {view !== "dash" && (
+          <div style={{ display: "flex", gap: 4 }}>
+            <Link href={qs({ s: "mine" })} className={`ex-chip2${scope === "mine" ? " on" : ""}`}>Minha agenda</Link>
+            {isAdmin && <Link href={qs({ s: "all"  })} className={`ex-chip2${scope === "all"  ? " on" : ""}`}>Toda a equipe</Link>}
+          </div>
+        )}
 
-        <div style={{ display: "flex", gap: 4 }}>
-          <Link href={qs({ s: "mine" })} className={`ex-chip2${scope === "mine" ? " on" : ""}`}>Minha agenda</Link>
-          <Link href={qs({ s: "all" })}  className={`ex-chip2${scope === "all"  ? " on" : ""}`}>Toda a equipe</Link>
-        </div>
-
-        {isAdmin && view === "lista" && (
-          <div style={{ display: "flex", gap: 4, marginLeft: "auto", alignItems: "center" }}>
+        {/* Grouping (lista only) */}
+        {view === "lista" && (
+          <div style={{ display: "flex", gap: 4, marginLeft: "auto", alignItems: "center", flexWrap: "wrap" }}>
             <span style={{ fontSize: 11, color: "var(--dim)" }}>Agrupar:</span>
-            {([["cliente", "Cliente"], ["area", "Área"], ["responsavel", "Responsável"]] as [string, string][]).map(([g, l]) => (
+            {([
+              ["cliente",    "Cliente"],
+              ["area",       "Área"],
+              ["responsavel","Responsável"],
+              ["urgencia",   "Urgência"],
+            ] as [string, string][]).map(([g, l]) => (
               <Link key={g} href={qs({ g })} className={`ex-chip2${grupo === g ? " on" : ""}`} style={{ fontSize: 11, padding: "4px 8px" }}>{l}</Link>
             ))}
           </div>
         )}
       </div>
 
-      {/* KPI bar */}
-      <div className="ex-kpis" style={{ marginBottom: 14 }}>
-        <div className="ex-kpi hx-glass">
-          <div className="lab">Total</div>
-          <div className="val">{stats.total}</div>
-          <div className="foot">tarefas no filtro</div>
-        </div>
-        <div className="ex-kpi hx-glass">
-          <div className="lab">Atrasadas</div>
-          <div className="val" style={{ color: stats.late ? "var(--red)" : "inherit" }}>{stats.late}</div>
-          <div className="foot">SLA estourado</div>
-        </div>
-        <div className="ex-kpi hx-glass">
-          <div className="lab">Em andamento</div>
-          <div className="val" style={{ color: "var(--accent)" }}>{stats.run}</div>
-          <div className="foot">sendo executadas</div>
-        </div>
-        <div className="ex-kpi hx-glass">
-          <div className="lab">Concluídas</div>
-          <div className="val" style={{ color: "var(--green)" }}>{stats.done}</div>
-          <div className="foot">no conjunto atual</div>
-        </div>
-        <div className="ex-kpi hx-glass">
-          <div className="lab">Progresso</div>
-          <div className="val hx-accent-text">{stats.total ? `${pct}%` : "—"}</div>
-          <div style={{ height: 4, borderRadius: 99, background: "var(--panel-2)", marginTop: 6, overflow: "hidden" }}>
-            <div style={{ height: "100%", width: `${pct}%`, background: "var(--green)", borderRadius: 99 }} />
+      {/* ── KPI bar (all views except dash) ─────────────────────── */}
+      {view !== "dash" && (
+        <div className="ex-kpis" style={{ marginBottom: 14 }}>
+          <div className="ex-kpi hx-glass"><div className="lab">Total</div><div className="val">{stats.total}</div><div className="foot">tarefas no filtro</div></div>
+          <div className="ex-kpi hx-glass"><div className="lab">Atrasadas</div><div className="val" style={{ color: stats.late ? "var(--red)" : "inherit" }}>{stats.late}</div><div className="foot">SLA estourado</div></div>
+          <div className="ex-kpi hx-glass"><div className="lab">Em andamento</div><div className="val" style={{ color: "var(--accent)" }}>{stats.run}</div><div className="foot">sendo executadas</div></div>
+          <div className="ex-kpi hx-glass"><div className="lab">Concluídas</div><div className="val" style={{ color: "var(--green)" }}>{stats.done}</div><div className="foot">no conjunto atual</div></div>
+          <div className="ex-kpi hx-glass">
+            <div className="lab">Progresso</div>
+            <div className="val hx-accent-text">{stats.total ? `${pct}%` : "—"}</div>
+            <div style={{ height: 4, borderRadius: 99, background: "var(--panel-2)", marginTop: 6, overflow: "hidden" }}>
+              <div style={{ height: "100%", width: `${pct}%`, background: "var(--green)", borderRadius: 99 }} />
+            </div>
           </div>
-        </div>
-      </div>
-
-      {/* Filter bar */}
-      <form className="hx-glass" style={{ display: "flex", flexWrap: "wrap", gap: 8, padding: "10px 14px", marginBottom: 18, borderRadius: 12, alignItems: "center" }}>
-        <input type="hidden" name="v"  value={view}  />
-        <input type="hidden" name="s"  value={scope} />
-        <input type="hidden" name="g"  value={grupo} />
-
-        <select name="c"  defaultValue={filtroCli}  style={selCss}>
-          <option value="">Todos os clientes</option>
-          {clientes.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-        </select>
-
-        <select name="st" defaultValue={filtroSt}   style={selCss}>
-          <option value="">Todos os status</option>
-          {COLS.map(s => <option key={s} value={s}>{ST[s].l}</option>)}
-        </select>
-
-        <select name="a"  defaultValue={filtroArea} style={selCss}>
-          <option value="">Todas as áreas</option>
-          {areas.map(a => <option key={a} value={a}>{AREAS[a]?.n ?? a}</option>)}
-        </select>
-
-        <select name="r"  defaultValue={filtroResp} style={selCss}>
-          <option value="">Todos os responsáveis</option>
-          {resps.map(r => <option key={r} value={r}>{r}</option>)}
-        </select>
-
-        <button type="submit" className="hx-btn hx-btn-primary" style={{ padding: "6px 14px", fontSize: 12 }}>
-          Filtrar
-        </button>
-
-        {(filtroCli || filtroSt || filtroArea || filtroResp) && (
-          <Link href={qs({ c: "", st: "", a: "", r: "" })} style={{ fontSize: 12, color: "var(--dim)" }}>
-            limpar
-          </Link>
-        )}
-
-        <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--dim)" }}>
-          {etapas.length} tarefa{etapas.length !== 1 ? "s" : ""}
-        </span>
-      </form>
-
-      {/* ═══════════════════════════════════════════════════
-          BOARD VIEW — Kanban Monday-style
-      ════════════════════════════════════════════════════ */}
-      {view === "board" && (
-        <div style={{ display: "flex", gap: 10, overflowX: "auto", alignItems: "flex-start", paddingBottom: 8 }}>
-          {COLS.map(col => {
-            const cards = etapas.filter(e => eff(e) === col);
-            const st    = ST[col];
-            return (
-              <div key={col} style={{ minWidth: 260, flex: "1 1 260px" }}>
-                {/* Column header */}
-                <div style={{
-                  display: "flex", alignItems: "center", gap: 8,
-                  padding: "9px 12px", marginBottom: 8,
-                  borderRadius: "10px 10px 0 0",
-                  background: st.bg,
-                  borderBottom: `2px solid ${st.bdr}`,
-                }}>
-                  <div style={{ width: 10, height: 10, borderRadius: "50%", background: st.c, flexShrink: 0 }} />
-                  <span style={{ fontSize: 12.5, fontWeight: 700, color: st.c, flex: 1 }}>{st.l}</span>
-                  <span style={{
-                    fontSize: 11, padding: "1px 7px", borderRadius: 20,
-                    background: "rgba(0,0,0,.18)", color: st.c, fontWeight: 700,
-                  }}>{cards.length}</span>
-                </div>
-                {/* Cards */}
-                {cards.slice(0, 40).map(e => BoardCard(e))}
-                {cards.length > 40 && (
-                  <div style={{ padding: "8px 12px", fontSize: 11.5, color: "var(--dim)", textAlign: "center" }}>
-                    +{cards.length - 40} tarefas — use filtros
-                  </div>
-                )}
-                {cards.length === 0 && (
-                  <div style={{
-                    padding: "18px 12px", fontSize: 12, color: "var(--dim)",
-                    textAlign: "center", border: "1px dashed var(--line-2)",
-                    borderRadius: 10,
-                  }}>— vazia —</div>
-                )}
-              </div>
-            );
-          })}
         </div>
       )}
 
-      {/* ═══════════════════════════════════════════════════
-          LIST VIEW — Monday-style grouped table
-      ════════════════════════════════════════════════════ */}
+      {/* ── Filter bar (all views except dash) ──────────────────── */}
+      {view !== "dash" && (
+        <form className="hx-glass" style={{ display: "flex", flexWrap: "wrap", gap: 8, padding: "10px 14px", marginBottom: 18, borderRadius: 12, alignItems: "center" }}>
+          <input type="hidden" name="v" value={view} />
+          <input type="hidden" name="s" value={scope} />
+          <input type="hidden" name="g" value={grupo} />
+          <select name="c"  defaultValue={filtroCli}  style={selCss}>
+            <option value="">Todos os clientes</option>
+            {clientes.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+          </select>
+          <select name="st" defaultValue={filtroSt}   style={selCss}>
+            <option value="">Todos os status</option>
+            {COLS.map(s => <option key={s} value={s}>{ST[s].l}</option>)}
+          </select>
+          <select name="a"  defaultValue={filtroArea} style={selCss}>
+            <option value="">Todas as áreas</option>
+            {areas.map(a => <option key={a} value={a}>{AREAS[a]?.n ?? a}</option>)}
+          </select>
+          <select name="r"  defaultValue={filtroResp} style={selCss}>
+            <option value="">Todos os responsáveis</option>
+            {resps.map(r => <option key={r} value={r}>{r}</option>)}
+          </select>
+          <button type="submit" className="hx-btn hx-btn-primary" style={{ padding: "6px 14px", fontSize: 12 }}>Filtrar</button>
+          {(filtroCli || filtroSt || filtroArea || filtroResp) && (
+            <Link href={qs({ c: "", st: "", a: "", r: "" })} style={{ fontSize: 12, color: "var(--dim)" }}>limpar</Link>
+          )}
+          <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--dim)" }}>{etapas.length} tarefa{etapas.length !== 1 ? "s" : ""}</span>
+        </form>
+      )}
+
+      {/* ════════════════════════════════════════════════════════════
+          LISTA — Monday-style grouped table
+      ═══════════════════════════════════════════════════════════════ */}
       {view === "lista" && (() => {
         const grupos = buildGrupos();
-        if (grupos.size === 0) {
-          return <p style={{ color: "var(--dim)", fontSize: 13, padding: "24px 0" }}>Nenhuma tarefa para o filtro atual.</p>;
-        }
+        if (!grupos.size) return <p style={{ color: "var(--dim)", fontSize: 13, padding: "24px 0" }}>Nenhuma tarefa para o filtro atual.</p>;
         return (
           <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
             {[...grupos.entries()].map(([key, grp]) => {
@@ -387,15 +452,10 @@ export default async function V2({ searchParams }: { searchParams: Promise<Recor
               const runs  = grp.items.filter(e => eff(e) === "run").length;
               const dones = grp.items.filter(e => eff(e) === "done").length;
               const gPct  = grp.items.length ? Math.round(dones / grp.items.length * 100) : 0;
-
               return (
                 <div key={key} className="hx-glass" style={{ borderRadius: 14, overflow: "hidden" }}>
                   {/* Group header */}
-                  <div style={{
-                    display: "flex", alignItems: "center", gap: 12, padding: "12px 16px",
-                    borderBottom: "1px solid var(--line)",
-                    background: `color-mix(in srgb, ${grp.cor} 7%, transparent)`,
-                  }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderBottom: "1px solid var(--line)", background: `color-mix(in srgb, ${grp.cor} 7%, transparent)` }}>
                     <div style={{ width: 4, height: 30, borderRadius: 2, background: grp.cor, flexShrink: 0 }} />
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 14, fontWeight: 800, color: "var(--txt)" }}>{grp.label}</div>
@@ -412,62 +472,25 @@ export default async function V2({ searchParams }: { searchParams: Promise<Recor
                       </div>
                     </div>
                   </div>
-
                   {/* Table head */}
-                  <div style={{
-                    display: "grid",
-                    gridTemplateColumns: "14px 1fr 110px 80px 120px 70px 80px",
-                    gap: 0, padding: "6px 16px",
-                    borderBottom: "1px solid var(--line)",
-                    fontSize: 10, textTransform: "uppercase",
-                    letterSpacing: ".06em", color: "var(--dim)", fontWeight: 700,
-                  }}>
-                    <span />
-                    <span>Tarefa</span>
-                    <span>Status</span>
-                    <span>Área</span>
-                    <span>Responsável</span>
-                    <span>SLA</span>
-                    <span>Data</span>
+                  <div style={{ display: "grid", gridTemplateColumns: "14px 1fr 110px 80px 120px 70px 80px", padding: "6px 16px", borderBottom: "1px solid var(--line)", fontSize: 10, textTransform: "uppercase", letterSpacing: ".06em", color: "var(--dim)", fontWeight: 700 }}>
+                    <span /><span>Tarefa</span><span>Status</span><span>Área</span><span>Responsável</span><span>SLA</span><span>Data</span>
                   </div>
-
                   {/* Rows */}
                   {grp.items.map((e, i) => {
-                    const s   = eff(e);
-                    const st  = ST[s];
-                    const ar  = e.area ? AREAS[e.area] : null;
+                    const s = eff(e); const st = ST[s];
+                    const ar = e.area ? AREAS[e.area] : null;
                     const resp = e.responsavel_atual ?? e.responsavel;
                     const isPast = e.data_prevista && e.data_prevista < hojeISO;
-                    const dateStr = e.data_prevista
-                      ? new Date(e.data_prevista + "T12:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })
-                      : null;
-
+                    const dateStr = e.data_prevista ? new Date(e.data_prevista + "T12:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }) : null;
                     return (
-                      <div key={e.id} style={{
-                        display: "grid",
-                        gridTemplateColumns: "14px 1fr 110px 80px 120px 70px 80px",
-                        gap: 0, padding: "9px 16px",
-                        borderBottom: i < grp.items.length - 1 ? "1px solid var(--line)" : "none",
-                        alignItems: "center",
-                      }}>
-                        {/* Status dot */}
+                      <div key={e.id} style={{ display: "grid", gridTemplateColumns: "14px 1fr 110px 80px 120px 70px 80px", padding: "9px 16px", borderBottom: i < grp.items.length - 1 ? "1px solid var(--line)" : "none", alignItems: "center" }}>
                         <div style={{ width: 9, height: 9, borderRadius: "50%", background: st.c }} />
-
-                        {/* Title + actions */}
                         <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-                          <Link href={`/expand/etapa/${e.id}`} style={{
-                            fontSize: 12.5, fontWeight: 600, color: "var(--txt)",
-                            textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
-                          }}>
-                            {e.marco && <span style={{ color: "var(--accent)", marginRight: 4 }}>◆</span>}
-                            {e.titulo}
+                          <Link href={`/expand/etapa/${e.id}`} style={{ fontSize: 12.5, fontWeight: 600, color: "var(--txt)", textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {e.marco && <span style={{ color: "var(--accent)", marginRight: 4 }}>◆</span>}{e.titulo}
                           </Link>
-                          {e.agente && (
-                            <span style={{ fontSize: 10, color: "var(--dim)", flexShrink: 0 }}>
-                              ⚡ {AG_NOME[e.agente] ?? e.agente}
-                            </span>
-                          )}
+                          {e.agente && <span style={{ fontSize: 10, color: "var(--dim)", flexShrink: 0 }}>⚡ {AG_NOME[e.agente] ?? e.agente}</span>}
                           {e.status === "idle" && (
                             <form action={iniciarEtapa} style={{ display: "contents" }}>
                               <input type="hidden" name="etapaId" value={e.id} />
@@ -481,41 +504,17 @@ export default async function V2({ searchParams }: { searchParams: Promise<Recor
                             </form>
                           )}
                         </div>
-
-                        {/* Status badge */}
-                        <span style={{
-                          fontSize: 11, padding: "2px 8px", borderRadius: 6,
-                          background: st.bg, color: st.c, fontWeight: 600,
-                          display: "inline-block", whiteSpace: "nowrap",
-                        }}>{st.l}</span>
-
-                        {/* Area */}
-                        <span style={{ fontSize: 11, color: ar?.cor ?? "var(--dim)", fontWeight: ar ? 600 : 400 }}>
-                          {ar?.n ?? "—"}
-                        </span>
-
-                        {/* Responsible */}
-                        <span style={{ fontSize: 11.5, color: "var(--mut)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {resp ?? "—"}
-                        </span>
-
-                        {/* SLA */}
+                        <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 6, background: st.bg, color: st.c, fontWeight: 600, display: "inline-block", whiteSpace: "nowrap" }}>{st.l}</span>
+                        <span style={{ fontSize: 11, color: ar?.cor ?? "var(--dim)", fontWeight: ar ? 600 : 400 }}>{ar?.n ?? "—"}</span>
+                        <span style={{ fontSize: 11.5, color: "var(--mut)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{resp ?? "—"}</span>
                         <span style={{ fontSize: 11, color: "var(--dim)" }}>{e.sla ?? "—"}</span>
-
-                        {/* Date */}
-                        <span style={{ fontSize: 11, fontWeight: 600, color: isPast ? "var(--red)" : "var(--dim)" }}>
-                          {dateStr ?? "—"}
-                        </span>
+                        <span style={{ fontSize: 11, fontWeight: 600, color: isPast ? "var(--red)" : "var(--dim)" }}>{dateStr ?? "—"}</span>
                       </div>
                     );
                   })}
-
-                  {/* Add hint */}
                   <div style={{ padding: "8px 16px", borderTop: "1px solid var(--line)", fontSize: 12, color: "var(--dim)", display: "flex", alignItems: "center", gap: 6 }}>
                     <span>＋</span>
-                    <Link href={`/expand/board`} style={{ color: "var(--dim)", textDecoration: "none" }}>
-                      Ir para o board de {grp.label}
-                    </Link>
+                    <Link href="/expand/board" style={{ color: "var(--dim)", textDecoration: "none" }}>Ir para o board completo</Link>
                   </div>
                 </div>
               );
@@ -524,69 +523,191 @@ export default async function V2({ searchParams }: { searchParams: Promise<Recor
         );
       })()}
 
-      {/* ═══════════════════════════════════════════════════
-          TIMELINE / AGENDA VIEW — tasks with dates grouped by day
-      ════════════════════════════════════════════════════ */}
-      {view === "timeline" && (() => {
-        const comData = etapas
-          .filter(e => e.data_prevista && e.status !== "done")
-          .sort((a, b) => (a.data_prevista ?? "").localeCompare(b.data_prevista ?? ""));
-        const semData = etapas.filter(e => !e.data_prevista && e.status !== "done");
+      {/* ════════════════════════════════════════════════════════════
+          BOARD — Kanban Monday-style
+      ═══════════════════════════════════════════════════════════════ */}
+      {view === "board" && (
+        <div style={{ display: "flex", gap: 10, overflowX: "auto", alignItems: "flex-start", paddingBottom: 8 }}>
+          {COLS.map(col => {
+            const cards = etapas.filter(e => eff(e) === col);
+            const st = ST[col];
+            return (
+              <div key={col} style={{ minWidth: 260, flex: "1 1 260px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", marginBottom: 8, borderRadius: "10px 10px 0 0", background: st.bg, borderBottom: `2px solid ${st.bdr}` }}>
+                  <div style={{ width: 10, height: 10, borderRadius: "50%", background: st.c, flexShrink: 0 }} />
+                  <span style={{ fontSize: 12.5, fontWeight: 700, color: st.c, flex: 1 }}>{st.l}</span>
+                  <span style={{ fontSize: 11, padding: "1px 7px", borderRadius: 20, background: "rgba(0,0,0,.18)", color: st.c, fontWeight: 700 }}>{cards.length}</span>
+                </div>
+                {cards.slice(0, 40).map(e => BoardCard(e))}
+                {cards.length > 40 && <div style={{ padding: "8px 12px", fontSize: 11.5, color: "var(--dim)", textAlign: "center" }}>+{cards.length - 40} — use filtros</div>}
+                {!cards.length && <div style={{ padding: "18px 12px", fontSize: 12, color: "var(--dim)", textAlign: "center", border: "1px dashed var(--line-2)", borderRadius: 10 }}>— vazia —</div>}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
-        const byDate = new Map<string, Et[]>();
+      {/* ════════════════════════════════════════════════════════════
+          GANTT — Horizontal timeline
+      ═══════════════════════════════════════════════════════════════ */}
+      {view === "gantt" && (() => {
+        const comData = etapas.filter(e => e.data_prevista && e.status !== "done");
+        // Group by client
+        const cliG = new Map<string, Et[]>();
+        comData.forEach(e => {
+          if (!cliG.has(e.cliente_id)) cliG.set(e.cliente_id, []);
+          cliG.get(e.cliente_id)!.push(e);
+        });
+
+        if (!comData.length) return (
+          <div className="hx-glass" style={{ borderRadius: 14, padding: "32px 24px", textAlign: "center" }}>
+            <div style={{ fontSize: 32, marginBottom: 8 }}>📊</div>
+            <p style={{ fontSize: 13, color: "var(--dim)" }}>Nenhuma tarefa com data agendada no filtro atual.</p>
+            <Link href="/expand/planejamento" className="hx-btn hx-btn-primary" style={{ display: "inline-block", marginTop: 12, padding: "8px 16px", textDecoration: "none", fontSize: 12 }}>Agendar tarefas →</Link>
+          </div>
+        );
+
+        return (
+          <div className="hx-glass" style={{ borderRadius: 14, overflow: "hidden" }}>
+            {/* Gantt header */}
+            <div style={{ display: "flex", borderBottom: "1px solid var(--line)", background: "var(--panel-2)" }}>
+              <div style={{ width: 220, flexShrink: 0, padding: "8px 16px", fontSize: 10, color: "var(--dim)", textTransform: "uppercase", letterSpacing: ".05em", fontWeight: 700, borderRight: "1px solid var(--line)" }}>
+                Tarefa
+              </div>
+              <div style={{ flex: 1, position: "relative", height: 36, minWidth: 0 }}>
+                {/* Day markers */}
+                {ganttHeaders.map((h, i) => (
+                  <div key={i} style={{ position: "absolute", left: `${h.pct}%`, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
+                    <div style={{ width: 1, height: "100%", background: "var(--line)", position: "absolute" }} />
+                    <span style={{ fontSize: 9.5, color: "var(--dim)", paddingLeft: 4, whiteSpace: "nowrap", position: "absolute", top: "50%", transform: "translateY(-50%)" }}>{h.label}</span>
+                  </div>
+                ))}
+                {/* Today marker */}
+                <div style={{ position: "absolute", left: `${todayPct}%`, top: 0, bottom: 0, width: 2, background: "var(--accent)", zIndex: 2 }}>
+                  <span style={{ position: "absolute", top: 2, left: 4, fontSize: 9, color: "var(--accent)", fontWeight: 700, whiteSpace: "nowrap" }}>HOJE</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Gantt rows grouped by client */}
+            {[...cliG.entries()].map(([cid, items]) => (
+              <div key={cid}>
+                {/* Client sub-header */}
+                <div style={{ display: "flex", alignItems: "center", background: "color-mix(in srgb,var(--accent) 6%,transparent)", borderBottom: "1px solid var(--line)" }}>
+                  <div style={{ width: 220, flexShrink: 0, padding: "6px 16px", fontSize: 11, fontWeight: 700, color: "var(--accent)", borderRight: "1px solid var(--line)" }}>
+                    {cliMap.get(cid) ?? "—"}
+                  </div>
+                  <div style={{ flex: 1, position: "relative", height: 28 }}>
+                    {ganttHeaders.map((h, i) => (
+                      <div key={i} style={{ position: "absolute", left: `${h.pct}%`, top: 0, bottom: 0, width: 1, background: "var(--line)" }} />
+                    ))}
+                    <div style={{ position: "absolute", left: `${todayPct}%`, top: 0, bottom: 0, width: 2, background: "color-mix(in srgb,var(--accent) 40%,transparent)" }} />
+                  </div>
+                </div>
+
+                {/* Task rows */}
+                {items.map((e, ri) => {
+                  const bar = ganttPos(e);
+                  const s   = eff(e); const st = ST[s];
+                  const ar  = e.area ? AREAS[e.area] : null;
+                  return (
+                    <div key={e.id} style={{ display: "flex", alignItems: "center", borderBottom: ri < items.length - 1 ? "1px solid var(--line)" : "none" }}>
+                      {/* Task name */}
+                      <div style={{ width: 220, flexShrink: 0, padding: "7px 16px", borderRight: "1px solid var(--line)", minWidth: 0 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <div style={{ width: 7, height: 7, borderRadius: "50%", background: st.c, flexShrink: 0 }} />
+                          <Link href={`/expand/etapa/${e.id}`} style={{ fontSize: 11.5, fontWeight: 600, color: "var(--txt)", textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {e.titulo}
+                          </Link>
+                        </div>
+                        {ar && <div style={{ fontSize: 9.5, color: ar.cor, marginLeft: 13 }}>{ar.n}</div>}
+                      </div>
+                      {/* Bar area */}
+                      <div style={{ flex: 1, position: "relative", height: 42, minWidth: 0, overflow: "hidden" }}>
+                        {/* Grid lines */}
+                        {ganttHeaders.map((h, i) => (
+                          <div key={i} style={{ position: "absolute", left: `${h.pct}%`, top: 0, bottom: 0, width: 1, background: "var(--line)" }} />
+                        ))}
+                        {/* Today line */}
+                        <div style={{ position: "absolute", left: `${todayPct}%`, top: 0, bottom: 0, width: 2, background: "color-mix(in srgb,var(--accent) 35%,transparent)", zIndex: 1 }} />
+                        {/* Task bar */}
+                        {bar && (
+                          <div style={{
+                            position: "absolute",
+                            left: `${bar.left}%`, width: `${bar.width}%`,
+                            top: "50%", transform: "translateY(-50%)",
+                            height: 16, borderRadius: 4,
+                            background: st.bdr,
+                            opacity: 0.85,
+                            zIndex: 2,
+                            display: "flex", alignItems: "center", paddingLeft: 5,
+                            overflow: "hidden",
+                          }}>
+                            <span style={{ fontSize: 9.5, color: "#fff", whiteSpace: "nowrap", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis" }}>
+                              {e.titulo}
+                            </span>
+                          </div>
+                        )}
+                        {!bar && (
+                          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", paddingLeft: 8 }}>
+                            <span style={{ fontSize: 10, color: "var(--dim)" }}>fora da janela</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
+
+            <div style={{ padding: "8px 16px", fontSize: 11.5, color: "var(--dim)", borderTop: "1px solid var(--line)", display: "flex", gap: 16, alignItems: "center" }}>
+              <span>Janela: {addDays(hojeDate, -10).toLocaleDateString("pt-BR")} — {addDays(hojeDate, 25).toLocaleDateString("pt-BR")}</span>
+              <Link href="/expand/planejamento" style={{ color: "var(--accent)", textDecoration: "none", fontSize: 11 }}>Agendar / editar datas →</Link>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ════════════════════════════════════════════════════════════
+          AGENDA — Day-by-day timeline
+      ═══════════════════════════════════════════════════════════════ */}
+      {view === "timeline" && (() => {
+        const comData = etapas.filter(e => e.data_prevista && e.status !== "done").sort((a, b) => (a.data_prevista ?? "").localeCompare(b.data_prevista ?? ""));
+        const semData = etapas.filter(e => !e.data_prevista && e.status !== "done");
+        const byDate  = new Map<string, Et[]>();
         comData.forEach(e => {
           const d = e.data_prevista!;
           if (!byDate.has(d)) byDate.set(d, []);
           byDate.get(d)!.push(e);
         });
-
         return (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {/* Quick access to full calendar */}
             <div className="hx-glass" style={{ borderRadius: 12, padding: "12px 16px", display: "flex", alignItems: "center", gap: 12 }}>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 700 }}>Agenda completa</div>
-                <div style={{ fontSize: 11.5, color: "var(--mut)" }}>Navegação por dia/semana/mês com edição de datas disponível no Planejamento.</div>
+                <div style={{ fontSize: 13, fontWeight: 700 }}>Agenda detalhada</div>
+                <div style={{ fontSize: 11.5, color: "var(--mut)" }}>Navegação por dia/semana/mês e edição de datas estão no Planejamento.</div>
               </div>
-              <Link href={`/expand/planejamento${filtroCli ? `?c=${filtroCli}` : ""}`} className="hx-btn hx-btn-primary" style={{ padding: "8px 16px", textDecoration: "none", fontSize: 12, flexShrink: 0 }}>
-                Abrir Planejamento ↗
-              </Link>
+              <Link href={`/expand/planejamento${filtroCli ? `?c=${filtroCli}` : ""}`} className="hx-btn hx-btn-primary" style={{ padding: "8px 16px", textDecoration: "none", fontSize: 12, flexShrink: 0 }}>Planejamento ↗</Link>
             </div>
-
-            {comData.length === 0 && (
-              <p style={{ color: "var(--dim)", fontSize: 13 }}>Nenhuma tarefa com data agendada no filtro atual.</p>
-            )}
-
+            {!comData.length && <p style={{ color: "var(--dim)", fontSize: 13 }}>Nenhuma tarefa com data agendada.</p>}
             {[...byDate.entries()].slice(0, 20).map(([d, items]) => {
-              const isPast  = d < hojeISO;
-              const isToday = d === hojeISO;
-              const label   = new Date(d + "T12:00").toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" });
-              const bdrClr  = isToday ? "var(--accent)" : isPast ? "var(--red)" : "var(--line-2)";
-
+              const isPast = d < hojeISO; const isToday = d === hojeISO;
+              const label  = new Date(d + "T12:00").toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" });
               return (
-                <div key={d} className="hx-glass" style={{ borderRadius: 12, padding: "12px 16px", borderLeft: `3px solid ${bdrClr}` }}>
-                  <div style={{
-                    fontSize: 12, fontWeight: 700, marginBottom: 10, textTransform: "capitalize",
-                    color: isToday ? "var(--accent)" : isPast ? "var(--red)" : "var(--txt)",
-                    display: "flex", alignItems: "center", gap: 8,
-                  }}>
+                <div key={d} className="hx-glass" style={{ borderRadius: 12, padding: "12px 16px", borderLeft: `3px solid ${isToday ? "var(--accent)" : isPast ? "var(--red)" : "var(--line-2)"}` }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 10, textTransform: "capitalize", color: isToday ? "var(--accent)" : isPast ? "var(--red)" : "var(--txt)", display: "flex", alignItems: "center", gap: 8 }}>
                     {label}
                     {isToday && <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 20, background: "var(--accent)", color: "#fff", fontWeight: 700 }}>HOJE</span>}
                     {isPast && !isToday && <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 20, background: "color-mix(in srgb,var(--red) 15%,transparent)", color: "var(--red)", fontWeight: 700 }}>VENCIDO</span>}
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                     {items.map(e => {
-                      const s  = eff(e);
-                      const ar = e.area ? AREAS[e.area] : null;
+                      const s = eff(e); const ar = e.area ? AREAS[e.area] : null;
                       return (
                         <div key={e.id} style={{ display: "flex", gap: 10, alignItems: "center" }}>
                           <div style={{ width: 8, height: 8, borderRadius: "50%", background: ST[s].c, flexShrink: 0 }} />
-                          <Link href={`/expand/etapa/${e.id}`} style={{ fontSize: 12.5, fontWeight: 600, color: "var(--txt)", textDecoration: "none", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {e.titulo}
-                          </Link>
-                          <span style={{ fontSize: 11, color: "var(--accent)", flexShrink: 0 }}>
-                            {cliMap.get(e.cliente_id) ?? "—"}
-                          </span>
+                          <Link href={`/expand/etapa/${e.id}`} style={{ fontSize: 12.5, fontWeight: 600, color: "var(--txt)", textDecoration: "none", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.titulo}</Link>
+                          <span style={{ fontSize: 11, color: "var(--accent)", flexShrink: 0 }}>{cliMap.get(e.cliente_id) ?? "—"}</span>
                           {ar && <span style={{ fontSize: 10.5, color: ar.cor, flexShrink: 0 }}>{ar.n}</span>}
                           <span style={{ fontSize: 11, color: ST[s].c, flexShrink: 0 }}>{ST[s].l}</span>
                         </div>
@@ -596,29 +717,203 @@ export default async function V2({ searchParams }: { searchParams: Promise<Recor
                 </div>
               );
             })}
-
             {semData.length > 0 && (
               <div className="hx-glass" style={{ borderRadius: 12, padding: "12px 16px", borderLeft: "3px solid var(--dim)" }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: "var(--dim)", marginBottom: 8 }}>
-                  Sem data agendada — {semData.length} tarefa{semData.length !== 1 ? "s" : ""}
+                <div style={{ fontSize: 12, fontWeight: 700, color: "var(--dim)", marginBottom: 8 }}>Sem data — {semData.length} tarefa{semData.length !== 1 ? "s" : ""}</div>
+                {semData.slice(0, 10).map(e => {
+                  const s = eff(e);
+                  return (
+                    <div key={e.id} style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 4 }}>
+                      <div style={{ width: 7, height: 7, borderRadius: "50%", background: ST[s].c, flexShrink: 0 }} />
+                      <Link href={`/expand/etapa/${e.id}`} style={{ fontSize: 12, color: "var(--mut)", textDecoration: "none", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.titulo}</Link>
+                      <span style={{ fontSize: 11, color: "var(--accent)", flexShrink: 0 }}>{cliMap.get(e.cliente_id) ?? "—"}</span>
+                    </div>
+                  );
+                })}
+                {semData.length > 10 && <Link href="/expand/planejamento" style={{ fontSize: 11, color: "var(--dim)" }}>+{semData.length - 10} no planejamento</Link>}
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* ════════════════════════════════════════════════════════════
+          DASHBOARD — Metrics & health
+      ═══════════════════════════════════════════════════════════════ */}
+      {view === "dash" && (() => {
+        const dTotal  = dashSource.length;
+        const dDone   = dashSource.filter(e => effDash(e) === "done").length;
+        const dLate   = dashSource.filter(e => effDash(e) === "late").length;
+        const dRun    = dashSource.filter(e => effDash(e) === "run").length;
+        const dHealth = dTotal ? Math.round((1 - dLate / dTotal) * 100) : 100;
+        const dPct    = dTotal ? Math.round(dDone / dTotal * 100) : 0;
+
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            {/* Mode badge */}
+            <div className="hx-glass" style={{ borderRadius: 12, padding: "10px 16px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 12.5, fontWeight: 700, color: modeColor }}>
+                {isAdmin ? "Visão de Gestão — todos os colaboradores" : `Visão Colaborador — ${pessoa.nome}`}
+              </span>
+              <span style={{ fontSize: 11, color: "var(--dim)" }}>· {dTotal} tarefas no total</span>
+              {isAdmin && (
+                <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+                  <Link href={qs({ s: "all", v: "lista" })} className="ex-chip2" style={{ fontSize: 11 }}>Ver lista completa</Link>
+                  <Link href={qs({ s: "mine", v: "dash" })} className="ex-chip2" style={{ fontSize: 11 }}>Minha visão</Link>
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                  {semData.slice(0, 10).map(e => {
-                    const s = eff(e);
+              )}
+            </div>
+
+            {/* Global KPIs */}
+            <div className="ex-kpis">
+              <div className="ex-kpi hx-glass">
+                <div className="lab">Saúde geral</div>
+                <div className="val" style={{ color: dHealth >= 80 ? "var(--green)" : dHealth >= 60 ? "var(--warn)" : "var(--red)" }}>{dHealth}%</div>
+                <div className="foot">tarefas sem atraso</div>
+              </div>
+              <div className="ex-kpi hx-glass">
+                <div className="lab">Progresso</div>
+                <div className="val hx-accent-text">{dPct}%</div>
+                <div style={{ height: 4, borderRadius: 99, background: "var(--panel-2)", marginTop: 6, overflow: "hidden" }}>
+                  <div style={{ height: "100%", width: `${dPct}%`, background: "var(--green)", borderRadius: 99 }} />
+                </div>
+              </div>
+              <div className="ex-kpi hx-glass">
+                <div className="lab">Em execução</div>
+                <div className="val" style={{ color: "var(--accent)" }}>{dRun}</div>
+                <div className="foot">tarefas ativas</div>
+              </div>
+              <div className="ex-kpi hx-glass">
+                <div className="lab">Atrasadas</div>
+                <div className="val" style={{ color: dLate ? "var(--red)" : "var(--dim)" }}>{dLate}</div>
+                <div className="foot">fora do SLA</div>
+              </div>
+              <div className="ex-kpi hx-glass">
+                <div className="lab">Entregues</div>
+                <div className="val" style={{ color: "var(--green)" }}>{dDone}</div>
+                <div className="foot">de {dTotal} totais</div>
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: isAdmin ? "1fr 1fr" : "1fr", gap: 16 }}>
+              {/* Client health */}
+              <div className="hx-glass" style={{ borderRadius: 14, padding: "16px 18px" }}>
+                <div className="ex-grph" style={{ marginBottom: 14 }}>
+                  <span className="gt">Saúde por cliente</span>
+                  <span className="gc">{cliDash.size}</span>
+                  <span className="gl" />
+                </div>
+                {[...cliDash.entries()]
+                  .sort((a, b) => {
+                    const pa = a[1].total ? a[1].done / a[1].total : 0;
+                    const pb = b[1].total ? b[1].done / b[1].total : 0;
+                    return pa - pb; // worst first
+                  })
+                  .map(([cid, d]) => {
+                    const p = d.total ? Math.round(d.done / d.total * 100) : 0;
+                    const barClr = d.late > 0 ? "var(--red)" : p >= 80 ? "var(--green)" : "var(--accent)";
                     return (
-                      <div key={e.id} style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                        <div style={{ width: 7, height: 7, borderRadius: "50%", background: ST[s].c, flexShrink: 0 }} />
-                        <Link href={`/expand/etapa/${e.id}`} style={{ fontSize: 12, color: "var(--mut)", textDecoration: "none", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {e.titulo}
-                        </Link>
-                        <span style={{ fontSize: 11, color: "var(--accent)", flexShrink: 0 }}>{cliMap.get(e.cliente_id) ?? "—"}</span>
+                      <div key={cid} style={{ marginBottom: 12 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                          <Link href={`/expand/clientes/${cid}`} style={{ fontSize: 12, fontWeight: 600, color: "var(--txt)", textDecoration: "none" }}>{cliMap.get(cid) ?? "—"}</Link>
+                          <div style={{ fontSize: 11, color: "var(--dim)", display: "flex", gap: 10 }}>
+                            {d.late > 0 && <span style={{ color: "var(--red)" }}>⚠ {d.late}</span>}
+                            {d.run  > 0 && <span style={{ color: "var(--accent)" }}>▶ {d.run}</span>}
+                            <span>{d.done}/{d.total} · {p}%</span>
+                          </div>
+                        </div>
+                        <div style={{ height: 5, background: "var(--panel-2)", borderRadius: 99, overflow: "hidden" }}>
+                          <div style={{ height: "100%", width: `${p}%`, background: barClr, borderRadius: 99 }} />
+                        </div>
                       </div>
                     );
                   })}
-                  {semData.length > 10 && <Link href="/expand/planejamento" style={{ fontSize: 11, color: "var(--dim)" }}>+{semData.length - 10} no planejamento</Link>}
-                </div>
               </div>
-            )}
+
+              {/* Team workload (admin) / My activity (equipe) */}
+              {isAdmin ? (
+                <div className="hx-glass" style={{ borderRadius: 14, padding: "16px 18px" }}>
+                  <div className="ex-grph" style={{ marginBottom: 14 }}>
+                    <span className="gt">Carga por colaborador</span>
+                    <span className="gc">{teamDash.size}</span>
+                    <span className="gl" />
+                  </div>
+                  {[...teamDash.entries()]
+                    .filter(([k]) => k !== "Sem responsável")
+                    .sort((a, b) => b[1].total - a[1].total)
+                    .map(([resp, d]) => {
+                      const p = d.total ? Math.round(d.done / d.total * 100) : 0;
+                      return (
+                        <div key={resp} style={{ marginBottom: 12 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--txt)" }}>{resp}</span>
+                            <div style={{ fontSize: 11, color: "var(--dim)", display: "flex", gap: 10 }}>
+                              {d.late > 0 && <span style={{ color: "var(--red)" }}>⚠ {d.late}</span>}
+                              <span>{d.total} tarefas · {p}% concluído</span>
+                            </div>
+                          </div>
+                          <div style={{ height: 5, background: "var(--panel-2)", borderRadius: 99, overflow: "hidden" }}>
+                            <div style={{ height: "100%", width: `${p}%`, background: d.late > d.total * 0.3 ? "var(--warn)" : "var(--accent)", borderRadius: 99 }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              ) : (
+                <div className="hx-glass" style={{ borderRadius: 14, padding: "16px 18px" }}>
+                  <div className="ex-grph" style={{ marginBottom: 14 }}>
+                    <span className="gt">Minhas entregas recentes</span>
+                    <span className="gc">{recentDone.length}</span>
+                    <span className="gl" />
+                  </div>
+                  {recentDone.map(e => (
+                    <div key={e.id} style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 8 }}>
+                      <span style={{ color: "var(--green)", fontSize: 14 }}>✓</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <Link href={`/expand/etapa/${e.id}`} style={{ fontSize: 12.5, fontWeight: 600, color: "var(--txt)", textDecoration: "none", display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.titulo}</Link>
+                        <div style={{ fontSize: 10.5, color: "var(--dim)" }}>
+                          {cliMap.get(e.cliente_id) ?? "—"}
+                          {e.concluida_em && ` · ${new Date(e.concluida_em).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}`}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {!recentDone.length && <p style={{ fontSize: 12, color: "var(--dim)" }}>Nenhuma entrega concluída ainda.</p>}
+                </div>
+              )}
+            </div>
+
+            {/* Priority breakdown */}
+            <div className="hx-glass" style={{ borderRadius: 14, padding: "16px 18px" }}>
+              <div className="ex-grph" style={{ marginBottom: 14 }}>
+                <span className="gt">Distribuição por urgência</span>
+                <span className="gc">{dTotal}</span>
+                <span className="gl" />
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10 }}>
+                {URG_ORDER.map(u => {
+                  const count = dashSource.filter(e => urgencia(e) === u).length;
+                  const upct  = dTotal ? Math.round(count / dTotal * 100) : 0;
+                  const ug    = URG[u];
+                  return (
+                    <div key={u} style={{ borderRadius: 10, padding: "12px 14px", background: ug.bg, border: `1px solid ${ug.bdr}` }}>
+                      <div style={{ fontSize: 18, marginBottom: 4 }}>{ug.emoji}</div>
+                      <div style={{ fontSize: 20, fontWeight: 800, color: ug.c }}>{count}</div>
+                      <div style={{ fontSize: 11.5, fontWeight: 600, color: ug.c }}>{ug.l}</div>
+                      <div style={{ fontSize: 10.5, color: "var(--dim)", marginTop: 2 }}>{upct}% do total</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Quick links */}
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <Link href={qs({ v: "lista", st: "late" })} className="hx-btn" style={{ padding: "8px 14px", textDecoration: "none", fontSize: 12, borderColor: "var(--red)", color: "var(--red)" }}>Ver atrasadas →</Link>
+              <Link href={qs({ v: "board" })} className="hx-btn" style={{ padding: "8px 14px", textDecoration: "none", fontSize: 12 }}>Ver board →</Link>
+              <Link href={qs({ v: "gantt" })} className="hx-btn" style={{ padding: "8px 14px", textDecoration: "none", fontSize: 12 }}>Ver Gantt →</Link>
+              <Link href="/expand/planejamento" className="hx-btn" style={{ padding: "8px 14px", textDecoration: "none", fontSize: 12 }}>Planejamento →</Link>
+            </div>
           </div>
         );
       })()}
