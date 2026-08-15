@@ -24,6 +24,7 @@ const NAV: NavSec[] = [
       { href: "/expand/plano", label: "Plano de Ação", icon: "list", eyebrow: "Reunião de líderes" },
       { href: "/expand/board", label: "Board de Atividades", icon: "kanban", eyebrow: "Estado das contas" },
       { href: "/expand/ritmo", label: "Rituais & SLA", icon: "activity", eyebrow: "Cadência da operação" },
+      { href: "/expand/v2", label: "Gestão v2.0", icon: "layers", eyebrow: "Monday-style · multi-view" },
     ],
   },
   {
