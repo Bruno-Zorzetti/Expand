@@ -9,13 +9,14 @@ import { salvarLinkDrive, salvarGrupoCliente, testarGrupoCliente, rodarResumoAgo
 export const dynamic = "force-dynamic";
 
 type Cli = ClienteRow & { whatsapp_grupo?: string | null; whatsapp_grupo_nome?: string | null; whatsapp_grupo_link?: string | null; drive_folder_url?: string | null; agente_id?: string | null };
-type Etapa = { id: string; titulo: string; area: string | null; status: string | null; origem: string | null; visivel_cliente: boolean; criado_em: string; data_prevista: string | null };
+type Etapa = { id: string; titulo: string; area: string | null; sla: string | null; status: string | null; origem: string | null; visivel_cliente: boolean; criado_em: string; data_prevista: string | null };
 type Log = { id: string; tipo: string | null; detalhe: string | null; autor: string | null; criado_em: string };
 
 const ABAS = [
   { k: "geral", l: "Visão geral" },
   { k: "drive", l: "Pasta / Drive" },
   { k: "grupo", l: "Grupo & Mensagens" },
+  { k: "sla", l: "Rituais & SLA" },
   { k: "agente", l: "Agente" },
   { k: "historico", l: "Histórico" },
   { k: "diagnosticos", l: "Diagnósticos" },
@@ -37,7 +38,7 @@ export default async function ClienteHub({ params, searchParams }: { params: Pro
   const cli = cData as Cli;
   const d = derive(cli);
 
-  const { data: etData } = await supabase.from("expand_etapas").select("id, titulo, area, status, origem, visivel_cliente, criado_em, data_prevista").eq("cliente_id", id).order("criado_em", { ascending: false });
+  const { data: etData } = await supabase.from("expand_etapas").select("id, titulo, area, sla, status, origem, visivel_cliente, criado_em, data_prevista").eq("cliente_id", id).order("criado_em", { ascending: false });
   const etapas = (etData ?? []) as Etapa[];
   const { data: lgData } = await supabase.from("expand_log").select("id, tipo, detalhe, autor, criado_em").eq("cliente_id", id).order("criado_em", { ascending: false }).limit(60);
   const logs = (lgData ?? []) as Log[];
@@ -242,6 +243,85 @@ export default async function ClienteHub({ params, searchParams }: { params: Pro
           ) : isAdmin ? <p style={{ fontSize: 12, color: "var(--dim)", marginTop: 14 }}>Ainda sem resumo. Configure o grupo e clique em “Rodar resumo agora”.</p> : null}
         </div>
       ) : null}
+
+      {aba === "sla" ? (() => {
+        function slaDias(sla: string | null): number | null {
+          if (!sla) return null;
+          const md = sla.toLowerCase().match(/(\d+)\s*dia/); if (md) return Number(md[1]);
+          const mh = sla.toLowerCase().match(/(\d+)\s*h/); if (mh) return Math.max(1, Math.round(Number(mh[1]) / 24));
+          return null;
+        }
+        const abertas = etapas.filter((e) => e.status === "run" || e.status === "idle");
+        const comSla = abertas.filter((e) => e.sla);
+        const hojeISO = new Intl.DateTimeFormat("sv", { timeZone: "America/Sao_Paulo" }).format(new Date());
+        const atrasadas = abertas.filter((e) =>
+          e.status === "idle" && !!e.data_prevista && e.data_prevista < hojeISO
+        );
+        const onTime = comSla.filter((e) => !atrasadas.some((a) => a.id === e.id));
+        const semSla = abertas.filter((e) => !e.sla);
+        const riscoCor = d.risco === "ok" ? "var(--green)" : d.risco === "churn" ? "var(--red)" : "var(--warn)";
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            {/* KPIs de SLA */}
+            <div className="ex-kpis">
+              <div className="ex-kpi hx-glass"><div className="lab">Tarefas abertas</div><div className="val">{abertas.length}</div><div className="foot">Run + na fila</div></div>
+              <div className="ex-kpi hx-glass"><div className="lab">Com SLA definido</div><div className="val hx-accent-text">{comSla.length}</div><div className="foot">de {abertas.length} abertas</div></div>
+              <div className="ex-kpi hx-glass"><div className="lab">Vencidas / em risco</div><div className="val" style={{ color: atrasadas.length ? "var(--red)" : "var(--green)" }}>{atrasadas.length}</div><div className="foot">Data passada</div></div>
+              <div className="ex-kpi hx-glass"><div className="lab">Saúde do cliente</div><div className="val" style={{ color: riscoCor, fontSize: 16 }}>{d.risco === "ok" ? "Saudável" : d.risco === "churn" ? "Risco de churn" : "Atenção"}</div><div className="foot">Risco calculado</div></div>
+            </div>
+
+            {/* Tarefas com SLA */}
+            {comSla.length > 0 && (
+              <div>
+                <div className="ex-grph"><span className="gt">Tarefas com SLA</span><span className="gc">{comSla.length}</span><span className="gl" /></div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {comSla.map((e) => {
+                    const vencida = atrasadas.some((a) => a.id === e.id);
+                    return (
+                      <Link key={e.id} href={`/expand/etapa/${e.id}`} className="hx-glass hx-glass-hover" style={{ display: "flex", gap: 12, padding: "10px 14px", borderRadius: 10, alignItems: "center", textDecoration: "none", color: "inherit", borderLeft: `3px solid ${vencida ? "var(--red)" : e.status === "run" ? "var(--accent)" : "var(--dim)"}` }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600 }}>{e.titulo}</div>
+                          {e.area && <div style={{ fontSize: 11, color: "var(--dim)", marginTop: 2 }}>{e.area}</div>}
+                        </div>
+                        <span style={{ fontSize: 11.5, padding: "3px 8px", borderRadius: 6, background: "var(--panel-2)", color: "var(--mut)", fontWeight: 600 }}>SLA {e.sla}</span>
+                        {e.data_prevista && <span style={{ fontSize: 11, color: "var(--dim)" }}>{new Date(e.data_prevista + "T12:00").toLocaleDateString("pt-BR")}</span>}
+                        <span style={{ fontSize: 11, fontWeight: 700, color: vencida ? "var(--red)" : e.status === "run" ? "var(--accent)" : "var(--dim)" }}>{vencida ? "VENCIDA" : e.status === "run" ? "Em execução" : "Na fila"}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Sem SLA */}
+            {semSla.length > 0 && (
+              <div>
+                <div className="ex-grph"><span className="gt" style={{ color: "var(--warn)" }}>Sem SLA definido</span><span className="gc">{semSla.length}</span><span className="gl" /></div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                  {semSla.map((e) => (
+                    <Link key={e.id} href={`/expand/etapa/${e.id}`} className="hx-glass hx-glass-hover" style={{ display: "flex", gap: 12, padding: "9px 14px", borderRadius: 10, alignItems: "center", textDecoration: "none", color: "inherit" }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, flex: 1 }}>{e.titulo}</span>
+                      <span style={{ fontSize: 11, color: "var(--dim)" }}>{e.status === "run" ? "Em execução" : "Na fila"}</span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Rituais — link para página de rotinas */}
+            <div className="hx-glass" style={{ borderRadius: 14, padding: 18 }}>
+              <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 6 }}>Rituais & Automações</div>
+              <p style={{ fontSize: 12.5, color: "var(--mut)", lineHeight: 1.55, marginBottom: 12 }}>
+                As rotinas automáticas (resumo diário, alertas de SLA, resumo de grupo) são configuradas globalmente. O grupo de WhatsApp desta conta precisa estar conectado para as automações funcionarem.
+              </p>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <Link href="/expand/rotinas" className="hx-btn hx-btn-ghost" style={{ padding: "8px 14px", fontSize: 12.5 }}>Gerenciar rotinas ↗</Link>
+                <Link href={`/expand/clientes/${id}?t=grupo`} className="hx-btn hx-btn-ghost" style={{ padding: "8px 14px", fontSize: 12.5 }}>Configurar grupo WhatsApp</Link>
+              </div>
+            </div>
+          </div>
+        );
+      })() : null}
 
       {aba === "agente" ? (
         <div className="hx-glass" style={{ borderRadius: 14, padding: 18 }}>

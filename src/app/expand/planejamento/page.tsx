@@ -111,7 +111,7 @@ export default async function Planejamento({ searchParams }: { searchParams: Pro
               const its = doDia(d); const hoje = ymd(d) === hojeS;
               return (
                 <div key={ymd(d)} style={{ minHeight: 92, borderRadius: 8, border: `1px solid ${hoje ? "var(--accent)" : "var(--line)"}`, background: outMes ? "transparent" : "var(--panel-2)", padding: 6, opacity: outMes ? 0.4 : 1 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: hoje ? "var(--accent)" : "var(--dim)", marginBottom: 4 }}>{d.getDate()}</div>
+                  <Link href={q0({ v: "dia", d: ymd(d) })} style={{ fontSize: 11, fontWeight: 700, color: hoje ? "var(--accent)" : "var(--dim)", marginBottom: 4, display: "block", textDecoration: "none" }}>{d.getDate()}</Link>
                   {its.slice(0, 4).map((e) => Card(e, true))}
                   {its.length > 4 ? <div style={{ fontSize: 10, color: "var(--dim)" }}>+{its.length - 4}</div> : null}
                 </div>

@@ -29,12 +29,13 @@ function addISO(iso: string, n: number) { const d = new Date(iso + "T12:00:00Z")
 const PMO = ["ana", "pedro", "gerente-projetos"];
 const saudacao = () => { const h = parseInt(new Intl.DateTimeFormat("pt-BR", { hour: "numeric", hour12: false, timeZone: TZ }).format(new Date())); return h < 12 ? "Bom dia" : h < 18 ? "Boa tarde" : "Boa noite"; };
 
-function Cal({ marcados, hojeISO }: { marcados: { dia: number; marco: boolean }[]; hojeISO: string }) {
+function Cal({ marcados, hojeISO, pinDate, cli }: { marcados: { dia: number; marco: boolean }[]; hojeISO: string; pinDate?: string; cli?: string }) {
   const [sy, sm1, sd] = hojeISO.split("-").map(Number); const m = sm1 - 1;
   const inicio = new Date(sy, m, 1).getDay(); const dias = new Date(sy, m + 1, 0).getDate();
   const map = new Map<number, boolean>(); marcados.forEach((x) => map.set(x.dia, map.get(x.dia) || x.marco));
   const cont = new Map<number, number>(); marcados.forEach((x) => cont.set(x.dia, (cont.get(x.dia) ?? 0) + 1));
   const cells: (number | null)[] = []; for (let i = 0; i < inicio; i++) cells.push(null); for (let d = 1; d <= dias; d++) cells.push(d);
+  const toISO = (d: number) => `${sy}-${String(sm1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
   return (
     <div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 3, fontSize: 9, color: "var(--dim)", textAlign: "center", marginBottom: 3 }}>{["D", "S", "T", "Q", "Q", "S", "S"].map((d, i) => <span key={i}>{d}</span>)}</div>
@@ -42,13 +43,14 @@ function Cal({ marcados, hojeISO }: { marcados: { dia: number; marco: boolean }[
         {cells.map((d, i) => {
           if (d == null) return <span key={i} />;
           const ehHoje = d === sd; const n = cont.get(d) ?? 0; const marco = map.get(d);
-          return (
-            <div key={i} style={{ aspectRatio: "1", borderRadius: 6, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontSize: 10, position: "relative", border: ehHoje ? "1px solid var(--accent)" : "1px solid transparent", background: n ? "color-mix(in srgb, var(--accent) 12%, transparent)" : "var(--panel-2)", color: ehHoje ? "var(--accent)" : "var(--mut)", fontWeight: ehHoje ? 800 : 400 }}>
-              {d}{marco ? <span style={{ position: "absolute", top: 1, right: 3, color: "var(--accent)", fontSize: 7 }}>◆</span> : n ? <span style={{ position: "absolute", bottom: 2, width: 4, height: 4, borderRadius: "50%", background: "var(--accent)" }} /> : null}
-            </div>
-          );
+          const dateStr = toISO(d); const sel = pinDate === dateStr;
+          const href = `?d=${dateStr}${cli ? `&c=${cli}` : ""}`;
+          const inner = <>{d}{marco ? <span style={{ position: "absolute", top: 1, right: 3, color: "var(--accent)", fontSize: 7 }}>◆</span> : n ? <span style={{ position: "absolute", bottom: 2, width: 4, height: 4, borderRadius: "50%", background: sel ? "#fff" : "var(--accent)" }} /> : null}</>;
+          const cellStyle: React.CSSProperties = { aspectRatio: "1", borderRadius: 6, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontSize: 10, position: "relative", border: sel ? "2px solid var(--accent)" : ehHoje ? "1px solid var(--accent)" : "1px solid transparent", background: sel ? "var(--accent)" : n ? "color-mix(in srgb, var(--accent) 12%, transparent)" : "var(--panel-2)", color: sel ? "#fff" : ehHoje ? "var(--accent)" : "var(--mut)", fontWeight: ehHoje || sel ? 800 : 400, textDecoration: "none" };
+          return n > 0 ? <a key={i} href={href} style={cellStyle}>{inner}</a> : <div key={i} style={cellStyle}>{inner}</div>;
         })}
       </div>
+      {pinDate && <a href={cli ? `?c=${cli}` : "?"} style={{ display: "block", marginTop: 6, fontSize: 10, color: "var(--accent)", textAlign: "center", textDecoration: "none" }}>← Ver todas as datas</a>}
     </div>
   );
 }
@@ -113,9 +115,11 @@ function Tarefa({ e, cliNome, atrasada }: { e: EtapaRow; cliNome: string; atrasa
   );
 }
 
-export default async function MeuDia({ searchParams }: { searchParams: Promise<{ range?: string }> }) {
+export default async function MeuDia({ searchParams }: { searchParams: Promise<{ range?: string; c?: string; d?: string }> }) {
   const sp = await searchParams;
   const range = sp.range ?? "dia";
+  const filtroCli = sp.c ?? "";
+  const pinDate = sp.d ?? "";
   const { pessoa } = await getPessoa();
   const acesso = await getAcesso();
   const supabase = await createClient();
@@ -137,20 +141,25 @@ export default async function MeuDia({ searchParams }: { searchParams: Promise<{
   // filtro do painel por horizonte (Hoje / Semana / Mês) — datas em fuso de Brasília
   const hojeISO = brISO();
   const [yy, mm] = hojeISO.split("-").map(Number); // mm é 1-indexed
-  const inicio = range === "mes" ? `${yy}-${String(mm).padStart(2, "0")}-01` : range === "semana" ? isoMonday(0) : hojeISO;
-  const fim = range === "mes" ? `${yy}-${String(mm).padStart(2, "0")}-${String(new Date(yy, mm, 0).getDate()).padStart(2, "0")}` : range === "semana" ? addISO(isoMonday(1), -1) : hojeISO;
+  const inicio = pinDate || (range === "mes" ? `${yy}-${String(mm).padStart(2, "0")}-01` : range === "semana" ? isoMonday(0) : hojeISO);
+  const fim = pinDate || (range === "mes" ? `${yy}-${String(mm).padStart(2, "0")}-${String(new Date(yy, mm, 0).getDate()).padStart(2, "0")}` : range === "semana" ? addISO(isoMonday(1), -1) : hojeISO);
   const atrasadaDe = (e: EtapaRow) =>
     e.bloqueado ||
     (e.status === "run" && slaDias(e.sla) != null && (diasDesde(e.iniciada_em) ?? 0) > slaDias(e.sla)!) ||
     (e.status === "idle" && !!e.data_prevista && e.data_prevista < hojeISO);
-  const noHoriz = (e: EtapaRow) =>
-    e.status === "run" || atrasadaDe(e) || !e.data_prevista ||
-    (e.data_prevista >= hojeISO && e.data_prevista <= fim);
+  const noHoriz = (e: EtapaRow) => {
+    if (e.status === "run" || atrasadaDe(e)) return true;
+    if (pinDate) return e.data_prevista === pinDate;
+    if (!e.data_prevista) return true;
+    return e.data_prevista >= inicio && e.data_prevista <= fim;
+  };
   const ativas = myEtapas.filter((e) => (e.status === "run" || e.status === "idle") && noHoriz(e));
-  const atrasadas = ativas.filter((e) => atrasadaDe(e));
-  const emExec = ativas.filter((e) => e.status === "run" && !atrasadaDe(e));
-  const fila = ativas.filter((e) => e.status === "idle" && !atrasadaDe(e));
-  const concluidas = myEtapas.filter((e) => e.status === "done" && e.concluida_em && e.concluida_em.slice(0, 10) >= inicio && e.concluida_em.slice(0, 10) <= fim);
+  const ativasVis = filtroCli ? ativas.filter((e) => e.cliente_id === filtroCli) : ativas;
+  const atrasadas = ativasVis.filter((e) => atrasadaDe(e));
+  const emExec = ativasVis.filter((e) => e.status === "run" && !atrasadaDe(e));
+  const fila = ativasVis.filter((e) => e.status === "idle" && !atrasadaDe(e));
+  const conclBase = filtroCli ? myEtapas.filter((e) => e.cliente_id === filtroCli) : myEtapas;
+  const concluidas = conclBase.filter((e) => e.status === "done" && e.concluida_em && e.concluida_em.slice(0, 10) >= inicio && e.concluida_em.slice(0, 10) <= fim);
 
   const ids = myEtapas.map((e) => e.id);
   let pendentes = 0;
@@ -162,6 +171,8 @@ export default async function MeuDia({ searchParams }: { searchParams: Promise<{
   const ativos = [...new Set((logData ?? []).map((l) => l.autor as string).filter(Boolean))].slice(0, 8);
   const { data: notasData } = await supabase.from("expand_notas").select("id, conteudo, cor").eq("membro_id", pessoa.id).order("atualizado_em", { ascending: true });
   const { data: perfMe } = await supabase.from("expand_perfis").select("ics_token").eq("id", pessoa.id).maybeSingle();
+  const { data: cliAll } = await supabase.from("expand_clientes").select("id, nome").eq("ativo", true).order("nome");
+  const clientesList = (cliAll ?? []) as { id: string; nome: string }[];
   const site = process.env.NEXT_PUBLIC_SITE_URL || "";
   const icsUrl = perfMe?.ics_token ? `${site}/api/calendario/${perfMe.ics_token}.ics` : null;
 
@@ -169,6 +180,7 @@ export default async function MeuDia({ searchParams }: { searchParams: Promise<{
     .filter((x): x is { dia: number; marco: boolean; mes: number } => !!x && x.mes === mm - 1);
 
   const totalAtivas = atrasadas.length + emExec.length + fila.length;
+  const pinDateLabel = pinDate ? new Date(pinDate + "T12:00:00Z").toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" }) : "";
 
   return (
     <>
@@ -176,11 +188,22 @@ export default async function MeuDia({ searchParams }: { searchParams: Promise<{
       <h1 className="ex-h1">{saudacao()}, <span className="hx-accent-text">{pessoa.nome}</span></h1>
       <p className="ex-sub">Suas tarefas — atrasadas e bloqueadas primeiro. Filtre por Hoje / Semana / Mês, abra pra executar, e acompanhe o time e o calendário ao lado.</p>
 
-      <div className="ex-chips" style={{ marginBottom: 14 }}>
+      <div className="ex-chips" style={{ marginBottom: 8 }}>
         {[["dia", "Hoje"], ["semana", "Semana"], ["mes", "Mês"]].map(([k, l]) => (
-          <Link key={k} href={`/expand?range=${k}`} className={`ex-chip2${range === k ? " on" : ""}`}>{l}</Link>
+          <Link key={k} href={`/expand?range=${k}${filtroCli ? `&c=${filtroCli}` : ""}`} className={`ex-chip2${!pinDate && range === k ? " on" : ""}`}>{l}</Link>
         ))}
+        {pinDate && <span className="ex-chip2 on">{pinDateLabel}</span>}
       </div>
+
+      {/* Filtro de cliente */}
+      {clientesList.length > 1 && (
+        <div className="ex-chips" style={{ marginBottom: 14 }}>
+          <Link href={`/expand?range=${range}${pinDate ? `&d=${pinDate}` : ""}`} className={`ex-chip2${!filtroCli ? " on" : ""}`}>Todos os clientes</Link>
+          {clientesList.map((c) => (
+            <Link key={c.id} href={`/expand?range=${range}&c=${c.id}${pinDate ? `&d=${pinDate}` : ""}`} className={`ex-chip2${filtroCli === c.id ? " on" : ""}`}>{c.nome}</Link>
+          ))}
+        </div>
+      )}
 
       <div className="ex-kpis">
         <div className="ex-kpi hx-glass"><div className="lab">Tarefas ({range === "mes" ? "mês" : range === "semana" ? "semana" : "hoje"})</div><div className="val hx-accent-text">{totalAtivas}</div><div className="foot">Ativas na sua mão</div></div>
@@ -200,7 +223,7 @@ export default async function MeuDia({ searchParams }: { searchParams: Promise<{
               </div>
             );
           })}
-          {totalAtivas === 0 ? <div className="hx-glass" style={{ padding: "20px 22px", color: "var(--mut)" }}>Nada de tarefa ativa neste período. 👌</div> : null}
+          {totalAtivas === 0 ? <div className="hx-glass" style={{ padding: "20px 22px", color: "var(--mut)" }}>{pinDate ? `Nenhuma tarefa para ${pinDateLabel}.` : "Nada de tarefa ativa neste período."}</div> : null}
 
           {concluidas.length ? (
             <div style={{ marginTop: 12 }}>
@@ -218,7 +241,10 @@ export default async function MeuDia({ searchParams }: { searchParams: Promise<{
         <aside>
           <div className="ex-panel hx-glass">
             <div className="ph"><span className="pt">Calendário</span><span style={{ marginLeft: "auto", fontSize: 10.5, color: "var(--dim)" }}>◆ marcos · • tarefas</span></div>
-            <div className="pb"><Cal marcados={marcados} hojeISO={hojeISO} /></div>
+            <div className="pb">
+              <Cal marcados={marcados} hojeISO={hojeISO} pinDate={pinDate || undefined} cli={filtroCli || undefined} />
+              <Link href="/expand/planejamento" className="hx-btn hx-btn-ghost" style={{ marginTop: 10, padding: "6px 12px", fontSize: 11.5, display: "inline-block" }}>Abrir calendário completo ↗</Link>
+            </div>
           </div>
 
           <div className="ex-panel hx-glass">
@@ -226,6 +252,27 @@ export default async function MeuDia({ searchParams }: { searchParams: Promise<{
             <div className="pb">
               {ativos.length ? <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>{ativos.map((n) => <span key={n} className="ex-chip" style={{ ["--ac" as string]: "var(--green)" }}>{n}</span>)}</div> : <span style={{ fontSize: 12, color: "var(--dim)" }}>Ninguém ativo nas últimas horas.</span>}
               <Link href="/expand/sala" className="hx-btn hx-btn-ghost" style={{ marginTop: 10, padding: "7px 13px", fontSize: 12, display: "inline-block" }}>Abrir sala do time ↗</Link>
+            </div>
+          </div>
+
+          <div className="ex-panel hx-glass">
+            <div className="ph"><span className="pt">Operações</span></div>
+            <div className="pb" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {[
+                { href: "/expand/gestao", icon: "📊", label: "Board gerencial", sub: "visão por conta / kanban / pessoa" },
+                { href: `/expand/board${filtroCli ? `?c=${filtroCli}` : ""}`, icon: "📋", label: "Board de entrega", sub: "esteira do cliente por fase" },
+                { href: `/expand/planejamento${filtroCli ? `?c=${filtroCli}` : ""}`, icon: "🗓", label: "Planejamento", sub: "agenda dia / semana / mês" },
+                { href: "/expand/carteira", icon: "👥", label: "Carteira de clientes", sub: "status de todas as contas" },
+              ].map((s) => (
+                <Link key={s.href} href={s.href} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid var(--line)", textDecoration: "none", color: "inherit" }}>
+                  <span style={{ fontSize: 16 }}>{s.icon}</span>
+                  <div>
+                    <div style={{ fontSize: 12.5, fontWeight: 700 }}>{s.label}</div>
+                    <div style={{ fontSize: 11, color: "var(--dim)" }}>{s.sub}</div>
+                  </div>
+                  <span style={{ marginLeft: "auto", color: "var(--dim)", fontSize: 14 }}>›</span>
+                </Link>
+              ))}
             </div>
           </div>
 
