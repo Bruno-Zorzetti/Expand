@@ -4,6 +4,7 @@ import { AREAS, AG_NOME } from "@/lib/expand-esteira";
 import { getPessoa } from "@/lib/expand-user";
 import { getAcesso } from "@/lib/expand-acesso";
 import { iniciarEtapa, concluirEtapa } from "@/app/expand/actions";
+import { criarEtapav2 } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +12,7 @@ type Et = {
   id: string; titulo: string; cliente_id: string;
   area: string | null; responsavel: string | null; responsavel_atual: string | null;
   agente: string | null; sla: string | null; status: string;
-  iniciada_em: string | null; concluida_em: string | null;
+  iniciada_em: string | null; concluida_em: string | null; duracao_min: number | null;
   data_prevista: string | null; marco: boolean; bloqueado: boolean | null;
   fase: number; ordem: number;
 };
@@ -51,6 +52,16 @@ function diasDesde(iso: string | null) {
 function addDays(d: Date, n: number): Date {
   const x = new Date(d); x.setDate(x.getDate() + n); return x;
 }
+function duracaoTexto(min: number) {
+  if (min < 60) return `${min}min`;
+  const h = Math.floor(min / 60), m = min % 60;
+  if (h < 24) return `${h}h${m ? `${m}m` : ""}`;
+  return `${Math.floor(h / 24)}d ${h % 24}h`;
+}
+function elapsedMin(iso: string | null): number | null {
+  if (!iso) return null;
+  return Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+}
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 export default async function V2({ searchParams }: { searchParams: Promise<Record<string, string>> }) {
@@ -69,12 +80,13 @@ export default async function V2({ searchParams }: { searchParams: Promise<Recor
   const filtroSt   = (sp.st as string) || "";
   const filtroArea = (sp.a  as string) || "";
   const filtroResp = (sp.r  as string) || "";
+  const showNova   = sp.novo === "1";
 
   const supabase = await createClient();
 
   // Main tasks query
   let q = supabase.from("expand_etapas")
-    .select("id,titulo,cliente_id,area,responsavel,responsavel_atual,agente,sla,status,iniciada_em,concluida_em,data_prevista,marco,bloqueado,fase,ordem")
+    .select("id,titulo,cliente_id,area,responsavel,responsavel_atual,agente,sla,status,iniciada_em,concluida_em,duracao_min,data_prevista,marco,bloqueado,fase,ordem")
     .order("fase").order("ordem");
 
   if (scope === "mine")
@@ -311,6 +323,8 @@ export default async function V2({ searchParams }: { searchParams: Promise<Recor
           {resp && <span style={{ fontSize: 11, color: "var(--dim)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{resp}</span>}
           {e.sla && <span style={{ fontSize: 10.5, color: "var(--mut)" }}>SLA {e.sla}</span>}
           {dateStr && <span style={{ fontSize: 10.5, fontWeight: 600, color: isPast ? "var(--red)" : "var(--mut)" }}>{isPast ? "⚠ " : "📅 "}{dateStr}</span>}
+          {e.status === "run" && e.iniciada_em && (() => { const m = elapsedMin(e.iniciada_em); return m ? <span style={{ fontSize: 10.5, color: "var(--accent)" }}>⏱ {duracaoTexto(m)}</span> : null; })()}
+          {e.status === "done" && (e.duracao_min != null) && <span style={{ fontSize: 10.5, color: "var(--green)" }}>✓ {duracaoTexto(e.duracao_min)}</span>}
           <div style={{ display: "flex", gap: 4, marginLeft: "auto" }}>
             <Link href={`/expand/etapa/${e.id}`} style={{ fontSize: 10.5, padding: "3px 8px", borderRadius: 6, border: "1px solid var(--line-2)", color: "var(--dim)", textDecoration: "none", lineHeight: "normal" }}>→</Link>
             {e.status === "idle" && (
@@ -339,13 +353,12 @@ export default async function V2({ searchParams }: { searchParams: Promise<Recor
     <>
       {/* ── Header ────────────────────────────────────────────────── */}
       <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap", marginBottom: 2 }}>
-        <p className="hx-eyebrow">Sistema de gestão · {pessoa.nome}</p>
-        <span style={{ fontSize: 10.5, padding: "2px 8px", borderRadius: 20, background: "color-mix(in srgb,var(--accent) 18%,transparent)", color: "var(--accent)", fontWeight: 700, letterSpacing: ".04em" }}>v2.0</span>
+        <p className="hx-eyebrow">Hub do Dia · {pessoa.nome}</p>
         <span style={{ fontSize: 10.5, padding: "2px 8px", borderRadius: 20, background: `color-mix(in srgb,${modeColor} 15%,transparent)`, color: modeColor, fontWeight: 600 }}>
           {modeLabel}
         </span>
       </div>
-      <h1 className="ex-h1">Sistema de <span className="hx-accent-text">Gestão</span></h1>
+      <h1 className="ex-h1">Hub do <span className="hx-accent-text">Dia</span></h1>
 
       {/* ── View switcher ─────────────────────────────────────────── */}
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 14 }}>
@@ -436,7 +449,48 @@ export default async function V2({ searchParams }: { searchParams: Promise<Recor
             <Link href={qs({ c: "", st: "", a: "", r: "" })} style={{ fontSize: 12, color: "var(--dim)" }}>limpar</Link>
           )}
           <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--dim)" }}>{etapas.length} tarefa{etapas.length !== 1 ? "s" : ""}</span>
+          <Link href={qs({ novo: "1" })} className="hx-btn hx-btn-primary" style={{ padding: "6px 14px", fontSize: 12, flexShrink: 0 }}>+ Nova tarefa</Link>
         </form>
+      )}
+
+      {/* ── Nova tarefa inline form ────────────────────────────────── */}
+      {showNova && view !== "dash" && (
+        <div className="hx-glass" style={{ borderRadius: 14, padding: "18px 20px", marginBottom: 18, borderLeft: "3px solid var(--accent)" }}>
+          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>+ Nova tarefa</div>
+          <form action={criarEtapav2} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 10 }}>
+            <input type="hidden" name="back" value={`/expand/v2?v=${view}&s=${scope}&g=${grupo}${filtroCli ? `&c=${filtroCli}` : ""}`} />
+            <label style={{ gridColumn: "1 / -1" }}>
+              <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".06em", color: "var(--dim)", fontWeight: 700, marginBottom: 4 }}>Título*</div>
+              <input name="titulo" required placeholder="O que precisa ser feito?" style={{ width: "100%", background: "var(--bg)", border: "1px solid var(--line-2)", borderRadius: 8, color: "var(--txt)", padding: "7px 9px", fontSize: 12.5, outline: "none", fontFamily: "inherit" }} autoFocus />
+            </label>
+            <label>
+              <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".06em", color: "var(--dim)", fontWeight: 700, marginBottom: 4 }}>Cliente*</div>
+              <select name="cliente_id" required style={{ width: "100%", background: "var(--bg)", border: "1px solid var(--line-2)", borderRadius: 8, color: "var(--txt)", padding: "7px 9px", fontSize: 12, outline: "none", fontFamily: "inherit" }}>
+                <option value="">Selecionar…</option>
+                {clientes.map(c => <option key={c.id} value={c.id} selected={c.id === filtroCli}>{c.nome}</option>)}
+              </select>
+            </label>
+            <label>
+              <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".06em", color: "var(--dim)", fontWeight: 700, marginBottom: 4 }}>Área</div>
+              <select name="area" style={{ width: "100%", background: "var(--bg)", border: "1px solid var(--line-2)", borderRadius: 8, color: "var(--txt)", padding: "7px 9px", fontSize: 12, outline: "none", fontFamily: "inherit" }}>
+                <option value="">Sem área</option>
+                {Object.entries(AREAS).map(([k, v]) => <option key={k} value={k}>{v.n}</option>)}
+              </select>
+            </label>
+            <label>
+              <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".06em", color: "var(--dim)", fontWeight: 700, marginBottom: 4 }}>SLA</div>
+              <input name="sla" placeholder="ex.: 2 dias" style={{ width: "100%", background: "var(--bg)", border: "1px solid var(--line-2)", borderRadius: 8, color: "var(--txt)", padding: "7px 9px", fontSize: 12.5, outline: "none", fontFamily: "inherit" }} />
+            </label>
+            <label>
+              <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".06em", color: "var(--dim)", fontWeight: 700, marginBottom: 4 }}>Data prevista</div>
+              <input type="date" name="data_prevista" style={{ width: "100%", background: "var(--bg)", border: "1px solid var(--line-2)", borderRadius: 8, color: "var(--txt)", padding: "7px 9px", fontSize: 12.5, outline: "none", fontFamily: "inherit" }} />
+            </label>
+            <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+              <button className="hx-btn hx-btn-primary" type="submit" style={{ padding: "8px 18px", fontSize: 12.5 }}>Criar tarefa</button>
+              <Link href={qs({ novo: "" })} style={{ fontSize: 12, color: "var(--dim)", padding: "8px 0" }}>cancelar</Link>
+            </div>
+          </form>
+        </div>
       )}
 
       {/* ════════════════════════════════════════════════════════════

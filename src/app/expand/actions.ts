@@ -133,6 +133,7 @@ export async function iniciarEtapa(formData: FormData) {
   await logar(supabase, "iniciar", "Iniciou a execução (contador ligado)", { etapa_id: etapaId, cliente_id: (et?.cliente_id as string | null) ?? null, autor: pessoa.nome });
   revalidatePath(`/expand/etapa/${etapaId}`);
   revalidatePath("/expand");
+  revalidatePath("/expand/v2");
 }
 
 export async function concluirEtapa(formData: FormData) {
@@ -147,6 +148,7 @@ export async function concluirEtapa(formData: FormData) {
   await logar(supabase, "concluir", `Concluiu a tarefa${dur != null ? ` em ${dur} min` : ""}`, { etapa_id: etapaId, cliente_id: (et?.cliente_id as string | null) ?? null, autor: pessoa.nome });
   revalidatePath(`/expand/etapa/${etapaId}`);
   revalidatePath("/expand");
+  revalidatePath("/expand/v2");
 }
 
 export async function transferirEtapa(formData: FormData) {
@@ -362,6 +364,19 @@ export async function justificarAtraso(formData: FormData) {
   await logar(supabase, "justificativa", texto ? `Justificou atraso: ${texto}` : "Removeu justificativa", { etapa_id: etapaId, cliente_id: await clienteDaEtapa(supabase, etapaId), autor: pessoa.nome });
   revalidatePath("/expand");
   revalidatePath(`/expand/etapa/${etapaId}`);
+}
+
+// ---- Comentários de tarefa ----
+export async function comentarEtapa(formData: FormData) {
+  const etapaId = String(formData.get("etapaId") ?? "").trim();
+  const texto   = String(formData.get("texto")   ?? "").trim();
+  if (!etapaId || !texto) return;
+  const supabase = await createClient();
+  const { pessoa } = await getPessoa();
+  const cli = await clienteDaEtapa(supabase, etapaId);
+  await logar(supabase, "comentario", texto, { etapa_id: etapaId, cliente_id: cli, autor: pessoa.nome });
+  revalidatePath(`/expand/etapa/${etapaId}`);
+  revalidatePath("/expand/v2");
 }
 
 // ---- Sala do time (chat interno) ----

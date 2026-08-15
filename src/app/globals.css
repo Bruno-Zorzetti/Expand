@@ -331,6 +331,15 @@ body {
 .ex-brand { display:flex; align-items:center; gap:11px; padding:20px 20px 16px; }
 .ex-bn { font-family:var(--serif); font-size:16px; font-weight:600; letter-spacing:2.5px; color:var(--txt); line-height:1; }
 .ex-bs { font-size:8.5px; letter-spacing:2px; text-transform:uppercase; color:var(--accent); font-weight:600; margin-top:3px; }
+/* Logo tema — dark default (creme), light alterna para preto */
+.ex-logo-light { display:none; }
+.ex-logo-dark  { display:block; }
+[data-theme="light"] .ex-logo-dark  { display:none; }
+[data-theme="light"] .ex-logo-light { display:block; }
+@media (prefers-color-scheme:light) {
+  :root:not([data-theme="dark"]) .ex-logo-dark  { display:none; }
+  :root:not([data-theme="dark"]) .ex-logo-light { display:block; }
+}
 .ex-navsec { font-size:9.5px; font-weight:700; letter-spacing:1.4px; text-transform:uppercase; color:var(--dim); padding:16px 22px 7px; }
 /* collapsible section header */
 .ex-navsec-hd { display:flex; align-items:center; justify-content:space-between; width:100%; background:none; border:none; cursor:pointer; font-size:9.5px; font-weight:700; letter-spacing:1.4px; text-transform:uppercase; color:var(--dim); padding:16px 18px 7px 22px; transition:color .15s; font-family:inherit; }

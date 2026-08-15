@@ -19,12 +19,10 @@ const NAV: NavSec[] = [
     id: "operacao",
     sec: "Operação & Atividades",
     items: [
-      { href: "/expand", label: "Hub do Dia", icon: "grid", eyebrow: "Suas tarefas hoje" },
-      { href: "/expand/planejamento", label: "Calendário", icon: "calendar", eyebrow: "Agenda e planejamento" },
+      { href: "/expand/v2", label: "Hub do Dia", icon: "grid", eyebrow: "Suas tarefas · Monday-style" },
+      { href: "/expand/planejamento", label: "Calendário", icon: "calendar", eyebrow: "Agenda pessoal da equipe" },
       { href: "/expand/plano", label: "Plano de Ação", icon: "list", eyebrow: "Reunião de líderes" },
       { href: "/expand/board", label: "Board de Atividades", icon: "kanban", eyebrow: "Estado das contas" },
-      { href: "/expand/ritmo", label: "Rituais & SLA", icon: "activity", eyebrow: "Cadência da operação" },
-      { href: "/expand/v2", label: "Gestão v2.0", icon: "layers", eyebrow: "Monday-style · multi-view" },
     ],
   },
   {
@@ -88,7 +86,8 @@ const NAV: NavSec[] = [
     id: "config",
     sec: "Configurações",
     items: [
-      { href: "/expand/empresa", label: "Empresa", icon: "building", eyebrow: "Identidade & marca", gate: "admin" },
+      { href: "/expand/empresa", label: "Empresa", icon: "building", eyebrow: "Identidade, marca & rituais", gate: "admin" },
+      { href: "/expand/ritmo", label: "Rituais & Governança", icon: "activity", eyebrow: "Daily, Weekly, Check-in…", gate: "admin" },
       { href: "/expand/acessos", label: "Acessos", icon: "lock", eyebrow: "Aprovações & papéis", gate: "admin" },
       { href: "/expand/rbac", label: "Permissões RBAC", icon: "shield", eyebrow: "Matriz de acessos", gate: "admin" },
       { href: "/expand/integracoes", label: "Integrações", icon: "plug", eyebrow: "Conexões", gate: "admin" },
@@ -155,6 +154,21 @@ function Logo() {
       <path d="M52 53 H88" stroke="url(#exg)" strokeWidth="3.4" strokeLinecap="round" />
       <circle cx="34" cy="70" r="7" stroke="url(#exg)" strokeWidth="3.4" />
     </svg>
+  );
+}
+
+function BrandText() {
+  const [darkOk,  setDarkOk]  = useState(true);
+  const [lightOk, setLightOk] = useState(true);
+  const showFallback = !darkOk && !lightOk;
+  return (
+    <div style={{ flex: 1, minWidth: 0 }}>
+      {!showFallback && <>
+        {darkOk  && <img src="/midia/expand-logo-horizontal-cream.png" alt="Expand" className="ex-logo-dark"  style={{ height: 22, width: "auto", maxWidth: 120 }} onError={() => setDarkOk(false)} />}
+        {lightOk && <img src="/midia/expand-logo-horizontal-black.png" alt="Expand" className="ex-logo-light" style={{ height: 22, width: "auto", maxWidth: 120 }} onError={() => setLightOk(false)} />}
+      </>}
+      {(showFallback || !darkOk || !lightOk) && <><div className="ex-bn">EXPAND</div><div className="ex-bs">Motor de Trabalho</div></>}
+    </div>
   );
 }
 
@@ -324,7 +338,7 @@ export default function ExpandShell({
       <aside className="ex-side">
         <div className="ex-brand">
           <Logo />
-          <div><div className="ex-bn">EXPAND</div><div className="ex-bs">Motor de Trabalho</div></div>
+          <BrandText />
         </div>
 
         <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden" }}>
