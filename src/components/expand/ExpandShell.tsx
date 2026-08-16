@@ -148,7 +148,7 @@ function Logo() {
           <stop offset="0%" stopColor="#E0BC85" /><stop offset="55%" stopColor="#A07644" /><stop offset="100%" stopColor="#E0BC85" />
         </linearGradient>
       </defs>
-      <circle cx="50" cy="50" r="41" stroke="url(#exg)" strokeWidth="3.4" />
+      <path d="M50 4 C82 4 94 28 94 54 A44 44 0 1 1 6 54 C6 28 18 4 50 4Z" stroke="url(#exg)" strokeWidth="3.4" />
       <path d="M32 19 L70 74" stroke="url(#exg)" strokeWidth="3.4" strokeLinecap="round" />
       <path d="M69 19 L38 63" stroke="url(#exg)" strokeWidth="3.4" strokeLinecap="round" />
       <path d="M52 53 H88" stroke="url(#exg)" strokeWidth="3.4" strokeLinecap="round" />

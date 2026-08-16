@@ -17,7 +17,7 @@ function LogoMark({ size = 52 }: { size?: number }) {
           <stop offset="100%" stopColor="#E8CC96" />
         </linearGradient>
       </defs>
-      <circle cx="50" cy="50" r="41" stroke="url(#lgg)" strokeWidth="3.4" />
+      <path d="M50 4 C82 4 94 28 94 54 A44 44 0 1 1 6 54 C6 28 18 4 50 4Z" stroke="url(#lgg)" strokeWidth="3.4" />
       <path d="M32 19 L70 74" stroke="url(#lgg)" strokeWidth="3.4" strokeLinecap="round" />
       <path d="M69 19 L38 63" stroke="url(#lgg)" strokeWidth="3.4" strokeLinecap="round" />
       <path d="M52 53 H88" stroke="url(#lgg)" strokeWidth="3.4" strokeLinecap="round" />
@@ -63,7 +63,18 @@ function LoginInner() {
 
     if (tab === "login") {
       const { error } = await supabase.auth.signInWithPassword({ email, password: senha });
-      if (error) { setMsg("E-mail ou senha incorretos."); }
+      if (error) {
+        const raw = (error.message ?? "").trim();
+        setMsg(
+          !raw || raw === "{}"
+            ? "Erro ao entrar. Verifique os dados e tente novamente."
+            : /invalid login/i.test(raw) || /invalid credentials/i.test(raw)
+            ? "E-mail ou senha incorretos."
+            : /email not confirmed/i.test(raw)
+            ? "E-mail ainda não confirmado. Verifique sua caixa de entrada."
+            : "E-mail ou senha incorretos."
+        );
+      }
       else { window.location.assign(destino); return; }
     } else {
       if (!tipo) { setMsg("Escolha se você é da equipe ou cliente."); setLoading(false); return; }
@@ -72,7 +83,22 @@ function LoginInner() {
         options: { data: { full_name: nome, tipo_acesso: tipo } },
       });
       if (error) {
-        setMsg(error.message === "User already registered" ? "Este e-mail já possui uma conta. Faça login ou redefina sua senha." : error.message);
+        const raw = (error.message ?? "").trim();
+        const friendly =
+          !raw || raw === "{}" || raw === "[]"
+            ? "Erro ao criar conta. Verifique os dados e tente novamente."
+            : raw === "User already registered"
+            ? "Este e-mail já possui uma conta. Faça login ou redefina sua senha."
+            : /password should be at least/i.test(raw)
+            ? "A senha deve ter no mínimo 6 caracteres."
+            : /unable to validate email/i.test(raw)
+            ? "E-mail inválido. Use um endereço de e-mail válido."
+            : /rate limit/i.test(raw)
+            ? "Muitas tentativas. Aguarde alguns minutos e tente novamente."
+            : /signup/i.test(raw) && /disabled/i.test(raw)
+            ? "Cadastro desativado. Entre em contato com a equipe Expand."
+            : raw;
+        setMsg(friendly);
       } else {
         setCadastroOk({ tipo });
         setNome(""); setEmail(""); setSenha(""); setTipo(null);
