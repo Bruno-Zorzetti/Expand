@@ -351,7 +351,6 @@ export default function ExpandShell({
 
       <aside className="ex-side">
         <div className="ex-brand">
-          <Logo />
           <BrandText />
         </div>
 

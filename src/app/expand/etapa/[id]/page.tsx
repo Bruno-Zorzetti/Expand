@@ -7,7 +7,9 @@ import {
   subirArquivo, decidirArquivo, iniciarEtapa, concluirEtapa, transferirEtapa,
   abrirChamado, alternarBloqueio, adicionarLink, editarArquivo, removerArquivo, agendarEtapa,
   editarEtapa, addModeloEtapa, removeModeloEtapa, promoverParaProcesso, comentarEtapa,
+  gerarCustoFinanceiro,
 } from "@/app/expand/actions";
+import EtapaPipeline from "@/components/expand/EtapaPipeline";
 import { getAcesso } from "@/lib/expand-acesso";
 
 export const dynamic = "force-dynamic";
@@ -219,6 +221,30 @@ export default async function EtapaDetalhe({ params }: { params: Promise<{ id: s
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+
+          {/* Rota da tarefa */}
+          <div className="etapa-card">
+            <div className="etapa-card-head">
+              <span style={{ fontSize: 13, fontWeight: 700 }}>Rota da tarefa</span>
+              <span style={{ fontSize: 10.5, color: "var(--dim)", marginLeft: "auto" }}>histórico · tempo · custo</span>
+            </div>
+            <div className="etapa-card-body">
+              <EtapaPipeline
+                etapaId={etapa.id}
+                titulo={etapa.titulo}
+                area={etapa.area}
+                agente={etapa.agente}
+                responsavel={etapa.responsavel_atual ?? etapa.responsavel}
+                status={etapa.status}
+                duracao_min={minutos}
+                iniciada_em={etapa.iniciada_em}
+                concluida_em={etapa.concluida_em}
+                logs={logs}
+                isAdmin={isAdmin}
+                onEnviarFinanceiro={gerarCustoFinanceiro}
+              />
             </div>
           </div>
 

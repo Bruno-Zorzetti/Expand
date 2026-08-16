@@ -821,3 +821,45 @@ export async function testarGrupoCliente(formData: FormData) {
   await enviarWhatsapp(jid, `✅ Teste da Expand — este grupo de *${c?.nome ?? "cliente"}* está conectado. A partir de agora, avisos, links e aprovações chegam por aqui.`);
   revalidatePath("/expand/board");
 }
+
+// ── Custo da etapa → Financeiro ───────────────────────────────────────────────
+export async function gerarCustoFinanceiro(payload: {
+  etapaId: string;
+  area: string;
+  agente: string | null;
+  duracao_min: number;
+  custo_area: number;
+  custo_agente: number;
+  custo_total: number;
+  detalhes: string; // JSON serializado
+}) {
+  const supabase = await createClient();
+  const { pessoa } = await getPessoa();
+  const autor = pessoa?.nome ?? "sistema";
+
+  const clienteId = await clienteDaEtapa(supabase, payload.etapaId);
+
+  await logar(supabase, "custo_financeiro", payload.detalhes, {
+    etapa_id: payload.etapaId,
+    cliente_id: clienteId,
+    autor,
+  });
+
+  // Notifica quem tiver papel admin/financeiro
+  const { data: financeiros } = await supabase
+    .from("expand_perfis")
+    .select("id")
+    .in("papel", ["admin", "financeiro"]);
+
+  for (const f of financeiros ?? []) {
+    await notificar(
+      supabase,
+      f.id as string,
+      "custo",
+      `Custo de etapa gerado: R$ ${payload.custo_total.toFixed(2)} (${payload.area})`,
+      `/expand/etapa/${payload.etapaId}`,
+    );
+  }
+
+  revalidatePath(`/expand/etapa/${payload.etapaId}`);
+}

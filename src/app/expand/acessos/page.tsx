@@ -1,150 +1,247 @@
-import { revalidatePath } from "next/cache";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { exigirAdmin } from "@/lib/expand-acesso";
+import { revalidatePath } from "next/cache";
 
 export const dynamic = "force-dynamic";
 
-type Perfil = { id: string; full_name: string | null; email: string | null; role: string; expand_membro: string | null; expand_cliente: string | null; acessos: string[] | null; created_at: string; tipo_acesso: string | null };
-const ROLE_ROTULO: Record<string, { l: string; c: string }> = {
-  pendente: { l: "Pendente", c: "var(--warn)" },
-  admin: { l: "Admin (diretoria)", c: "var(--accent)" },
-  equipe: { l: "Equipe", c: "var(--green)" },
-  cliente: { l: "Cliente", c: "var(--accent-2)" },
+// Mapa de gates → labels curtos (mesma lista de MODULOS do [userId])
+const GATE_LABEL: Record<string, { label: string; cor: string }> = {
+  "tarefas.meudia":            { label: "Meu Dia",       cor: "#4F6BED" },
+  "tarefas.board":             { label: "Board",          cor: "#4F6BED" },
+  "tarefas.calendario":        { label: "Calendário",     cor: "#4F6BED" },
+  "tarefas.plano":             { label: "Plano",          cor: "#4F6BED" },
+  "projetos.clientes":         { label: "Clientes",       cor: "#6FBF92" },
+  "projetos.equipe":           { label: "Equipe",         cor: "#6FBF92" },
+  "projetos.produtos":         { label: "Produtos",       cor: "#6FBF92" },
+  "ferramentas.grupos":        { label: "Grupos",         cor: "#86C0A6" },
+  "ferramentas.apresentacoes": { label: "Apresentações",  cor: "#86C0A6" },
+  "ferramentas.conhecimento":  { label: "Conhecimento",   cor: "#86C0A6" },
+  "comercial.dashboard":       { label: "Com. Dashboard", cor: "#CE6A5F" },
+  "comercial.funil":           { label: "Com. Funil",     cor: "#CE6A5F" },
+  "comercial.placar":          { label: "Com. Placar",    cor: "#CE6A5F" },
+  "comercial.meta":            { label: "Com. Meta",      cor: "#CE6A5F" },
+  "comercial.guia":            { label: "Com. Guia",      cor: "#CE6A5F" },
+  "financeiro.dashboard":      { label: "Fin. Dashboard", cor: "#C89B5E" },
+  "financeiro.dre":            { label: "Fin. DRE",       cor: "#C89B5E" },
+  "financeiro.metas":          { label: "Fin. Metas",     cor: "#C89B5E" },
+  "financeiro.realizado":      { label: "Fin. Realizado", cor: "#C89B5E" },
+  "financeiro.pagar":          { label: "Fin. A Pagar",   cor: "#C89B5E" },
+  "financeiro.receber":        { label: "Fin. A Receber", cor: "#C89B5E" },
 };
 
-async function definirAcesso(formData: FormData) {
+const ROLE_COR: Record<string, string> = {
+  pendente: "var(--warn)",
+  admin:    "var(--accent)",
+  equipe:   "var(--green)",
+  cliente:  "var(--accent-2)",
+};
+const ROLE_LABEL: Record<string, string> = {
+  pendente: "Pendente",
+  admin:    "Admin",
+  equipe:   "Equipe",
+  cliente:  "Cliente",
+};
+
+type Perfil = {
+  id: string; full_name: string | null; email: string | null;
+  role: string; expand_membro: string | null; acessos: string[] | null;
+  created_at: string; tipo_acesso: string | null;
+  mentor_agent: string | null;
+  token_limit_day: number | null; token_limit_month: number | null;
+  tokens_today: number; tokens_month: number;
+  access_days: string[] | null; access_start: string | null; access_end: string | null;
+  cliente_ids: string[] | null; funcoes: string[] | null;
+};
+
+async function aprovar(formData: FormData) {
   "use server";
   await exigirAdmin();
-  const supabase = await createClient();
-  const acessos: string[] = [];
-  if (formData.get("comercial") === "on") acessos.push("comercial");
-  if (formData.get("pmo") === "on") acessos.push("pmo");
-  await supabase.rpc("admin_definir_acesso", {
-    p_id: String(formData.get("id")),
-    p_role: String(formData.get("role")),
-    p_membro: String(formData.get("membro") ?? "").trim() || null,
-    p_cliente: String(formData.get("cliente") ?? "").trim() || null,
-    p_acessos: acessos,
-  });
+  const sb = await createClient();
+  await sb.from("profiles").update({ role: String(formData.get("role")) }).eq("id", String(formData.get("id")));
   revalidatePath("/expand/acessos");
 }
 
 export default async function Acessos() {
   await exigirAdmin();
   const supabase = await createClient();
-  const { data: pData } = await supabase.rpc("admin_listar_perfis");
-  const perfis = (pData ?? []) as Perfil[];
-  const { data: pessoasData } = await supabase.from("expand_perfis").select("id, nome, tipo, ics_token, cargo").eq("tipo", "humano").order("nome");
-  const pessoas = (pessoasData ?? []) as { id: string; nome: string; ics_token: string | null; cargo: string | null }[];
-  const { data: clientesData } = await supabase.from("expand_clientes").select("id, nome").order("nome");
-  const clientes = (clientesData ?? []) as { id: string; nome: string }[];
-  const { data: equipeData } = await supabase.from("expand_equipe").select("id, nome, papel").order("ordem");
-  const equipe = (equipeData ?? []) as { id: string; nome: string; papel: string }[];
 
-  const membroLinkado = new Set(perfis.map((p) => p.expand_membro).filter(Boolean));
-  const semConta = equipe.filter((e) => !membroLinkado.has(e.id));
+  const { data } = await supabase.rpc("admin_listar_perfis_v2");
+  const perfis = (data ?? []) as Perfil[];
 
-  const pendentes = perfis.filter((p) => p.role === "pendente");
-  const ativos = perfis.filter((p) => p.role !== "pendente");
-  const site = process.env.NEXT_PUBLIC_SITE_URL ?? "";
-  const fld: React.CSSProperties = { background: "var(--bg)", border: "1px solid var(--line-2)", borderRadius: 8, color: "var(--txt)", padding: "6px 8px", fontSize: 12.5, outline: "none", fontFamily: "inherit" };
-
-  const Linha = (p: Perfil) => (
-    <form key={p.id} action={definirAcesso} className="hx-glass" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10, padding: "12px 14px", borderRadius: 12, borderLeft: `3px solid ${ROLE_ROTULO[p.role]?.c ?? "var(--dim)"}` }}>
-      <input type="hidden" name="id" value={p.id} />
-      <div style={{ flex: 1, minWidth: 200 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 13.5, fontWeight: 700, color: "var(--txt)" }}>{p.full_name || "—"}</span>
-          {p.tipo_acesso && (
-            <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".05em", padding: "2px 7px", borderRadius: 6, background: p.tipo_acesso === "equipe" ? "color-mix(in srgb, var(--green) 15%, transparent)" : "color-mix(in srgb, var(--accent) 15%, transparent)", color: p.tipo_acesso === "equipe" ? "var(--green)" : "var(--accent)" }}>
-              {p.tipo_acesso === "equipe" ? "◆ Equipe" : "★ Cliente"}
-            </span>
-          )}
-        </div>
-        <div style={{ fontSize: 11.5, color: "var(--dim)" }}>{p.email || p.id.slice(0, 8)} · desde {new Date(p.created_at).toLocaleDateString("pt-BR")}</div>
-      </div>
-      <label style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-        <span style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: ".05em", color: "var(--dim)", fontWeight: 700 }}>Papel</span>
-        <select name="role" defaultValue={p.role === "pendente" && p.tipo_acesso ? p.tipo_acesso : p.role} style={fld}>
-          <option value="pendente">Pendente (sem acesso)</option>
-          <option value="equipe">Equipe</option>
-          <option value="admin">Admin (diretoria)</option>
-          <option value="cliente">Cliente</option>
-        </select>
-      </label>
-      <label style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-        <span style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: ".05em", color: "var(--dim)", fontWeight: 700 }}>Vincular à pessoa</span>
-        <select name="membro" defaultValue={p.expand_membro ?? ""} style={fld}><option value="">—</option>{pessoas.map((x) => <option key={x.id} value={x.id}>{x.nome}</option>)}</select>
-      </label>
-      <label style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-        <span style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: ".05em", color: "var(--dim)", fontWeight: 700 }}>Vincular ao cliente</span>
-        <select name="cliente" defaultValue={p.expand_cliente ?? ""} style={fld}><option value="">—</option>{clientes.map((x) => <option key={x.id} value={x.id}>{x.nome}</option>)}</select>
-      </label>
-      <label style={{ display: "flex", alignItems: "center", gap: 7, alignSelf: "end", padding: "6px 0", fontSize: 12.5, color: "var(--mut)" }} title="Dá acesso ao departamento Comercial (sem ser admin)">
-        <input type="checkbox" name="comercial" defaultChecked={p.acessos?.includes("comercial") ?? false} /> Comercial
-      </label>
-      <label style={{ display: "flex", alignItems: "center", gap: 7, alignSelf: "end", padding: "6px 0", fontSize: 12.5, color: "var(--mut)" }} title="Permite ver tarefas de toda a equipe no Meu Dia">
-        <input type="checkbox" name="pmo" defaultChecked={p.acessos?.includes("pmo") ?? false} /> PMO
-      </label>
-      <button className="hx-btn hx-btn-primary" type="submit" style={{ padding: "8px 14px", fontSize: 12.5, alignSelf: "end" }}>Salvar</button>
-    </form>
+  // busca os módulos RBAC de cada usuário
+  const { data: profilesData } = await supabase.from("profiles").select("id, expand_modulos");
+  const modulosMap = Object.fromEntries(
+    (profilesData ?? []).map((p: { id: string; expand_modulos: string[] | null }) => [p.id, p.expand_modulos ?? []])
   );
+
+  const { data: clientesData } = await supabase.from("expand_clientes").select("id, nome").order("nome");
+  const clienteMap = Object.fromEntries((clientesData ?? []).map((c: { id: string; nome: string }) => [c.id, c.nome]));
+
+  const pendentes = perfis.filter(p => p.role === "pendente");
+  const ativos    = perfis.filter(p => p.role !== "pendente");
+
+  const totais = {
+    admin:   ativos.filter(p => p.role === "admin").length,
+    equipe:  ativos.filter(p => p.role === "equipe").length,
+    cliente: ativos.filter(p => p.role === "cliente").length,
+  };
+
+  const chip = (label: string, color: string) => (
+    <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".05em", padding: "2px 7px", borderRadius: 6, background: `color-mix(in srgb, ${color} 15%, transparent)`, color }}>{label}</span>
+  );
+
+  const CardUsuario = (p: Perfil) => {
+    const clientes   = (p.cliente_ids ?? []).map(id => clienteMap[id] ?? id).filter(Boolean);
+    const funcoes    = p.funcoes ?? [];
+    const modulos    = modulosMap[p.id] ?? [];
+    const temLimites = p.token_limit_day || p.token_limit_month || p.access_start;
+    const cor        = ROLE_COR[p.role] ?? "var(--dim)";
+    const isAdmin    = p.role === "admin";
+
+    return (
+      <div key={p.id} className="hx-glass" style={{ borderRadius: 12, borderLeft: `3px solid ${cor}`, overflow: "hidden" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-start", gap: 10, padding: "13px 16px" }}>
+          {/* Info principal */}
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 14, fontWeight: 700 }}>{p.full_name || "—"}</span>
+              {chip(ROLE_LABEL[p.role] ?? p.role, cor)}
+              {p.tipo_acesso === "equipe"  && chip("◆ Equipe",  "var(--green)")}
+              {p.tipo_acesso === "cliente" && chip("★ Cliente", "var(--accent-2)")}
+              {temLimites && chip("⏱ Limites", "var(--mut)")}
+            </div>
+            <div style={{ fontSize: 11.5, color: "var(--dim)", marginTop: 2 }}>
+              {p.email || p.id.slice(0, 10)} · {new Date(p.created_at).toLocaleDateString("pt-BR")}
+            </div>
+
+            {/* Clientes */}
+            {clientes.length > 0 && (
+              <div style={{ marginTop: 6, display: "flex", gap: 5, flexWrap: "wrap" }}>
+                {clientes.map(c => (
+                  <span key={c} style={{ fontSize: 10.5, padding: "2px 7px", borderRadius: 5, background: "color-mix(in srgb, var(--accent) 10%, transparent)", color: "var(--accent)" }}>{c}</span>
+                ))}
+              </div>
+            )}
+
+            {/* Funções */}
+            {funcoes.length > 0 && (
+              <div style={{ marginTop: 5, display: "flex", gap: 5, flexWrap: "wrap" }}>
+                {funcoes.map(f => (
+                  <span key={f} style={{ fontSize: 10.5, padding: "2px 7px", borderRadius: 5, background: "color-mix(in srgb, var(--txt) 8%, transparent)", color: "var(--mut)", textTransform: "uppercase", letterSpacing: ".04em" }}>{f}</span>
+                ))}
+              </div>
+            )}
+
+            {/* Módulos ativos */}
+            {isAdmin ? (
+              <div style={{ marginTop: 6 }}>
+                <span style={{ fontSize: 10.5, padding: "2px 8px", borderRadius: 5, background: "color-mix(in srgb, var(--accent) 12%, transparent)", color: "var(--accent)", fontWeight: 700 }}>✓ Acesso irrestrito (admin)</span>
+              </div>
+            ) : modulos.length > 0 ? (
+              <div style={{ marginTop: 6, display: "flex", gap: 4, flexWrap: "wrap" }}>
+                {modulos.map(g => {
+                  const info = GATE_LABEL[g];
+                  if (!info) return null;
+                  return (
+                    <span key={g} style={{ fontSize: 10, padding: "1px 6px", borderRadius: 4, background: `color-mix(in srgb, ${info.cor} 12%, transparent)`, color: info.cor, fontWeight: 600 }}>
+                      {info.label}
+                    </span>
+                  );
+                })}
+              </div>
+            ) : (
+              <div style={{ marginTop: 6 }}>
+                <span style={{ fontSize: 10.5, color: "var(--dim)", fontStyle: "italic" }}>Nenhum módulo configurado</span>
+              </div>
+            )}
+          </div>
+
+          {/* Tokens hoje */}
+          {(p.token_limit_day || p.tokens_today > 0) && (
+            <div style={{ textAlign: "center", minWidth: 80 }}>
+              <div style={{ fontSize: 18, fontWeight: 800, color: p.token_limit_day && p.tokens_today >= p.token_limit_day ? "var(--red)" : "var(--txt)" }}>
+                {(p.tokens_today / 1000).toFixed(1)}k
+              </div>
+              <div style={{ fontSize: 9.5, color: "var(--dim)", textTransform: "uppercase", letterSpacing: ".05em" }}>
+                tokens hoje{p.token_limit_day ? ` / ${(p.token_limit_day / 1000).toFixed(0)}k` : ""}
+              </div>
+            </div>
+          )}
+
+          {/* Horário */}
+          {p.access_start && (
+            <div style={{ textAlign: "center", minWidth: 80 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "var(--mut)" }}>{p.access_start}–{p.access_end}</div>
+              <div style={{ fontSize: 9.5, color: "var(--dim)" }}>{(p.access_days ?? []).join(" ")}</div>
+            </div>
+          )}
+
+          {/* Botão configurar */}
+          <div style={{ display: "flex", gap: 8, alignSelf: "flex-start", marginTop: 2 }}>
+            <Link href={`/expand/acessos/${p.id}`} className="hx-btn hx-btn-ghost" style={{ padding: "7px 14px", fontSize: 12.5 }}>
+              Configurar →
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <>
       <p className="hx-eyebrow">Configurações · segurança</p>
       <h1 className="ex-h1">Controle de <span className="hx-accent-text">acessos</span></h1>
-      <p className="ex-sub">Todo cadastro — equipe ou cliente — entra como <b style={{ color: "var(--warn)" }}>pendente</b> e só ganha acesso quando você aprova aqui. <b style={{ color: "var(--accent)" }}>Admin</b> vê tudo (dados sensíveis); <b style={{ color: "var(--green)" }}>Equipe</b> vê as próprias tarefas e a operação; <b style={{ color: "var(--accent-2)" }}>Cliente</b> vê só o portal.</p>
+      <p className="ex-sub">
+        Papéis · Módulos por pessoa · Agente mentor · Limites de tokens · Restrição de horário.
+        Cada cadastro entra como <b style={{ color: "var(--warn)" }}>pendente</b> e só acessa após aprovação aqui.
+      </p>
 
-      <div className="ex-kpis" style={{ marginBottom: 18 }}>
-        <div className="ex-kpi hx-glass"><div className="lab">Aguardando aprovação</div><div className="val" style={{ color: pendentes.length ? "var(--warn)" : "var(--dim)" }}>{pendentes.length}</div><div className="foot">Novos cadastros</div></div>
-        <div className="ex-kpi hx-glass"><div className="lab">Admins</div><div className="val hx-accent-text">{ativos.filter((p) => p.role === "admin").length}</div><div className="foot">Diretoria</div></div>
-        <div className="ex-kpi hx-glass"><div className="lab">Equipe</div><div className="val">{ativos.filter((p) => p.role === "equipe").length}</div><div className="foot">Com acesso operacional</div></div>
-        <div className="ex-kpi hx-glass"><div className="lab">Clientes</div><div className="val">{ativos.filter((p) => p.role === "cliente").length}</div><div className="foot">Com portal</div></div>
+      {/* KPIs */}
+      <div className="ex-kpis" style={{ marginBottom: 22 }}>
+        <div className="ex-kpi hx-glass"><div className="lab">Aguardando</div><div className="val" style={{ color: pendentes.length ? "var(--warn)" : "var(--dim)" }}>{pendentes.length}</div><div className="foot">Pendentes</div></div>
+        <div className="ex-kpi hx-glass"><div className="lab">Admin</div><div className="val hx-accent-text">{totais.admin}</div><div className="foot">Diretoria</div></div>
+        <div className="ex-kpi hx-glass"><div className="lab">Equipe</div><div className="val">{totais.equipe}</div><div className="foot">Operacional</div></div>
+        <div className="ex-kpi hx-glass"><div className="lab">Clientes</div><div className="val">{totais.cliente}</div><div className="foot">Portais ativos</div></div>
       </div>
 
-      {/* Equipe sem conta — onboarding pendente */}
-      {semConta.length > 0 && (
+      {/* Pendentes — aprovação rápida */}
+      {pendentes.length > 0 && (
         <>
-          <div className="ex-grph"><span className="gt" style={{ color: "var(--red)" }}>Equipe sem acesso à plataforma</span><span className="gc">{semConta.length}</span><span className="gl" /></div>
-          <div className="hx-glass" style={{ padding: "14px 16px", borderRadius: 12, borderLeft: "3px solid var(--red)", marginBottom: 22 }}>
-            <p style={{ fontSize: 13, color: "var(--mut)", marginBottom: 12, lineHeight: 1.5 }}>
-              Estas pessoas da equipe ainda não criaram conta. Peça que acessem <b style={{ color: "var(--txt)" }}>/login</b> → "Criar conta" → "Sou da equipe", e depois aprove aqui linkando ao perfil certo.
-            </p>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {semConta.map((e) => {
-                const pf = pessoas.find((p) => p.id === e.id);
-                const icsUrl = pf?.ics_token && site ? `${site}/api/calendario/${pf.ics_token}.ics` : null;
-                return (
-                  <div key={e.id} className="hx-glass" style={{ padding: "10px 13px", borderRadius: 10, minWidth: 200, flex: "1 1 200px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
-                      <span style={{ fontSize: 13.5, fontWeight: 700 }}>{e.nome}</span>
-                      <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 5, background: "color-mix(in srgb,var(--red) 12%,transparent)", color: "var(--red)", fontWeight: 700 }}>Sem conta</span>
-                    </div>
-                    <div style={{ fontSize: 11.5, color: "var(--dim)", marginBottom: 8 }}>{e.papel}</div>
-                    {icsUrl && (
-                      <div>
-                        <div style={{ fontSize: 10, color: "var(--dim)", marginBottom: 3 }}>Link do calendário (compartilhar com {e.nome.split(" ")[0]}):</div>
-                        <code style={{ fontSize: 9.5, color: "var(--accent)", background: "var(--bg)", border: "1px solid var(--line-2)", borderRadius: 6, padding: "4px 7px", display: "block", wordBreak: "break-all" }}>{icsUrl}</code>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+          <div className="ex-grph"><span className="gt" style={{ color: "var(--warn)" }}>Aguardando aprovação</span><span className="gc">{pendentes.length}</span><span className="gl" /></div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 26 }}>
+            {pendentes.map(p => (
+              <div key={p.id} className="hx-glass" style={{ borderRadius: 12, borderLeft: "3px solid var(--warn)", padding: "13px 16px", display: "flex", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+                <div style={{ flex: 1, minWidth: 200 }}>
+                  <div style={{ fontWeight: 700, fontSize: 14 }}>{p.full_name || "—"}</div>
+                  <div style={{ fontSize: 11.5, color: "var(--dim)" }}>{p.email} · {new Date(p.created_at).toLocaleDateString("pt-BR")}</div>
+                </div>
+                <form action={aprovar} style={{ display: "flex", gap: 8 }}>
+                  <input type="hidden" name="id" value={p.id} />
+                  <input type="hidden" name="role" value="equipe" />
+                  <button className="hx-btn hx-btn-primary" type="submit" style={{ padding: "7px 14px", fontSize: 12.5 }}>Aprovar como Equipe</button>
+                </form>
+                <form action={aprovar} style={{ display: "flex", gap: 8 }}>
+                  <input type="hidden" name="id" value={p.id} />
+                  <input type="hidden" name="role" value="cliente" />
+                  <button className="hx-btn hx-btn-ghost" type="submit" style={{ padding: "7px 14px", fontSize: 12.5 }}>Aprovar como Cliente</button>
+                </form>
+                <Link href={`/expand/acessos/${p.id}`} className="hx-btn hx-btn-ghost" style={{ padding: "7px 14px", fontSize: 12.5 }}>Configurar →</Link>
+              </div>
+            ))}
           </div>
         </>
       )}
 
-      <div className="ex-grph"><span className="gt" style={{ color: "var(--warn)" }}>Aguardando aprovação</span><span className="gc">{pendentes.length}</span><span className="gl" /></div>
-      {pendentes.length ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 22 }}>{pendentes.map(Linha)}</div>
-      ) : <p style={{ fontSize: 12.5, color: "var(--dim)", marginBottom: 22 }}>Nenhum cadastro pendente. 🎉</p>}
-
+      {/* Ativos */}
       <div className="ex-grph"><span className="gt">Contas ativas</span><span className="gc">{ativos.length}</span><span className="gl" /></div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>{ativos.map(Linha)}</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {ativos.map(CardUsuario)}
+      </div>
 
-      <p style={{ marginTop: 18, fontSize: 11.5, color: "var(--dim)", lineHeight: 1.55 }}>Dica: para <b>equipe</b>, vincule à pessoa (aparece como ela no time e nas tarefas). Para <b>cliente</b>, vincule à conta (abre o portal do PIDE dele). <b>Admin</b> é só para você e o Pedro — quem vê Comercial, Finanças e Configurações.</p>
+      <p style={{ marginTop: 20, fontSize: 11.5, color: "var(--dim)", lineHeight: 1.6 }}>
+        Clique em <b>Configurar →</b> para definir módulos, funções, agente mentor, limites de tokens e restrições de horário de cada pessoa.
+      </p>
     </>
   );
 }
