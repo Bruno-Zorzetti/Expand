@@ -7,22 +7,15 @@ import { createClient } from "@/lib/supabase/client";
 
 const cinzel = Cinzel({ variable: "--font-cinzel", subsets: ["latin"], weight: ["500", "600", "700"] });
 
-function LogoMark({ size = 52 }: { size?: number }) {
+function LogoMark({ size = 52, variant = "cream" }: { size?: number; variant?: "cream" | "gold" }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 100 100" fill="none" style={{ flexShrink: 0 }}>
-      <defs>
-        <linearGradient id="lgg" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#E8CC96" />
-          <stop offset="45%" stopColor="#C8A84E" />
-          <stop offset="100%" stopColor="#E8CC96" />
-        </linearGradient>
-      </defs>
-      <path d="M50 4 C82 4 94 28 94 54 A44 44 0 1 1 6 54 C6 28 18 4 50 4Z" stroke="url(#lgg)" strokeWidth="3.4" />
-      <path d="M32 19 L70 74" stroke="url(#lgg)" strokeWidth="3.4" strokeLinecap="round" />
-      <path d="M69 19 L38 63" stroke="url(#lgg)" strokeWidth="3.4" strokeLinecap="round" />
-      <path d="M52 53 H88" stroke="url(#lgg)" strokeWidth="3.4" strokeLinecap="round" />
-      <circle cx="34" cy="70" r="7" stroke="url(#lgg)" strokeWidth="3.4" />
-    </svg>
+    <img
+      src={variant === "gold" ? "/midia/expand-icone-gold.png" : "/midia/expand-icone-cream.png"}
+      width={size}
+      height={size}
+      alt="Expand"
+      style={{ flexShrink: 0, objectFit: "contain" }}
+    />
   );
 }
 
@@ -188,7 +181,7 @@ function LoginInner() {
         <div style={{ width: "100%", maxWidth: 420 }}>
           {/* Logo mobile */}
           <div className="ex-login-logo-mobile" style={{ textAlign: "center", marginBottom: 28, display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
-            <LogoMark size={44} />
+            <LogoMark size={44} variant="gold" />
             <div>
               <div style={{ fontFamily: "var(--font-cinzel), Georgia, serif", fontSize: 26, fontWeight: 700, letterSpacing: "0.04em", color: "var(--txt)" }}>EXPAND</div>
               <div style={{ fontSize: 10, letterSpacing: "0.22em", textTransform: "uppercase", color: "var(--accent)" }}>Motor de Trabalho</div>

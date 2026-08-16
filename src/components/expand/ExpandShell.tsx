@@ -142,18 +142,13 @@ function Ic({ name }: { name: string }) {
 
 function Logo() {
   return (
-    <svg width="34" height="34" viewBox="0 0 100 100" fill="none" style={{ flexShrink: 0 }}>
-      <defs>
-        <linearGradient id="exg" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#E0BC85" /><stop offset="55%" stopColor="#A07644" /><stop offset="100%" stopColor="#E0BC85" />
-        </linearGradient>
-      </defs>
-      <path d="M50 4 C82 4 94 28 94 54 A44 44 0 1 1 6 54 C6 28 18 4 50 4Z" stroke="url(#exg)" strokeWidth="3.4" />
-      <path d="M32 19 L70 74" stroke="url(#exg)" strokeWidth="3.4" strokeLinecap="round" />
-      <path d="M69 19 L38 63" stroke="url(#exg)" strokeWidth="3.4" strokeLinecap="round" />
-      <path d="M52 53 H88" stroke="url(#exg)" strokeWidth="3.4" strokeLinecap="round" />
-      <circle cx="34" cy="70" r="7" stroke="url(#exg)" strokeWidth="3.4" />
-    </svg>
+    <img
+      src="/midia/expand-icone-cream.png"
+      width="34"
+      height="34"
+      alt="Expand"
+      style={{ flexShrink: 0, objectFit: "contain" }}
+    />
   );
 }
 
@@ -165,7 +160,7 @@ function BrandText() {
     <div style={{ flex: 1, minWidth: 0 }}>
       {!showFallback && <>
         {darkOk  && <img src="/midia/expand-logo-horizontal-cream.png" alt="Expand" className="ex-logo-dark"  style={{ height: 22, width: "auto", maxWidth: 120 }} onError={() => setDarkOk(false)} />}
-        {lightOk && <img src="/midia/expand-logo-horizontal-black.png" alt="Expand" className="ex-logo-light" style={{ height: 22, width: "auto", maxWidth: 120 }} onError={() => setLightOk(false)} />}
+        {lightOk && <img src="/midia/expand-logo-horizontal-gold.png"  alt="Expand" className="ex-logo-light" style={{ height: 22, width: "auto", maxWidth: 120 }} onError={() => setLightOk(false)} />}
       </>}
       {(showFallback || !darkOk || !lightOk) && <><div className="ex-bn">EXPAND</div><div className="ex-bs">Motor de Trabalho</div></>}
     </div>
