@@ -68,7 +68,21 @@ const MODULOS = [
 
 const GRUPOS_MODULOS = ["Tarefas", "Projetos", "Ferramentas", "Comercial", "Financeiro"];
 
-// ── Server action ──────────────────────────────────────────────────────────────
+// ── Server actions ─────────────────────────────────────────────────────────────
+async function gerarIcsToken(formData: FormData) {
+  "use server";
+  await exigirAdmin();
+  const slug = String(formData.get("membroSlug") ?? "").trim();
+  if (!slug) return;
+  const adminSb = createAdminClient();
+  if (adminSb) {
+    await adminSb.from("expand_perfis")
+      .update({ ics_token: crypto.randomUUID() })
+      .eq("id", slug);
+  }
+  revalidatePath("/expand/acessos");
+}
+
 async function salvar(formData: FormData) {
   "use server";
   await exigirAdmin();
@@ -149,6 +163,15 @@ export default async function ConfigurarUsuario({ params }: { params: Promise<{ 
 
   const { data: clientesData } = await sb.from("expand_clientes").select("id, nome").order("nome");
   const clientes = (clientesData ?? []) as { id: string; nome: string }[];
+
+  // ICS token do expand_perfis vinculado
+  const membroSlug = String(perfil.expand_membro ?? "").trim();
+  const { data: icsData } = membroSlug
+    ? await sb.from("expand_perfis").select("ics_token").eq("id", membroSlug).single()
+    : { data: null };
+  const icsToken  = (icsData?.ics_token as string | null) ?? null;
+  const baseUrl   = process.env.NEXT_PUBLIC_SITE_URL ?? "https://expand.hshs.com.br";
+  const icsUrl    = icsToken ? `${baseUrl}/api/calendario/${icsToken}` : null;
 
   // perfil atual do usuário
   const { data: profileData } = await sb.from("profiles").select("expand_modulos").eq("id", userId).single();
@@ -349,6 +372,44 @@ export default async function ConfigurarUsuario({ params }: { params: Promise<{ 
             )}
           </>
         )}
+
+        {/* ── Calendário ICS ──────────────────────────────────────── */}
+        {sec("Calendário ICS", null, <>
+          {membroSlug ? (
+            icsUrl ? (
+              <div>
+                <p style={{ fontSize: 12.5, color: "var(--dim)", marginBottom: 8, lineHeight: 1.6 }}>
+                  Link de assinatura ICS do calendário desta pessoa. Copie e use em Google Calendar → Outros calendários → Por URL.
+                </p>
+                <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                  <input readOnly value={icsUrl} style={{ ...fld, fontFamily: "monospace", fontSize: 11.5, flex: 1, minWidth: 200 }} />
+                  <form action={gerarIcsToken} style={{ flexShrink: 0 }}>
+                    <input type="hidden" name="membroSlug" value={membroSlug} />
+                    <button type="submit" style={{ fontSize: 11.5, padding: "7px 14px", borderRadius: 8, border: "1px solid var(--line-2)", background: "transparent", color: "var(--dim)", cursor: "pointer" }}>
+                      Revogar e gerar novo
+                    </button>
+                  </form>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <p style={{ fontSize: 12.5, color: "var(--dim)", marginBottom: 10 }}>
+                  Esta pessoa ainda não tem um token de calendário. Gere agora.
+                </p>
+                <form action={gerarIcsToken}>
+                  <input type="hidden" name="membroSlug" value={membroSlug} />
+                  <button type="submit" className="hx-btn hx-btn-primary" style={{ fontSize: 13 }}>
+                    Gerar token de calendário
+                  </button>
+                </form>
+              </div>
+            )
+          ) : (
+            <p style={{ fontSize: 12.5, color: "var(--mut)", fontStyle: "italic" }}>
+              Vincule um perfil no campo "Vincular à pessoa da equipe" para ativar o calendário.
+            </p>
+          )}
+        </>)}
 
         {/* ── Salvar ──────────────────────────────────────────────── */}
         <div style={{ display: "flex", gap: 12, paddingTop: 8 }}>

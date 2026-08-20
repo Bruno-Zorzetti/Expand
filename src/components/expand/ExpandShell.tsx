@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useRef, type ReactNode } from "react";
 import AssistentesDock from "@/components/expand/AssistentesDock";
+import SoundCloudPlayer from "@/components/expand/SoundCloudPlayer";
 import Notificacoes, { type Notif } from "@/components/expand/Notificacoes";
 import OnboardingTour from "@/components/expand/OnboardingTour";
 import { createClient } from "@/lib/supabase/client";
@@ -97,6 +98,7 @@ const NAV: NavSec[] = [
       { href: "/expand/gestao",            label: "Visão Geral",    icon: "layers",   eyebrow: "Painel administrativo",     gate: "admin" },
       { href: "/expand/log",               label: "Log",            icon: "list",     eyebrow: "Auditoria do sistema",      gate: "admin" },
       { href: "/expand/estilo",            label: "Folha de Estilo", icon: "brush",   eyebrow: "Design System",            gate: "admin" },
+      { href: "/expand/perfil",             label: "Meu Perfil",      icon: "idcard",  eyebrow: "Sua conta e configurações" },
     ],
   },
 ];
@@ -188,6 +190,7 @@ export default function ExpandShell({
   notif = [],
   marcarLida,
   marcarTodas,
+  soundcloudUrl,
   children,
 }: {
   pessoa: Pessoa;
@@ -198,6 +201,7 @@ export default function ExpandShell({
   notif?: Notif[];
   marcarLida?: (fd: FormData) => Promise<void>;
   marcarTodas?: () => Promise<void>;
+  soundcloudUrl?: string;
   children: ReactNode;
 }) {
   const path = usePathname();
@@ -557,6 +561,7 @@ export default function ExpandShell({
 
       <AssistentesDock pessoaId={pessoa.id} pessoaNome={pessoa.nome} />
       <OnboardingTour pessoaId={pessoa.id} pessoaNome={pessoa.nome} />
+      {soundcloudUrl && <SoundCloudPlayer url={soundcloudUrl} />}
     </div>
   );
 }

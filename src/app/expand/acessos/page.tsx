@@ -8,6 +8,13 @@ import { toggleModulo, liberarSecao, revogarSecao } from "../rbac/actions";
 
 export const dynamic = "force-dynamic";
 
+const PRESETS: Record<string, string[]> = {
+  comercial: ["tarefas.meudia","tarefas.board","tarefas.calendario","comercial.dashboard","comercial.funil","comercial.placar","comercial.meta","comercial.guia","projetos.clientes","projetos.equipe"],
+  cs:        ["tarefas.meudia","tarefas.board","tarefas.calendario","projetos.clientes","projetos.equipe","ferramentas.conhecimento"],
+  designer:  ["tarefas.meudia","tarefas.board","tarefas.calendario","projetos.equipe","ferramentas.apresentacoes"],
+  basico:    ["tarefas.meudia","tarefas.calendario"],
+};
+
 const SECAO_COR: Record<string, string> = {
   Tarefas:     "#4F6BED",
   Projetos:    "#6FBF92",
@@ -50,8 +57,9 @@ async function aprovar(formData: FormData) {
 async function convidar(formData: FormData) {
   "use server";
   await exigirAdmin();
-  const email = String(formData.get("email") ?? "").trim().toLowerCase();
-  const role  = String(formData.get("role") ?? "equipe");
+  const email  = String(formData.get("email") ?? "").trim().toLowerCase();
+  const role   = String(formData.get("role")   ?? "equipe");
+  const preset = String(formData.get("preset") ?? "");
   if (!email) return;
   const sb = createAdminClient();
   if (!sb) return;
@@ -59,7 +67,28 @@ async function convidar(formData: FormData) {
   await sb.auth.admin.inviteUserByEmail(email, { redirectTo: `${siteUrl}/aguardando`, data: { tipo_acesso: role } });
   const { data: u } = await sb.auth.admin.listUsers();
   const user = u.users.find((x: { email?: string }) => x.email === email);
-  if (user) await sb.from("profiles").update({ role }).eq("id", user.id);
+  if (user) {
+    const mods = PRESETS[preset] ?? [];
+    await sb.from("profiles").update({
+      role,
+      ...(mods.length ? { expand_modulos: mods } : {}),
+    }).eq("id", user.id);
+  }
+  revalidatePath("/expand/acessos");
+}
+
+async function salvarLimiteInline(formData: FormData) {
+  "use server";
+  await exigirAdmin();
+  const userId = String(formData.get("userId"));
+  const day    = formData.get("limitDay")   ? Number(formData.get("limitDay"))   : null;
+  const month  = formData.get("limitMonth") ? Number(formData.get("limitMonth")) : null;
+  const sb = createAdminClient();
+  if (!sb) return;
+  await sb.from("expand_user_config").upsert(
+    { user_id: userId, token_limit_day: day, token_limit_month: month, access_days: ["seg","ter","qua","qui","sex"] },
+    { onConflict: "user_id" }
+  );
   revalidatePath("/expand/acessos");
 }
 
@@ -109,6 +138,13 @@ export default async function Acessos({
 
   const pendentes = perfis.filter(p => p.role === "pendente");
   const ativos    = perfis.filter(p => p.role !== "pendente");
+
+  // Dados extras de expand_perfis (cargo, foto) para os cards
+  const membroSlugs = ativos.map(p => p.expand_membro).filter(Boolean) as string[];
+  const { data: epData } = membroSlugs.length
+    ? await supabase.from("expand_perfis").select("id, cargo, foto_url").in("id", membroSlugs)
+    : { data: [] };
+  const epMap = Object.fromEntries((epData ?? []).map((e: { id: string; cargo: string | null; foto_url: string | null }) => [e.id, e]));
 
   const totais = {
     admin:   ativos.filter(p => p.role === "admin").length,
@@ -160,20 +196,39 @@ export default async function Acessos({
           <div className="ex-grph"><span className="gt">Contas ativas</span><span className="gc">{ativos.length}</span><span className="gl" /></div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {ativos.map(p => {
-              const cor = ROLE_COR[p.role] ?? "var(--dim)";
+              const cor   = ROLE_COR[p.role] ?? "var(--dim)";
+              const ep    = epMap[p.expand_membro ?? ""];
+              const cargo = ep?.cargo ?? null;
+              const ini   = (p.full_name ?? p.email ?? "?")[0].toUpperCase();
               return (
                 <div key={p.id} className="hx-glass" style={{ borderRadius: 12, borderLeft: `3px solid ${cor}`, padding: "14px 18px" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                    <div style={{ width: 34, height: 34, borderRadius: "50%", background: `color-mix(in srgb, ${cor} 18%, var(--panel-2))`, display: "grid", placeItems: "center", fontWeight: 800, fontSize: 14, color: cor, flexShrink: 0 }}>
-                      {(p.full_name ?? p.email ?? "?")[0].toUpperCase()}
+                    {/* Avatar */}
+                    <div style={{ width: 38, height: 38, borderRadius: "50%", background: `color-mix(in srgb, ${cor} 18%, var(--panel-2))`, border: `1.5px solid color-mix(in srgb, ${cor} 40%, transparent)`, display: "grid", placeItems: "center", fontWeight: 800, fontSize: 15, color: cor, flexShrink: 0, overflow: "hidden" }}>
+                      {ep?.foto_url
+                        ? <img src={ep.foto_url} alt={ini} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        : ini}
                     </div>
+                    {/* Info */}
                     <div style={{ flex: 1, minWidth: 160 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
                         <span style={{ fontWeight: 700, fontSize: 14 }}>{p.full_name || "—"}</span>
                         <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".05em", padding: "1px 7px", borderRadius: 5, background: `color-mix(in srgb, ${cor} 15%, transparent)`, color: cor }}>{ROLE_LABEL[p.role] ?? p.role}</span>
                       </div>
-                      <div style={{ fontSize: 11, color: "var(--dim)", marginTop: 1 }}>{p.email}</div>
+                      {cargo && <div style={{ fontSize: 11, color: "var(--accent)", marginTop: 1, fontWeight: 500 }}>{cargo}</div>}
+                      <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginTop: 4 }}>
+                        {(p.funcoes ?? []).map(f => (
+                          <span key={f} style={{ fontSize: 9.5, padding: "1px 7px", borderRadius: 4, border: "1px solid var(--line-2)", color: "var(--dim)", background: "var(--bg)", textTransform: "uppercase", letterSpacing: ".04em" }}>{f}</span>
+                        ))}
+                        {(p.cliente_ids ?? []).length > 0 && (
+                          <span style={{ fontSize: 9.5, padding: "1px 7px", borderRadius: 4, background: "color-mix(in srgb, var(--green) 12%, transparent)", color: "var(--green)", letterSpacing: ".04em" }}>
+                            {(p.cliente_ids ?? []).length} cliente{(p.cliente_ids ?? []).length > 1 ? "s" : ""}
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: 10.5, color: "var(--mut)", marginTop: 3 }}>{p.email}</div>
                     </div>
+                    {/* Ações de role */}
                     <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                       {["equipe", "admin", "cliente"].filter(r => r !== p.role).map(r => (
                         <form key={r} action={aprovar}>
@@ -185,7 +240,7 @@ export default async function Acessos({
                         </form>
                       ))}
                     </div>
-                    <Link href={`/expand/acessos/${p.id}`} style={{ fontSize: 11.5, color: "var(--dim)", textDecoration: "none", flexShrink: 0 }}>avançado →</Link>
+                    <Link href={`/expand/acessos/${p.id}`} style={{ fontSize: 11.5, color: "var(--accent)", textDecoration: "none", flexShrink: 0, fontWeight: 600 }}>Configurar →</Link>
                   </div>
                 </div>
               );
@@ -195,13 +250,27 @@ export default async function Acessos({
           <div className="hx-glass" style={{ marginTop: 24, borderRadius: 12, padding: "20px 22px" }}>
             <p style={{ fontWeight: 700, fontSize: 14, marginBottom: 14, color: "var(--accent)" }}>Convidar por e-mail</p>
             <form action={convidar} style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "flex-end" }}>
-              <label style={{ flex: 2, minWidth: 200, display: "flex", flexDirection: "column", gap: 4 }}>
+              <label style={{ flex: 3, minWidth: 200, display: "flex", flexDirection: "column", gap: 4 }}>
                 <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", color: "var(--dim)" }}>E-mail</span>
                 <input name="email" type="email" required placeholder="nome@empresa.com" style={fld} />
               </label>
-              <label style={{ flex: 1, minWidth: 120, display: "flex", flexDirection: "column", gap: 4 }}>
+              <label style={{ flex: 1, minWidth: 110, display: "flex", flexDirection: "column", gap: 4 }}>
                 <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", color: "var(--dim)" }}>Papel</span>
-                <select name="role" style={fld}><option value="equipe">Equipe</option><option value="cliente">Cliente</option><option value="admin">Admin</option></select>
+                <select name="role" style={fld}>
+                  <option value="equipe">Equipe</option>
+                  <option value="cliente">Cliente</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </label>
+              <label style={{ flex: 1, minWidth: 130, display: "flex", flexDirection: "column", gap: 4 }}>
+                <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", color: "var(--dim)" }}>Preset de módulos</span>
+                <select name="preset" style={fld}>
+                  <option value="">Sem preset</option>
+                  <option value="comercial">Comercial</option>
+                  <option value="cs">Customer Success</option>
+                  <option value="designer">Designer</option>
+                  <option value="basico">Acesso básico</option>
+                </select>
               </label>
               <button className="hx-btn hx-btn-primary" type="submit" style={{ fontSize: 12.5, alignSelf: "flex-end" }}>Enviar convite</button>
             </form>
@@ -295,6 +364,7 @@ export default async function Acessos({
                   <th style={{ textAlign: "right", padding: "6px 12px", fontWeight: 700 }}>Tokens mês</th>
                   <th style={{ textAlign: "right", padding: "6px 12px", fontWeight: 700 }}>Limite/dia</th>
                   <th style={{ textAlign: "right", padding: "6px 12px", fontWeight: 700 }}>Limite/mês</th>
+                  <th style={{ padding: "6px 12px" }}></th>
                 </tr>
               </thead>
               <tbody>
@@ -302,6 +372,12 @@ export default async function Acessos({
                   const cor    = ROLE_COR[p.role] ?? "var(--dim)";
                   const pctDia = p.token_limit_day   ? Math.round((p.tokens_today / p.token_limit_day) * 100)   : null;
                   const pctMes = p.token_limit_month ? Math.round((p.tokens_month / p.token_limit_month) * 100) : null;
+                  const inFld: React.CSSProperties = {
+                    width: 90, padding: "4px 6px", fontSize: 12, borderRadius: 6,
+                    background: "var(--bg)", border: "1px solid var(--line-2)",
+                    color: "var(--txt)", outline: "none", textAlign: "right",
+                    fontVariantNumeric: "tabular-nums",
+                  };
                   return (
                     <tr key={p.id} style={{ borderBottom: "1px solid var(--line-2)", background: i % 2 ? "transparent" : "color-mix(in srgb, var(--panel) 40%, transparent)" }}>
                       <td style={{ padding: "10px 12px" }}>
@@ -328,11 +404,24 @@ export default async function Acessos({
                         <div>{(p.tokens_month ?? 0).toLocaleString("pt-BR")}</div>
                         {pctMes !== null && <div style={{ fontSize: 10, color: pctMes > 80 ? "var(--red)" : "var(--dim)" }}>{pctMes}%</div>}
                       </td>
-                      <td style={{ padding: "10px 12px", textAlign: "right", color: "var(--dim)", fontVariantNumeric: "tabular-nums" }}>
-                        {p.token_limit_day ? p.token_limit_day.toLocaleString("pt-BR") : <span style={{ color: "var(--mut)", fontStyle: "italic" }}>sem limite</span>}
-                      </td>
-                      <td style={{ padding: "10px 12px", textAlign: "right", color: "var(--dim)", fontVariantNumeric: "tabular-nums" }}>
-                        {p.token_limit_month ? p.token_limit_month.toLocaleString("pt-BR") : <span style={{ color: "var(--mut)", fontStyle: "italic" }}>sem limite</span>}
+                      {/* Limites editáveis inline */}
+                      <td colSpan={3} style={{ padding: "6px 12px" }}>
+                        <form action={salvarLimiteInline} style={{ display: "flex", gap: 6, alignItems: "center", justifyContent: "flex-end" }}>
+                          <input type="hidden" name="userId" value={p.id} />
+                          <input type="number" name="limitDay"
+                            defaultValue={p.token_limit_day ?? ""}
+                            placeholder="∞ dia"
+                            min={0} step={1000} style={inFld}
+                          />
+                          <input type="number" name="limitMonth"
+                            defaultValue={p.token_limit_month ?? ""}
+                            placeholder="∞ mês"
+                            min={0} step={10000} style={inFld}
+                          />
+                          <button type="submit" style={{ fontSize: 11, padding: "4px 10px", borderRadius: 6, border: "1px solid var(--accent)", background: "color-mix(in srgb, var(--accent) 12%, transparent)", color: "var(--accent)", cursor: "pointer", fontWeight: 600, flexShrink: 0 }}>
+                            Salvar
+                          </button>
+                        </form>
                       </td>
                     </tr>
                   );
@@ -341,7 +430,7 @@ export default async function Acessos({
             </table>
           </div>
           <p style={{ fontSize: 11.5, color: "var(--dim)", marginTop: 12 }}>
-            Ajuste limites por pessoa em <Link href="/expand/rotinas" style={{ color: "var(--accent)" }}>Rotinas</Link> ou via <b>avançado →</b> no card do membro.
+            Deixe em branco para sem limite. Use <b>Configurar →</b> no card de Equipe para ajustes completos.
           </p>
         </>
       )}
