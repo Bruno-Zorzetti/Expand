@@ -1,3 +1,4 @@
+import type { CSSProperties, ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
@@ -49,12 +50,12 @@ async function gerarTokenCalendario(formData: FormData) {
   if (!membroSlug) return;
   const adminSb = createAdminClient();
   if (adminSb) {
-    await adminSb.rpc("gen_ics_token", { p_perfil_id: membroSlug }).catch(async () => {
-      // Fallback: direct update if RPC doesn't exist
+    const { error: rpcErr } = await adminSb.rpc("gen_ics_token", { p_perfil_id: membroSlug });
+    if (rpcErr) {
       await adminSb.from("expand_perfis").update({
         ics_token: crypto.randomUUID(),
       }).eq("id", membroSlug).is("ics_token", null);
-    });
+    }
   }
   revalidatePath("/expand/perfil");
 }
@@ -80,14 +81,19 @@ export default async function MeuPerfil() {
   const modulos   = (profile?.expand_modulos as string[] | null) ?? [];
 
   // Perfil expand (cargo, bio, foto, ics)
-  let perfil: Record<string, string | null> | null = null;
+  interface ExpandPerfil {
+    id: string; nome: string | null; cargo: string | null;
+    area: string | null; bio: string | null; foto_url: string | null;
+    ics_token: string | null; telefone: string | null;
+  }
+  let perfil: ExpandPerfil | null = null;
   if (membroSlug) {
     const { data } = await sb
       .from("expand_perfis")
       .select("id, nome, cargo, area, bio, foto_url, ics_token, telefone")
       .eq("id", membroSlug)
       .single();
-    perfil = data as typeof perfil;
+    perfil = data as unknown as ExpandPerfil | null;
   }
 
   // Clientes atribuídos
@@ -95,7 +101,7 @@ export default async function MeuPerfil() {
     .from("expand_user_clientes")
     .select("cliente_id, funcao_cliente, expand_clientes(id, nome)")
     .eq("user_id", userId);
-  const clientes = (clientesData ?? []) as Array<{
+  const clientes = (clientesData ?? []) as unknown as Array<{
     cliente_id: string; funcao_cliente: string;
     expand_clientes: { id: string; nome: string } | null;
   }>;
@@ -120,12 +126,12 @@ export default async function MeuPerfil() {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://expand.hshs.com.br";
   const icsUrl  = perfil?.ics_token ? `${baseUrl}/api/calendario/${perfil.ics_token}` : null;
 
-  const fld: React.CSSProperties = {
+  const fld: CSSProperties = {
     background: "var(--bg)", border: "1px solid var(--line-2)", borderRadius: 8,
     color: "var(--txt)", padding: "7px 10px", fontSize: 13, outline: "none",
     fontFamily: "inherit", width: "100%",
   };
-  const sec = (title: string, children: React.ReactNode) => (
+  const sec = (title: string, children: ReactNode) => (
     <div style={{ marginBottom: 28, paddingBottom: 24, borderBottom: "1px solid var(--line-2)" }}>
       <div style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".08em", color: "var(--dim)", marginBottom: 14 }}>{title}</div>
       {children}
