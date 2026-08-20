@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -92,7 +93,7 @@ async function salvarLimiteInline(formData: FormData) {
   revalidatePath("/expand/acessos");
 }
 
-const fld: React.CSSProperties = {
+const fld: CSSProperties = {
   background: "var(--bg)", border: "1px solid var(--line-2)", borderRadius: 8,
   color: "var(--txt)", padding: "7px 10px", fontSize: 13, outline: "none", fontFamily: "inherit",
 };
@@ -409,7 +410,7 @@ export default async function Acessos({
                   const cor    = ROLE_COR[p.role] ?? "var(--dim)";
                   const pctDia = p.token_limit_day   ? Math.round((p.tokens_today / p.token_limit_day) * 100)   : null;
                   const pctMes = p.token_limit_month ? Math.round((p.tokens_month / p.token_limit_month) * 100) : null;
-                  const inFld: React.CSSProperties = {
+                  const inFld: CSSProperties = {
                     width: 90, padding: "4px 6px", fontSize: 12, borderRadius: 6,
                     background: "var(--bg)", border: "1px solid var(--line-2)",
                     color: "var(--txt)", outline: "none", textAlign: "right",
