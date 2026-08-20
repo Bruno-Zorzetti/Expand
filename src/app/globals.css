@@ -439,6 +439,14 @@ body {
   body.ex-nav-open .ex-scrim { display:block; }
   .ex-wrap { margin-left:0; }
   .ex-burger { display:inline-flex; }
+  .ex-search { display:none; }
+  .ex-tbtt { font-size:13px; }
+  .ex-main { padding:16px; }
+}
+@media(max-width:640px){
+  .ex-topbar { padding:10px 14px; gap:10px; }
+  .ex-tbr { gap:6px; }
+  .ex-vercomo { display:none; }
 }
 /* fluxograma — etapas expansíveis inline */
 .ex-etrow { display:flex; align-items:center; gap:14px; width:100%; padding:14px 17px; background:none; border:none; cursor:pointer; font-family:inherit; color:var(--txt); text-align:left; }
