@@ -906,6 +906,24 @@ export function CalendarV2({
           .cal-sidebar { width: 100% !important; }
           .cal-panel { width: 100% !important; }
         }
+        @media(max-width:640px) {
+          .cal-mes-cell { min-height: 46px !important; padding: 2px 3px !important; }
+          .cal-mes-dn { font-size: 10px !important; margin-bottom: 1px !important; }
+          .cal-chip-full { display: none !important; }
+          .cal-chip-ct { display: flex !important; }
+          .cal-col-full { display: none; }
+          .cal-col-min { display: inline; }
+          .cal-panel { top: 0; padding: 16px; }
+          .cal-ctrl-hd { flex-wrap: wrap !important; }
+          .cal-select-cli { width: 100% !important; margin-left: 0 !important; }
+          .cal-btn-nova { width: 100% !important; justify-content: center; }
+          .cal-view-tabs { width: 100%; }
+          .cal-view-tabs button { flex: 1; padding: 5px 4px !important; font-size: 10px !important; }
+        }
+        @media(min-width:641px) {
+          .cal-chip-ct { display: none; }
+          .cal-col-min { display: none; }
+        }
       `}</style>
 
       <div className="cal-layout" style={{ display: "flex", gap: 18, alignItems: "flex-start" }}>
@@ -976,9 +994,9 @@ export function CalendarV2({
 
           {/* Top controls */}
           <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <div className="cal-ctrl-hd" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
               {/* View tabs */}
-              <div style={{ display: "flex", background: "var(--panel-2)", border: "1px solid var(--line)", borderRadius: 9, padding: 2, gap: 1 }}>
+              <div className="cal-view-tabs" style={{ display: "flex", background: "var(--panel-2)", border: "1px solid var(--line)", borderRadius: 9, padding: 2, gap: 1 }}>
                 {(["dia", "semana", "mes", "timeline"] as Vista[]).map((v, i) => (
                   <button key={v} onClick={() => setView(v)}
                     style={{ fontSize: 12, fontWeight: 600, padding: "5px 12px", borderRadius: 7, border: "none", cursor: "pointer", background: view === v ? "var(--accent)" : "transparent", color: view === v ? "#fff" : "var(--dim)", transition: "all .15s" }}>
@@ -1001,6 +1019,7 @@ export function CalendarV2({
               <select
                 value={filtroCliente}
                 onChange={(e) => setFiltroCliente(e.target.value)}
+                className="cal-select-cli"
                 style={{ marginLeft: "auto", background: "var(--panel-2)", border: "1px solid var(--line)", borderRadius: 8, color: "var(--txt)", padding: "5px 10px", fontSize: 12, cursor: "pointer", outline: "none" }}
               >
                 <option value="">Todos os clientes</option>
@@ -1012,6 +1031,7 @@ export function CalendarV2({
               {/* Nova tarefa */}
               <button
                 onClick={() => setPanel({ kind: "new", date: hojeS })}
+                className="cal-btn-nova"
                 style={{ background: "var(--accent)", color: "#fff", border: "none", borderRadius: 8, padding: "5px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
               >
                 + Nova
@@ -1115,9 +1135,10 @@ export function CalendarV2({
           {view === "mes" && (
             <div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", marginBottom: 4 }}>
-                {DIAS_ABREV.map((d) => (
+                {DIAS_ABREV.map((d, i) => (
                   <div key={d} style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".05em", color: "var(--dim)", textAlign: "center", padding: "2px 0" }}>
-                    {d}
+                    <span className="cal-col-full">{d}</span>
+                    <span className="cal-col-min">{DIAS_MIN[i]}</span>
                   </div>
                 ))}
               </div>
@@ -1134,10 +1155,15 @@ export function CalendarV2({
                         onClick={() => { setAnchor(d); setPanel({ kind: "day", date: d }); }}
                       >
                         <span className="cal-mes-dn">{d.getDate()}</span>
-                        {its.slice(0, 3).map((e) => <Chip key={e.id} e={e} {...chipProps} />)}
-                        {its.length > 3 && (
-                          <div style={{ fontSize: 10, color: "var(--dim)", marginTop: 2 }}>+{its.length - 3}</div>
-                        )}
+                        <div className="cal-chip-full">
+                          {its.slice(0, 3).map((e) => <Chip key={e.id} e={e} {...chipProps} />)}
+                          {its.length > 3 && (
+                            <div style={{ fontSize: 10, color: "var(--dim)", marginTop: 2 }}>+{its.length - 3}</div>
+                          )}
+                        </div>
+                        <div className="cal-chip-ct" style={{ fontSize: 11, fontWeight: 700, color: "var(--accent)", alignItems: "center", justifyContent: "center" }}>
+                          {its.length > 0 ? its.length : ""}
+                        </div>
                       </div>
                     </DZ>
                   );
