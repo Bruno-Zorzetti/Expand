@@ -82,6 +82,19 @@ export default async function EtapaDetalhe({ params }: { params: Promise<{ id: s
   }
 
   const aprovados = arquivos.filter((a) => a.status === "aprovado").length;
+
+  // Custo/hora do responsável — admin only, nunca exposto à equipe
+  const responsavelNome = etapa.responsavel_atual ?? etapa.responsavel;
+  let custoHoraResponsavel: number | null = null;
+  if (isAdmin && responsavelNome) {
+    const { data: memData } = await supabase
+      .from("expand_equipe")
+      .select("custo_hora")
+      .eq("nome", responsavelNome)
+      .single();
+    custoHoraResponsavel = memData?.custo_hora ?? null;
+  }
+
   const ar = etapa.area ? AREAS[etapa.area] : null;
   const st = ETAPA_STATUS[etapa.status] ?? ETAPA_STATUS.idle;
 
@@ -243,6 +256,7 @@ export default async function EtapaDetalhe({ params }: { params: Promise<{ id: s
                 concluida_em={etapa.concluida_em}
                 logs={logs}
                 isAdmin={isAdmin}
+                custoHoraResponsavel={custoHoraResponsavel}
                 onEnviarFinanceiro={gerarCustoFinanceiro}
               />
             </div>

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import PerfilAvatar from "@/components/expand/PerfilAvatar";
 import AgenteChat from "@/components/expand/AgenteChat";
+import GrafoConhecimento from "@/components/expand/GrafoConhecimento";
 import type { Perfil } from "@/lib/expand-perfis";
 import { montarDisc, type DiscKey } from "@/lib/expand-disc";
 import { montarBlenda } from "@/lib/expand-disc-blenda";
@@ -192,11 +193,16 @@ export default async function PerfilPage({ params, searchParams }: { params: Pro
   const falarLabel = ehAgente ? `💬 Conversar com ${p.nome}` : `💬 Falar com ${p.nome}`;
   const falarExterno = !ehAgente && (!!whats || !!p.email);
 
+  const nomeToSlug = (nome: string) =>
+    nome.toLowerCase().replace(/[áàãâä]/g,"a").replace(/[éèê]/g,"e").replace(/[íìî]/g,"i")
+      .replace(/[óòõô]/g,"o").replace(/[úùû]/g,"u").replace(/ç/g,"c").split(/[\s(]/)[0];
+
   const TABS: { k: string; l: string }[] = [
     { k: "visao", l: "Visão geral" },
     { k: "skills", l: "Skills & trajetória" },
     { k: "metodologia", l: "Metodologia" },
     { k: "processos", l: "Processos" },
+    ...(ehAgente ? [{ k: "grafo", l: "Grafo de Conhecimento" }] : []),
     { k: "arquivos", l: `Arquivos${arquivos.length ? ` (${arquivos.length})` : ""}` },
     { k: "avaliacoes", l: `Avaliações${avaliacoes.length ? ` (${avaliacoes.length})` : ""}` },
     { k: "feedback", l: `1x1${feedbacks.length ? ` (${feedbacks.length})` : ""}` },
@@ -584,6 +590,29 @@ export default async function PerfilPage({ params, searchParams }: { params: Pro
       ) : null}
 
       {/* ---------- CHAT / ASSISTENTE ---------- */}
+      {tab === "grafo" && ehAgente ? (
+        <>
+          <p className="ex-sub" style={{ marginTop: -4 }}>
+            Grafo interativo dos conceitos e conexões que formam o conhecimento do {p.nome}.
+            Cada nó é um conceito extraído dos materiais e da metodologia; as arestas são relações semânticas.
+            Tamanho = centralidade. Cor = comunidade temática.
+          </p>
+          <div className="ex-panel hx-glass" style={{ padding: 0 }}>
+            <div style={{ padding: "14px 17px 0", display: "flex", alignItems: "center", gap: 8 }}>
+              <span className="ex-sl" style={{ margin: 0 }}>Grafo de conhecimento — {p.nome}</span>
+              <span style={{ marginLeft: "auto", fontSize: 10.5, color: "var(--dim)" }}>force-directed · interativo</span>
+            </div>
+            <div style={{ padding: "12px 17px 16px" }}>
+              <GrafoConhecimento agente={nomeToSlug(p.nome)} />
+            </div>
+          </div>
+          <p style={{ marginTop: 10, fontSize: 11.5, color: "var(--dim)", lineHeight: 1.5 }}>
+            Para ver a memória operacional (acertos, erros, avaliações, modelos) e enviar materiais:
+            <Link href={`/expand/equipe/${id}/conhecimento`} style={{ color: "var(--accent)", marginLeft: 6 }}>Conhecimento & RAG →</Link>
+          </p>
+        </>
+      ) : null}
+
       {tab === "chat" ? (
         <>
           {!ehAgente ? <p className="ex-sub" style={{ marginTop: -4 }}>Este é o <b>assistente de IA de {p.nome}</b> — ajuda com as atividades dela usando o RAG e o trabalho atual. Para falar com a pessoa, use o botão flutuante.</p> : null}

@@ -7,6 +7,7 @@ import { garantirEtapas, adicionarEtapaCliente, salvarGrupoCliente, testarGrupoC
 import { getAcesso } from "@/lib/expand-acesso";
 import { listarGrupos } from "@/lib/whatsapp";
 import Ajuda, { AJUDA } from "@/components/expand/Ajuda";
+import { KanbanBoard, type EtapaK } from "./KanbanBoard";
 
 export const dynamic = "force-dynamic";
 
@@ -16,8 +17,9 @@ const FASE_STAT: Record<string, { l: string; bg: string; c: string }> = {
   idle: { l: "Não iniciada", bg: "var(--panel-2)", c: "var(--dim)" },
 };
 
-export default async function Board({ searchParams }: { searchParams: Promise<{ c?: string }> }) {
+export default async function Board({ searchParams }: { searchParams: Promise<{ c?: string; v?: string }> }) {
   const sp = await searchParams;
+  const viewMode = sp.v === "kanban" ? "kanban" : "lista";
   const supabase = await createClient();
   const { data } = await supabase.from("expand_clientes").select("*").eq("ativo", true).order("nome");
   const clientes = (data ?? []) as ClienteRow[];
@@ -55,16 +57,46 @@ export default async function Board({ searchParams }: { searchParams: Promise<{ 
 
   const concluidas = etapas.filter((e) => e.status === "done").length;
 
+  // Build EtapaK[] for Kanban (merges archive counts)
+  const etapasK: EtapaK[] = etapas.map((e) => {
+    const cnt = counts.get(e.id) ?? { total: 0, aprovados: 0 };
+    return {
+      id: e.id, titulo: e.titulo, area: e.area, agente: e.agente,
+      responsavel: e.responsavel, responsavel_atual: e.responsavel_atual,
+      status: e.status, sla: e.sla, marco: e.marco ?? false,
+      data_prevista: e.data_prevista, iniciada_em: e.iniciada_em, ordem: e.ordem ?? 0,
+      arquivos_total: cnt.total, arquivos_aprovados: cnt.aprovados,
+      bloqueado: !!(e as { bloqueado?: boolean }).bloqueado,
+      chamado: !!(e as { chamado?: boolean }).chamado,
+    };
+  });
+
   return (
     <>
       <p className="hx-eyebrow">Estado da conta</p>
       <h1 className="ex-h1">Board de <span className="hx-accent-text">Entrega</span></h1>
       <p className="ex-sub">Onde cada conta está no PIDE. Cada tarefa tem dono, prazo, contador de arquivos e datas — clique para ver os entregáveis e aprovar.</p>
 
-      <div className="ex-chips">
-        {clientes.map((c) => (<Link key={c.id} href={`/expand/board?c=${c.id}`} className={`ex-chip2${c.id === sel.id ? " on" : ""}`}>{c.nome}</Link>))}
+      <div className="ex-chips" style={{ marginBottom: 8 }}>
+        {clientes.map((c) => (<Link key={c.id} href={`/expand/board?c=${c.id}${viewMode === "kanban" ? "&v=kanban" : ""}`} className={`ex-chip2${c.id === sel.id ? " on" : ""}`}>{c.nome}</Link>))}
       </div>
-      <div style={{ marginBottom: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
+
+      {/* View toggle + actions */}
+      <div style={{ marginBottom: 12, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+        {/* Lista | Kanban toggle */}
+        <div style={{ display: "flex", background: "var(--panel-2)", border: "1px solid var(--line)", borderRadius: 9, padding: 2 }}>
+          <Link href={`/expand/board?c=${sel.id}`} style={{
+            textDecoration: "none", fontSize: 12, fontWeight: 600, padding: "5px 14px", borderRadius: 7,
+            background: viewMode === "lista" ? "var(--accent)" : "transparent",
+            color: viewMode === "lista" ? "#fff" : "var(--dim)", transition: "all .15s",
+          }}>Lista</Link>
+          <Link href={`/expand/board?c=${sel.id}&v=kanban`} style={{
+            textDecoration: "none", fontSize: 12, fontWeight: 600, padding: "5px 14px", borderRadius: 7,
+            background: viewMode === "kanban" ? "var(--accent)" : "transparent",
+            color: viewMode === "kanban" ? "#fff" : "var(--dim)", transition: "all .15s",
+          }}>Kanban</Link>
+        </div>
+
         <Link href={`/portal/${sel.id}`} className="hx-btn hx-btn-ghost" style={{ padding: "7px 13px", fontSize: 12 }}>Abrir portal de {sel.nome} ↗</Link>
         {etapas.length ? <Link href={`/expand/board/squad?c=${sel.id}`} className="hx-btn hx-btn-ghost" style={{ padding: "7px 13px", fontSize: 12 }}>🧩 PMO: montar squad</Link> : null}
       </div>
@@ -132,6 +164,8 @@ export default async function Board({ searchParams }: { searchParams: Promise<{ 
             <b style={{ color: "var(--accent)" }}>Próximo passo (em construção):</b> depois de criar a sequência, o <a href="/expand/equipe/gerente-projetos" style={{ color: "var(--accent)", textDecoration: "none" }}>Gerente de Projetos (PMO)</a> vai sugerir o squad de entrega e distribuir as tarefas conforme a agenda de cada um — sem sufocar quem já está cheio nem deixar ninguém ocioso — para você aprovar.
           </p>
         </div>
+      ) : viewMode === "kanban" ? (
+        <KanbanBoard etapas={etapasK} clienteId={sel.id} />
       ) : (
         FASES.map((f) => {
           const es = porFase.get(f.id) ?? [];

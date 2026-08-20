@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useRef, type ReactNode } from "react";
 import AssistentesDock from "@/components/expand/AssistentesDock";
 import Notificacoes, { type Notif } from "@/components/expand/Notificacoes";
+import OnboardingTour from "@/components/expand/OnboardingTour";
 import { createClient } from "@/lib/supabase/client";
 
 type Pessoa = { id: string; nome: string; papel: string; ini: string };
@@ -86,15 +87,16 @@ const NAV: NavSec[] = [
     id: "config",
     sec: "Configurações",
     items: [
+      { href: "/expand/departamentos", label: "Departamentos",  icon: "building", eyebrow: "Estrutura da equipe",      gate: "admin" },
       { href: "/expand/empresa",      label: "Empresa",        icon: "building", eyebrow: "Identidade e marca",       gate: "admin" },
       { href: "/expand/ritmo",        label: "Ritmos",         icon: "activity", eyebrow: "Daily, Weekly, Check-in",  gate: "admin" },
-      { href: "/expand/acessos",      label: "Acessos",        icon: "lock",     eyebrow: "Aprovações e papéis",      gate: "admin" },
-      { href: "/expand/rbac",         label: "RBAC",           icon: "shield",   eyebrow: "Matriz de permissões",     gate: "admin" },
+      { href: "/expand/acessos",      label: "Acessos",        icon: "shield",   eyebrow: "Equipe, permissões e custos", gate: "admin" },
       { href: "/expand/integracoes",  label: "Integração",     icon: "plug",     eyebrow: "Conexões externas",        gate: "admin" },
-      { href: "/expand/rotinas",      label: "Rotinas",        icon: "zap",      eyebrow: "Automações e tokens",      gate: "admin" },
-      { href: "/expand/gestao",       label: "Visão Geral",    icon: "layers",   eyebrow: "Painel administrativo",    gate: "admin" },
-      { href: "/expand/log",          label: "Log",            icon: "list",     eyebrow: "Auditoria do sistema",     gate: "admin" },
-      { href: "/expand/estilo",       label: "Folha de Estilo", icon: "brush",   eyebrow: "Design System",           gate: "admin" },
+      { href: "/expand/rotinas",           label: "Rotinas",        icon: "zap",      eyebrow: "Automações e tokens",       gate: "admin" },
+      { href: "/expand/config/relatorios", label: "Relatórios",     icon: "activity", eyebrow: "Status reports WhatsApp",   gate: "admin" },
+      { href: "/expand/gestao",            label: "Visão Geral",    icon: "layers",   eyebrow: "Painel administrativo",     gate: "admin" },
+      { href: "/expand/log",               label: "Log",            icon: "list",     eyebrow: "Auditoria do sistema",      gate: "admin" },
+      { href: "/expand/estilo",            label: "Folha de Estilo", icon: "brush",   eyebrow: "Design System",            gate: "admin" },
     ],
   },
 ];
@@ -554,6 +556,7 @@ export default function ExpandShell({
       </div>
 
       <AssistentesDock pessoaId={pessoa.id} pessoaNome={pessoa.nome} />
+      <OnboardingTour pessoaId={pessoa.id} pessoaNome={pessoa.nome} />
     </div>
   );
 }

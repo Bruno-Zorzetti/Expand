@@ -1,0 +1,2290 @@
+# Instructions
+
+- Following Playwright test failed.
+- Explain why, be concise, respect Playwright best practices.
+- Provide a snippet of code with the fix, if possible.
+
+# Test info
+
+- Name: expand-authenticated.spec.ts >> Painel Expand — autenticado >> Fluxograma carrega com etapas
+- Location: e2e\expand-authenticated.spec.ts:40:7
+
+# Error details
+
+```
+Test timeout of 30000ms exceeded.
+```
+
+```
+Error: page.goto: Test timeout of 30000ms exceeded.
+Call log:
+  - navigating to "http://localhost:3000/expand/fluxo", waiting until "domcontentloaded"
+
+```
+
+# Page snapshot
+
+```yaml
+- generic [ref=f1e3]:
+  - complementary [ref=f1e4]:
+    - generic [ref=f1e11]:
+      - generic [ref=f1e12]: EXPAND
+      - generic [ref=f1e13]: Motor de Trabalho
+    - generic [ref=f1e14]:
+      - generic [ref=f1e15]:
+        - button "Operação & Atividades" [ref=f1e16] [cursor=pointer]
+        - link "Hub do Dia" [ref=f1e30] [cursor=pointer]:
+          - /url: /expand
+        - link "Calendário" [ref=f1e45] [cursor=pointer]:
+          - /url: /expand/planejamento
+        - link "Plano de Ação" [ref=f1e58] [cursor=pointer]:
+          - /url: /expand/plano
+        - link "Board de Atividades" [ref=f1e73] [cursor=pointer]:
+          - /url: /expand/board
+        - link "Rituais & SLA" [ref=f1e87] [cursor=pointer]:
+          - /url: /expand/ritmo
+      - generic [ref=f1e90]:
+        - button "Produtos & Equipe" [ref=f1e91] [cursor=pointer]
+        - link "Produtos" [ref=f1e105] [cursor=pointer]:
+          - /url: /expand/produtos
+        - link "Clientes" [ref=f1e118] [cursor=pointer]:
+          - /url: /expand/carteira
+        - button [ref=f1e132] [cursor=pointer]
+      - generic [ref=f1e140]:
+        - button "Ferramentas & Conhecimento" [ref=f1e141] [cursor=pointer]
+        - button [ref=f1e156] [cursor=pointer]
+        - link "Apresentações" [ref=f1e171] [cursor=pointer]:
+          - /url: /expand/apresentacoes
+        - button [ref=f1e185] [cursor=pointer]
+      - generic [ref=f1e191]:
+        - button "Comercial" [ref=f1e192] [cursor=pointer]
+        - link "Hoje · Placar" [ref=f1e206] [cursor=pointer]:
+          - /url: /expand/comercial
+        - link "A Meta" [ref=f1e220] [cursor=pointer]:
+          - /url: /expand/comercial/meta
+        - link "A Semana" [ref=f1e233] [cursor=pointer]:
+          - /url: /expand/comercial/semana
+        - link "O Guia" [ref=f1e247] [cursor=pointer]:
+          - /url: /expand/comercial/guia
+      - generic [ref=f1e251]:
+        - button "Financeiro" [ref=f1e252] [cursor=pointer]
+        - link "Finanças" [ref=f1e266] [cursor=pointer]:
+          - /url: /expand/financas
+        - link "Roadmap" [ref=f1e280] [cursor=pointer]:
+          - /url: /expand/roadmap
+      - generic [ref=f1e284]:
+        - button "Configurações" [ref=f1e285] [cursor=pointer]
+        - link "Empresa" [ref=f1e299] [cursor=pointer]:
+          - /url: /expand/empresa
+        - link "Acessos" [ref=f1e313] [cursor=pointer]:
+          - /url: /expand/acessos
+        - link "Permissões RBAC" [ref=f1e326] [cursor=pointer]:
+          - /url: /expand/rbac
+        - link "Integrações" [ref=f1e338] [cursor=pointer]:
+          - /url: /expand/integracoes
+        - link "Rotinas" [ref=f1e351] [cursor=pointer]:
+          - /url: /expand/rotinas
+        - link "Visão Geral" [ref=f1e363] [cursor=pointer]:
+          - /url: /expand/gestao
+        - link "Log" [ref=f1e376] [cursor=pointer]:
+          - /url: /expand/log
+        - link "Estilo" [ref=f1e391] [cursor=pointer]:
+          - /url: /expand/estilo
+    - generic [ref=f1e395]:
+      - generic [ref=f1e396]: A
+      - generic [ref=f1e397]:
+        - generic [ref=f1e398]: Ana
+        - generic [ref=f1e399]: Gerente de Projetos
+  - generic [ref=f1e400]:
+    - generic [ref=f1e401]:
+      - generic [ref=f1e402]:
+        - generic [ref=f1e403]: Catálogo e processos
+        - text: Produtos
+      - generic [ref=f1e404]:
+        - textbox "Buscar conta, etapa, pessoa…" [ref=f1e408]
+        - generic: Ctrl K
+      - generic [ref=f1e409]:
+        - combobox "Ver o dia de outra pessoa da equipe" [ref=f1e410] [cursor=pointer]:
+          - option "Ver como Bruno"
+          - option "Ver como Ana" [selected]
+          - option "Ver como Adriane"
+          - option "Ver como Gabriel"
+          - option "Ver como Vinicius"
+          - option "Ver como Pedro"
+          - option "Ver como Luiz"
+        - button "Tema claro/escuro" [ref=f1e411] [cursor=pointer]
+        - button "2" [ref=f1e415] [cursor=pointer]
+        - generic [ref=f1e420]: A
+    - main [ref=f1e421]:
+      - generic [ref=f1e422]:
+        - link "← Produtos" [ref=f1e423] [cursor=pointer]:
+          - /url: /expand/produtos
+        - generic [ref=f1e424]: /
+        - generic [ref=f1e425]: pide
+      - paragraph [ref=f1e426]: Esteira
+      - heading "PIDE Anual" [level=1] [ref=f1e427]
+      - paragraph [ref=f1e428]: A esteira anual de conteúdo e tráfego da Expand — 12 meses, do handoff à renovação.
+      - generic [ref=f1e429]:
+        - link "Visão Geral" [ref=f1e430] [cursor=pointer]:
+          - /url: /expand/produtos/pide
+        - link "Processo" [ref=f1e431] [cursor=pointer]:
+          - /url: /expand/produtos/pide/processo
+        - link "Cronograma" [ref=f1e432] [cursor=pointer]:
+          - /url: /expand/produtos/pide/cronograma
+        - link "Entregáveis" [ref=f1e433] [cursor=pointer]:
+          - /url: /expand/produtos/pide/entregaveis
+        - link "SLA" [ref=f1e434] [cursor=pointer]:
+          - /url: /expand/produtos/pide/sla
+      - generic [ref=f1e435]:
+        - generic [ref=f1e436]:
+          - generic [ref=f1e437]: Fases
+          - generic [ref=f1e438]: "15"
+          - generic [ref=f1e439]: Blocos do processo
+        - generic [ref=f1e440]:
+          - generic [ref=f1e441]: Etapas
+          - generic [ref=f1e442]: "68"
+          - generic [ref=f1e443]: Tarefas instanciáveis
+        - generic [ref=f1e444]:
+          - generic [ref=f1e445]: Visíveis ao cliente
+          - generic [ref=f1e446]: "50"
+          - generic [ref=f1e447]: Aparecem no portal
+        - generic [ref=f1e448]:
+          - generic [ref=f1e449]: Com agente de IA
+          - generic [ref=f1e450]: "12"
+          - generic [ref=f1e451]: Executadas por IA
+      - group [ref=f1e452]:
+        - generic "Analisar com o Gerente de Projetos (PMO) quadros · prazos · SLA · carga da equipe" [ref=f1e453] [cursor=pointer]:
+          - generic [ref=f1e455]: Analisar com o Gerente de Projetos (PMO)
+          - generic [ref=f1e456]: quadros · prazos · SLA · carga da equipe
+        - option "Sonnet 4.5 · qualidade" [selected]
+        - option "Haiku 4.5 · rápido"
+        - option "Sonnet 3.5"
+        - option "Haiku 3.5 · barato"
+      - group [ref=f1e457]:
+        - generic "Analisar com o Agente de Produtos oferta · prazos · equipe · margem" [ref=f1e458] [cursor=pointer]:
+          - generic [ref=f1e460]: Analisar com o Agente de Produtos
+          - generic [ref=f1e461]: oferta · prazos · equipe · margem
+        - option "Sonnet 4.5 · qualidade" [selected]
+        - option "Haiku 4.5 · rápido"
+        - option "Sonnet 3.5"
+        - option "Haiku 3.5 · barato"
+      - generic [ref=f1e462]:
+        - link "Lista" [ref=f1e463] [cursor=pointer]:
+          - /url: /expand/produtos/pide/processo?v=lista
+        - link "Kanban" [ref=f1e464] [cursor=pointer]:
+          - /url: /expand/produtos/pide/processo?v=kanban
+        - link "Gantt / calendário" [ref=f1e465] [cursor=pointer]:
+          - /url: /expand/produtos/pide/processo?v=gantt
+      - group [ref=f1e466]:
+        - generic "Fase 1 Fechamento e Handoff D0 3 etapas · arraste ⠿ para reordenar" [ref=f1e467] [cursor=pointer]:
+          - generic [ref=f1e468]: Fase 1
+          - generic [ref=f1e469]: Fechamento e Handoff
+          - generic [ref=f1e470]: D0
+          - generic [ref=f1e471]: 3 etapas · arraste ⠿ para reordenar
+        - generic [ref=f1e472]:
+          - paragraph [ref=f1e473]: Transferir o cliente do Comercial para a Entrega sem perder contexto.
+          - generic [ref=f1e474]:
+            - generic [ref=f1e475]:
+              - generic "Arraste para reordenar" [ref=f1e476]: ⠿
+              - generic [ref=f1e477]:
+                - text: Solicitar dados cadastrais para o contrato
+                - generic [ref=f1e478]: Comercial · Comercial · SLA No ato · 👁 cliente
+              - link "Editar" [ref=f1e479] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=4f9492b7-2c92-4fbc-aab8-4ab889d21a28
+              - button "Excluir" [ref=f1e480] [cursor=pointer]
+            - generic [ref=f1e481]:
+              - generic "Arraste para reordenar" [ref=f1e482]: ⠿
+              - generic [ref=f1e483]:
+                - text: Enviar instruções de pagamento
+                - generic [ref=f1e484]: Comercial · Comercial · SLA No ato · 👁 cliente
+              - link "Editar" [ref=f1e485] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=3dac6236-1317-422b-b2b3-e83ae0d89d98
+              - button "Excluir" [ref=f1e486] [cursor=pointer]
+            - generic [ref=f1e487]:
+              - generic "Arraste para reordenar" [ref=f1e488]: ⠿
+              - generic [ref=f1e489]:
+                - text: Reunião de passagem Comercial → PM (15 min)
+                - generic [ref=f1e490]: Comercial · Comercial + Ana · SLA 24h
+              - link "Editar" [ref=f1e491] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=124d8d3c-62b5-4535-816c-1ba06c33e1c0
+              - button "Excluir" [ref=f1e492] [cursor=pointer]
+          - group [ref=f1e493]:
+            - generic "+ Adicionar etapa nesta fase" [ref=f1e494] [cursor=pointer]
+            - option "—" [selected]
+            - option "Comercial"
+            - option "PM"
+            - option "CS"
+            - option "Audiovisual"
+            - option "Social"
+            - option "Tráfego"
+            - option "Cliente"
+            - option "— nenhum" [selected]
+            - option "Lara"
+            - option "Sofia"
+            - option "Alan"
+            - option "Nina"
+            - option "— nenhuma" [selected]
+            - option "#1 · Solicitar dados cadastrais para o contrato"
+            - option "#2 · Enviar instruções de pagamento"
+            - option "#3 · Reunião de passagem Comercial → PM (15 min)"
+            - option "#4 · Criar grupo oficial com o cliente"
+            - option "#5 · Emitir e enviar o contrato"
+            - option "#6 · Criar pasta no Drive e subir documentos iniciais"
+            - option "#7 · Montar o ecossistema do cliente no Notion"
+            - option "#8 · Criar a view personalizada do cliente"
+            - option "#9 · Validar o pagamento"
+            - option "#10 · Follow-up de pendências contratuais ou financeiras"
+            - option "#11 · Boas-vindas e alinhamento inicial"
+            - option "#12 · Enviar as instruções de funcionamento"
+            - option "#13 · Enviar o formulário de onboarding"
+            - option "#14 · Monitorar preenchimento e validar respostas"
+            - option "#15 · Agendar a reunião de diagnóstico"
+            - option "#16 · Confirmar presença (D-1 e H-1)"
+            - option "#17 · Check-in de onboarding e envio do roadmap inicial"
+            - option "#18 · Conduzir a reunião de diagnóstico (gravação obrigatória)"
+            - option "#19 · Levantamento de público, ofertas e metas"
+            - option "#20 · Alinhamento de expectativas ao vivo"
+            - option "#21 · Apresentar o roadmap e os próximos passos"
+            - option "#22 · Solicitar acessos de redes e contas"
+            - option "#23 · Testar e confirmar cada acesso recebido"
+            - option "#24 · Estudo de Mercado"
+            - option "#25 · Estudo de Público"
+            - option "#26 · Dossiê Estratégico"
+            - option "#27 · Publicar no Notion e notificar Gabriel, Vinicius e Redação"
+            - option "#28 · Auditoria das redes atuais"
+            - option "#29 · Nova bio estratégica e proposta de posicionamento"
+            - option "#30 · Enviar a proposta de posicionamento ao cliente"
+            - option "#31 · Aprovação do cliente"
+            - option "#32 · Aplicar as mudanças no perfil"
+            - option "#33 · Solicitar a criação dos roteiros"
+            - option "#34 · Roteiro estratégico"
+            - option "#35 · Alinhar a escrita com a direção audiovisual"
+            - option "#36 · Revisar e enviar os roteiros ao cliente"
+            - option "#37 · Aprovação dos roteiros pelo cliente"
+            - option "#38 · Agendar a data de gravação"
+            - option "#39 · Alinhamento técnico com o videomaker"
+            - option "#40 · Confirmar presença do cliente (D-1 e H-1)"
+            - option "#41 · Vídeo captado"
+            - option "#42 · Subir os brutos no Drive e notificar o time"
+            - option "#43 · Vídeo editado"
+            - option "#44 · Revisão técnica interna (QC)"
+            - option "#45 · Enviar os vídeos para validação do cliente"
+            - option "#46 · Aprovação ou feedback do cliente"
+            - option "#47 · Vídeo ajustado"
+            - option "#48 · Legenda / copy"
+            - option "#49 · Montar o calendário editorial e agendar as postagens"
+            - option "#50 · Conferir as publicações no ar"
+            - option "#51 · Estruturar BM, conta de anúncios e pixel"
+            - option "#52 · Enviar o boleto ou guia de investimento"
+            - option "#53 · Confirmar a compensação do pagamento"
+            - option "#54 · Subir e estruturar as campanhas"
+            - option "#55 · Otimização diária das campanhas"
+            - option "#56 · Mapear e solicitar indicações ao cliente"
+            - option "#57 · Agendar a gravação dos depoimentos"
+            - option "#58 · Produzir e finalizar os materiais de depoimento"
+            - option "#59 · Roteiro (nova remessa)"
+            - option "#60 · Vídeo captado (mensal)"
+            - option "#61 · Publicação recorrente conforme o calendário"
+            - option "#62 · Atualização de criativos nas campanhas"
+            - option "#63 · Compilar o relatório mensal de performance"
+            - option "#64 · Conduzir a reunião estratégica mensal"
+            - option "#65 · Registrar os ajustes de rota"
+            - option "#66 · Agendar a reunião de fechamento"
+            - option "#67 · Apresentar o consolidado de resultados"
+            - option "#68 · Apresentar a proposta de continuidade"
+          - group [ref=f1e495]:
+            - generic "Editar dados da fase" [ref=f1e496] [cursor=pointer]
+      - group [ref=f1e497]:
+        - generic "Fase 2 Ativação da Conta D0–D1 7 etapas · arraste ⠿ para reordenar" [ref=f1e498] [cursor=pointer]:
+          - generic [ref=f1e499]: Fase 2
+          - generic [ref=f1e500]: Ativação da Conta
+          - generic [ref=f1e501]: D0–D1
+          - generic [ref=f1e502]: 7 etapas · arraste ⠿ para reordenar
+        - generic [ref=f1e503]:
+          - paragraph [ref=f1e504]: Abrir o canal, formalizar o contrato e montar a estrutura de arquivos.
+          - generic [ref=f1e505]:
+            - generic [ref=f1e506]:
+              - generic "Arraste para reordenar" [ref=f1e507]: ⠿
+              - generic [ref=f1e508]:
+                - text: Criar grupo oficial com o cliente
+                - generic [ref=f1e509]: PM · Ana · SLA 24h · 👁 cliente
+              - link "Editar" [ref=f1e510] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=11ac5bcc-0edd-4383-b5b4-00a973fc1a1b
+              - button "Excluir" [ref=f1e511] [cursor=pointer]
+            - generic [ref=f1e512]:
+              - generic "Arraste para reordenar" [ref=f1e513]: ⠿
+              - generic [ref=f1e514]:
+                - text: Emitir e enviar o contrato
+                - generic [ref=f1e515]: PM · Ana · SLA 1 dia útil · 👁 cliente
+              - link "Editar" [ref=f1e516] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=b88e6e46-b81d-4f39-8395-1f0e1af0a5d2
+              - button "Excluir" [ref=f1e517] [cursor=pointer]
+            - generic [ref=f1e518]:
+              - generic "Arraste para reordenar" [ref=f1e519]: ⠿
+              - generic [ref=f1e520]:
+                - text: Criar pasta no Drive e subir documentos iniciais
+                - generic [ref=f1e521]: PM · Ana · SLA Na assinatura
+              - link "Editar" [ref=f1e522] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=4efd5fd4-4f11-471c-95dd-bfd33cebd7da
+              - button "Excluir" [ref=f1e523] [cursor=pointer]
+            - generic [ref=f1e524]:
+              - generic "Arraste para reordenar" [ref=f1e525]: ⠿
+              - generic [ref=f1e526]:
+                - text: Montar o ecossistema do cliente no Notion
+                - generic [ref=f1e527]: PM · Ana + Adriane · SLA Na assinatura
+              - link "Editar" [ref=f1e528] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=242acf67-0462-4de9-a2af-3ab1ac8b677a
+              - button "Excluir" [ref=f1e529] [cursor=pointer]
+            - generic [ref=f1e530]:
+              - generic "Arraste para reordenar" [ref=f1e531]: ⠿
+              - generic [ref=f1e532]:
+                - text: Criar a view personalizada do cliente
+                - generic [ref=f1e533]: CS · Adriane · SLA Na assinatura · 👁 cliente
+              - link "Editar" [ref=f1e534] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=f3fa693f-5016-405d-a301-2829fb796c89
+              - button "Excluir" [ref=f1e535] [cursor=pointer]
+            - generic [ref=f1e536]:
+              - generic "Arraste para reordenar" [ref=f1e537]: ⠿
+              - generic [ref=f1e538]:
+                - text: ◆Validar o pagamento
+                - generic [ref=f1e539]: Comercial · Pedro · SLA 24h · 👁 cliente
+              - link "Editar" [ref=f1e540] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=a2f10406-83aa-4059-8e58-c548fc47f5e0
+              - button "Excluir" [ref=f1e541] [cursor=pointer]
+            - generic [ref=f1e542]:
+              - generic "Arraste para reordenar" [ref=f1e543]: ⠿
+              - generic [ref=f1e544]:
+                - text: Follow-up de pendências contratuais ou financeiras
+                - generic [ref=f1e545]: CS · Adriane · SLA 24h · se houver
+              - link "Editar" [ref=f1e546] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=a780f21f-a011-4a73-aac2-f8853f7f7b20
+              - button "Excluir" [ref=f1e547] [cursor=pointer]
+          - group [ref=f1e548]:
+            - generic "+ Adicionar etapa nesta fase" [ref=f1e549] [cursor=pointer]
+            - option "—" [selected]
+            - option "Comercial"
+            - option "PM"
+            - option "CS"
+            - option "Audiovisual"
+            - option "Social"
+            - option "Tráfego"
+            - option "Cliente"
+            - option "— nenhum" [selected]
+            - option "Lara"
+            - option "Sofia"
+            - option "Alan"
+            - option "Nina"
+            - option "— nenhuma" [selected]
+            - option "#1 · Solicitar dados cadastrais para o contrato"
+            - option "#2 · Enviar instruções de pagamento"
+            - option "#3 · Reunião de passagem Comercial → PM (15 min)"
+            - option "#4 · Criar grupo oficial com o cliente"
+            - option "#5 · Emitir e enviar o contrato"
+            - option "#6 · Criar pasta no Drive e subir documentos iniciais"
+            - option "#7 · Montar o ecossistema do cliente no Notion"
+            - option "#8 · Criar a view personalizada do cliente"
+            - option "#9 · Validar o pagamento"
+            - option "#10 · Follow-up de pendências contratuais ou financeiras"
+            - option "#11 · Boas-vindas e alinhamento inicial"
+            - option "#12 · Enviar as instruções de funcionamento"
+            - option "#13 · Enviar o formulário de onboarding"
+            - option "#14 · Monitorar preenchimento e validar respostas"
+            - option "#15 · Agendar a reunião de diagnóstico"
+            - option "#16 · Confirmar presença (D-1 e H-1)"
+            - option "#17 · Check-in de onboarding e envio do roadmap inicial"
+            - option "#18 · Conduzir a reunião de diagnóstico (gravação obrigatória)"
+            - option "#19 · Levantamento de público, ofertas e metas"
+            - option "#20 · Alinhamento de expectativas ao vivo"
+            - option "#21 · Apresentar o roadmap e os próximos passos"
+            - option "#22 · Solicitar acessos de redes e contas"
+            - option "#23 · Testar e confirmar cada acesso recebido"
+            - option "#24 · Estudo de Mercado"
+            - option "#25 · Estudo de Público"
+            - option "#26 · Dossiê Estratégico"
+            - option "#27 · Publicar no Notion e notificar Gabriel, Vinicius e Redação"
+            - option "#28 · Auditoria das redes atuais"
+            - option "#29 · Nova bio estratégica e proposta de posicionamento"
+            - option "#30 · Enviar a proposta de posicionamento ao cliente"
+            - option "#31 · Aprovação do cliente"
+            - option "#32 · Aplicar as mudanças no perfil"
+            - option "#33 · Solicitar a criação dos roteiros"
+            - option "#34 · Roteiro estratégico"
+            - option "#35 · Alinhar a escrita com a direção audiovisual"
+            - option "#36 · Revisar e enviar os roteiros ao cliente"
+            - option "#37 · Aprovação dos roteiros pelo cliente"
+            - option "#38 · Agendar a data de gravação"
+            - option "#39 · Alinhamento técnico com o videomaker"
+            - option "#40 · Confirmar presença do cliente (D-1 e H-1)"
+            - option "#41 · Vídeo captado"
+            - option "#42 · Subir os brutos no Drive e notificar o time"
+            - option "#43 · Vídeo editado"
+            - option "#44 · Revisão técnica interna (QC)"
+            - option "#45 · Enviar os vídeos para validação do cliente"
+            - option "#46 · Aprovação ou feedback do cliente"
+            - option "#47 · Vídeo ajustado"
+            - option "#48 · Legenda / copy"
+            - option "#49 · Montar o calendário editorial e agendar as postagens"
+            - option "#50 · Conferir as publicações no ar"
+            - option "#51 · Estruturar BM, conta de anúncios e pixel"
+            - option "#52 · Enviar o boleto ou guia de investimento"
+            - option "#53 · Confirmar a compensação do pagamento"
+            - option "#54 · Subir e estruturar as campanhas"
+            - option "#55 · Otimização diária das campanhas"
+            - option "#56 · Mapear e solicitar indicações ao cliente"
+            - option "#57 · Agendar a gravação dos depoimentos"
+            - option "#58 · Produzir e finalizar os materiais de depoimento"
+            - option "#59 · Roteiro (nova remessa)"
+            - option "#60 · Vídeo captado (mensal)"
+            - option "#61 · Publicação recorrente conforme o calendário"
+            - option "#62 · Atualização de criativos nas campanhas"
+            - option "#63 · Compilar o relatório mensal de performance"
+            - option "#64 · Conduzir a reunião estratégica mensal"
+            - option "#65 · Registrar os ajustes de rota"
+            - option "#66 · Agendar a reunião de fechamento"
+            - option "#67 · Apresentar o consolidado de resultados"
+            - option "#68 · Apresentar a proposta de continuidade"
+          - group [ref=f1e550]:
+            - generic "Editar dados da fase" [ref=f1e551] [cursor=pointer]
+      - group [ref=f1e552]:
+        - generic "Fase 3 Onboarding D1–D5 7 etapas · arraste ⠿ para reordenar" [ref=f1e553] [cursor=pointer]:
+          - generic [ref=f1e554]: Fase 3
+          - generic [ref=f1e555]: Onboarding
+          - generic [ref=f1e556]: D1–D5
+          - generic [ref=f1e557]: 7 etapas · arraste ⠿ para reordenar
+        - generic [ref=f1e558]:
+          - paragraph [ref=f1e559]: Fazer o cliente entender como a agência funciona e o que se espera dele.
+          - generic [ref=f1e560]:
+            - generic [ref=f1e561]:
+              - generic "Arraste para reordenar" [ref=f1e562]: ⠿
+              - generic [ref=f1e563]:
+                - text: Boas-vindas e alinhamento inicial
+                - generic [ref=f1e564]: CS · Adriane · SLA Mesmo dia · 👁 cliente
+              - link "Editar" [ref=f1e565] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=6bd9cb63-7363-479f-99c2-c11801687f79
+              - button "Excluir" [ref=f1e566] [cursor=pointer]
+            - generic [ref=f1e567]:
+              - generic "Arraste para reordenar" [ref=f1e568]: ⠿
+              - generic [ref=f1e569]:
+                - text: Enviar as instruções de funcionamento
+                - generic [ref=f1e570]: CS · Adriane · SLA Mesmo dia · 👁 cliente
+              - link "Editar" [ref=f1e571] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=cc06b443-af8f-4a3b-bd1b-17cc09b3f9e3
+              - button "Excluir" [ref=f1e572] [cursor=pointer]
+            - generic [ref=f1e573]:
+              - generic "Arraste para reordenar" [ref=f1e574]: ⠿
+              - generic [ref=f1e575]:
+                - text: Enviar o formulário de onboarding
+                - generic [ref=f1e576]: CS · Adriane · SLA Mesmo dia · 👁 cliente
+              - link "Editar" [ref=f1e577] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=56174ffe-55af-4970-b00c-0c6d7b714dc7
+              - button "Excluir" [ref=f1e578] [cursor=pointer]
+            - generic [ref=f1e579]:
+              - generic "Arraste para reordenar" [ref=f1e580]: ⠿
+              - generic [ref=f1e581]:
+                - text: Monitorar preenchimento e validar respostas
+                - generic [ref=f1e582]: CS · Adriane · SLA 1 dia após retorno
+              - link "Editar" [ref=f1e583] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=fca8c443-82c9-47d0-adf2-75057b296f59
+              - button "Excluir" [ref=f1e584] [cursor=pointer]
+            - generic [ref=f1e585]:
+              - generic "Arraste para reordenar" [ref=f1e586]: ⠿
+              - generic [ref=f1e587]:
+                - text: Agendar a reunião de diagnóstico
+                - generic [ref=f1e588]: CS · Adriane · SLA Até 5 dias da assinatura · 👁 cliente
+              - link "Editar" [ref=f1e589] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=2d452712-477b-43c7-8b8e-c35a45b33a7f
+              - button "Excluir" [ref=f1e590] [cursor=pointer]
+            - generic [ref=f1e591]:
+              - generic "Arraste para reordenar" [ref=f1e592]: ⠿
+              - generic [ref=f1e593]:
+                - text: Confirmar presença (D-1 e H-1)
+                - generic [ref=f1e594]: CS · Adriane · SLA D-1 e H-1
+              - link "Editar" [ref=f1e595] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=b352dabe-2974-4eec-baad-76823a25f80a
+              - button "Excluir" [ref=f1e596] [cursor=pointer]
+            - generic [ref=f1e597]:
+              - generic "Arraste para reordenar" [ref=f1e598]: ⠿
+              - generic [ref=f1e599]:
+                - text: Check-in de onboarding e envio do roadmap inicial
+                - generic [ref=f1e600]: CS · Adriane · SLA Antes do diagnóstico · 👁 cliente
+              - link "Editar" [ref=f1e601] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=56b171c5-7dbf-4432-aded-04a80b00a7c2
+              - button "Excluir" [ref=f1e602] [cursor=pointer]
+          - group [ref=f1e603]:
+            - generic "+ Adicionar etapa nesta fase" [ref=f1e604] [cursor=pointer]
+            - option "—" [selected]
+            - option "Comercial"
+            - option "PM"
+            - option "CS"
+            - option "Audiovisual"
+            - option "Social"
+            - option "Tráfego"
+            - option "Cliente"
+            - option "— nenhum" [selected]
+            - option "Lara"
+            - option "Sofia"
+            - option "Alan"
+            - option "Nina"
+            - option "— nenhuma" [selected]
+            - option "#1 · Solicitar dados cadastrais para o contrato"
+            - option "#2 · Enviar instruções de pagamento"
+            - option "#3 · Reunião de passagem Comercial → PM (15 min)"
+            - option "#4 · Criar grupo oficial com o cliente"
+            - option "#5 · Emitir e enviar o contrato"
+            - option "#6 · Criar pasta no Drive e subir documentos iniciais"
+            - option "#7 · Montar o ecossistema do cliente no Notion"
+            - option "#8 · Criar a view personalizada do cliente"
+            - option "#9 · Validar o pagamento"
+            - option "#10 · Follow-up de pendências contratuais ou financeiras"
+            - option "#11 · Boas-vindas e alinhamento inicial"
+            - option "#12 · Enviar as instruções de funcionamento"
+            - option "#13 · Enviar o formulário de onboarding"
+            - option "#14 · Monitorar preenchimento e validar respostas"
+            - option "#15 · Agendar a reunião de diagnóstico"
+            - option "#16 · Confirmar presença (D-1 e H-1)"
+            - option "#17 · Check-in de onboarding e envio do roadmap inicial"
+            - option "#18 · Conduzir a reunião de diagnóstico (gravação obrigatória)"
+            - option "#19 · Levantamento de público, ofertas e metas"
+            - option "#20 · Alinhamento de expectativas ao vivo"
+            - option "#21 · Apresentar o roadmap e os próximos passos"
+            - option "#22 · Solicitar acessos de redes e contas"
+            - option "#23 · Testar e confirmar cada acesso recebido"
+            - option "#24 · Estudo de Mercado"
+            - option "#25 · Estudo de Público"
+            - option "#26 · Dossiê Estratégico"
+            - option "#27 · Publicar no Notion e notificar Gabriel, Vinicius e Redação"
+            - option "#28 · Auditoria das redes atuais"
+            - option "#29 · Nova bio estratégica e proposta de posicionamento"
+            - option "#30 · Enviar a proposta de posicionamento ao cliente"
+            - option "#31 · Aprovação do cliente"
+            - option "#32 · Aplicar as mudanças no perfil"
+            - option "#33 · Solicitar a criação dos roteiros"
+            - option "#34 · Roteiro estratégico"
+            - option "#35 · Alinhar a escrita com a direção audiovisual"
+            - option "#36 · Revisar e enviar os roteiros ao cliente"
+            - option "#37 · Aprovação dos roteiros pelo cliente"
+            - option "#38 · Agendar a data de gravação"
+            - option "#39 · Alinhamento técnico com o videomaker"
+            - option "#40 · Confirmar presença do cliente (D-1 e H-1)"
+            - option "#41 · Vídeo captado"
+            - option "#42 · Subir os brutos no Drive e notificar o time"
+            - option "#43 · Vídeo editado"
+            - option "#44 · Revisão técnica interna (QC)"
+            - option "#45 · Enviar os vídeos para validação do cliente"
+            - option "#46 · Aprovação ou feedback do cliente"
+            - option "#47 · Vídeo ajustado"
+            - option "#48 · Legenda / copy"
+            - option "#49 · Montar o calendário editorial e agendar as postagens"
+            - option "#50 · Conferir as publicações no ar"
+            - option "#51 · Estruturar BM, conta de anúncios e pixel"
+            - option "#52 · Enviar o boleto ou guia de investimento"
+            - option "#53 · Confirmar a compensação do pagamento"
+            - option "#54 · Subir e estruturar as campanhas"
+            - option "#55 · Otimização diária das campanhas"
+            - option "#56 · Mapear e solicitar indicações ao cliente"
+            - option "#57 · Agendar a gravação dos depoimentos"
+            - option "#58 · Produzir e finalizar os materiais de depoimento"
+            - option "#59 · Roteiro (nova remessa)"
+            - option "#60 · Vídeo captado (mensal)"
+            - option "#61 · Publicação recorrente conforme o calendário"
+            - option "#62 · Atualização de criativos nas campanhas"
+            - option "#63 · Compilar o relatório mensal de performance"
+            - option "#64 · Conduzir a reunião estratégica mensal"
+            - option "#65 · Registrar os ajustes de rota"
+            - option "#66 · Agendar a reunião de fechamento"
+            - option "#67 · Apresentar o consolidado de resultados"
+            - option "#68 · Apresentar a proposta de continuidade"
+          - group [ref=f1e605]:
+            - generic "Editar dados da fase" [ref=f1e606] [cursor=pointer]
+      - group [ref=f1e607]:
+        - generic "Fase 4 Diagnóstico D5 6 etapas · arraste ⠿ para reordenar" [ref=f1e608] [cursor=pointer]:
+          - generic [ref=f1e609]: Fase 4
+          - generic [ref=f1e610]: Diagnóstico
+          - generic [ref=f1e611]: D5
+          - generic [ref=f1e612]: 6 etapas · arraste ⠿ para reordenar
+        - generic [ref=f1e613]:
+          - paragraph [ref=f1e614]: Extrair tudo que a estratégia precisa e travar as expectativas ao vivo.
+          - generic [ref=f1e615]:
+            - generic [ref=f1e616]:
+              - generic "Arraste para reordenar" [ref=f1e617]: ⠿
+              - generic [ref=f1e618]:
+                - text: ◆Conduzir a reunião de diagnóstico (gravação obrigatória)
+                - generic [ref=f1e619]: PM · Ana + Adriane · SLA Até D5 · 👁 cliente
+              - link "Editar" [ref=f1e620] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=beec2741-8edc-4c75-b2c0-4efd122bc38e
+              - button "Excluir" [ref=f1e621] [cursor=pointer]
+            - generic [ref=f1e622]:
+              - generic "Arraste para reordenar" [ref=f1e623]: ⠿
+              - generic [ref=f1e624]:
+                - text: Levantamento de público, ofertas e metas
+                - generic [ref=f1e625]: PM · Ana · SLA Na reunião
+              - link "Editar" [ref=f1e626] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=7a1a533b-0b1b-495e-b013-f473b5935616
+              - button "Excluir" [ref=f1e627] [cursor=pointer]
+            - generic [ref=f1e628]:
+              - generic "Arraste para reordenar" [ref=f1e629]: ⠿
+              - generic [ref=f1e630]:
+                - text: Alinhamento de expectativas ao vivo
+                - generic [ref=f1e631]: CS · Adriane · SLA Na reunião · 👁 cliente
+              - link "Editar" [ref=f1e632] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=530628fe-ee36-4993-93bf-569e8238ae76
+              - button "Excluir" [ref=f1e633] [cursor=pointer]
+            - generic [ref=f1e634]:
+              - generic "Arraste para reordenar" [ref=f1e635]: ⠿
+              - generic [ref=f1e636]:
+                - text: Apresentar o roadmap e os próximos passos
+                - generic [ref=f1e637]: PM · Ana + Adriane · SLA Na reunião · 👁 cliente
+              - link "Editar" [ref=f1e638] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=4f29846c-5bf0-4311-8d5b-0a2fc5548d56
+              - button "Excluir" [ref=f1e639] [cursor=pointer]
+            - generic [ref=f1e640]:
+              - generic "Arraste para reordenar" [ref=f1e641]: ⠿
+              - generic [ref=f1e642]:
+                - text: Solicitar acessos de redes e contas
+                - generic [ref=f1e643]: CS · Adriane · SLA Imediatamente após · 👁 cliente
+              - link "Editar" [ref=f1e644] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=3952e9db-4404-4478-ab8d-9fc6907942d4
+              - button "Excluir" [ref=f1e645] [cursor=pointer]
+            - generic [ref=f1e646]:
+              - generic "Arraste para reordenar" [ref=f1e647]: ⠿
+              - generic [ref=f1e648]:
+                - text: Testar e confirmar cada acesso recebido
+                - generic [ref=f1e649]: PM · Ana · SLA 24h
+              - link "Editar" [ref=f1e650] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=be9313e8-1210-435d-a270-2baf7bbefa1b
+              - button "Excluir" [ref=f1e651] [cursor=pointer]
+          - group [ref=f1e652]:
+            - generic "+ Adicionar etapa nesta fase" [ref=f1e653] [cursor=pointer]
+            - option "—" [selected]
+            - option "Comercial"
+            - option "PM"
+            - option "CS"
+            - option "Audiovisual"
+            - option "Social"
+            - option "Tráfego"
+            - option "Cliente"
+            - option "— nenhum" [selected]
+            - option "Lara"
+            - option "Sofia"
+            - option "Alan"
+            - option "Nina"
+            - option "— nenhuma" [selected]
+            - option "#1 · Solicitar dados cadastrais para o contrato"
+            - option "#2 · Enviar instruções de pagamento"
+            - option "#3 · Reunião de passagem Comercial → PM (15 min)"
+            - option "#4 · Criar grupo oficial com o cliente"
+            - option "#5 · Emitir e enviar o contrato"
+            - option "#6 · Criar pasta no Drive e subir documentos iniciais"
+            - option "#7 · Montar o ecossistema do cliente no Notion"
+            - option "#8 · Criar a view personalizada do cliente"
+            - option "#9 · Validar o pagamento"
+            - option "#10 · Follow-up de pendências contratuais ou financeiras"
+            - option "#11 · Boas-vindas e alinhamento inicial"
+            - option "#12 · Enviar as instruções de funcionamento"
+            - option "#13 · Enviar o formulário de onboarding"
+            - option "#14 · Monitorar preenchimento e validar respostas"
+            - option "#15 · Agendar a reunião de diagnóstico"
+            - option "#16 · Confirmar presença (D-1 e H-1)"
+            - option "#17 · Check-in de onboarding e envio do roadmap inicial"
+            - option "#18 · Conduzir a reunião de diagnóstico (gravação obrigatória)"
+            - option "#19 · Levantamento de público, ofertas e metas"
+            - option "#20 · Alinhamento de expectativas ao vivo"
+            - option "#21 · Apresentar o roadmap e os próximos passos"
+            - option "#22 · Solicitar acessos de redes e contas"
+            - option "#23 · Testar e confirmar cada acesso recebido"
+            - option "#24 · Estudo de Mercado"
+            - option "#25 · Estudo de Público"
+            - option "#26 · Dossiê Estratégico"
+            - option "#27 · Publicar no Notion e notificar Gabriel, Vinicius e Redação"
+            - option "#28 · Auditoria das redes atuais"
+            - option "#29 · Nova bio estratégica e proposta de posicionamento"
+            - option "#30 · Enviar a proposta de posicionamento ao cliente"
+            - option "#31 · Aprovação do cliente"
+            - option "#32 · Aplicar as mudanças no perfil"
+            - option "#33 · Solicitar a criação dos roteiros"
+            - option "#34 · Roteiro estratégico"
+            - option "#35 · Alinhar a escrita com a direção audiovisual"
+            - option "#36 · Revisar e enviar os roteiros ao cliente"
+            - option "#37 · Aprovação dos roteiros pelo cliente"
+            - option "#38 · Agendar a data de gravação"
+            - option "#39 · Alinhamento técnico com o videomaker"
+            - option "#40 · Confirmar presença do cliente (D-1 e H-1)"
+            - option "#41 · Vídeo captado"
+            - option "#42 · Subir os brutos no Drive e notificar o time"
+            - option "#43 · Vídeo editado"
+            - option "#44 · Revisão técnica interna (QC)"
+            - option "#45 · Enviar os vídeos para validação do cliente"
+            - option "#46 · Aprovação ou feedback do cliente"
+            - option "#47 · Vídeo ajustado"
+            - option "#48 · Legenda / copy"
+            - option "#49 · Montar o calendário editorial e agendar as postagens"
+            - option "#50 · Conferir as publicações no ar"
+            - option "#51 · Estruturar BM, conta de anúncios e pixel"
+            - option "#52 · Enviar o boleto ou guia de investimento"
+            - option "#53 · Confirmar a compensação do pagamento"
+            - option "#54 · Subir e estruturar as campanhas"
+            - option "#55 · Otimização diária das campanhas"
+            - option "#56 · Mapear e solicitar indicações ao cliente"
+            - option "#57 · Agendar a gravação dos depoimentos"
+            - option "#58 · Produzir e finalizar os materiais de depoimento"
+            - option "#59 · Roteiro (nova remessa)"
+            - option "#60 · Vídeo captado (mensal)"
+            - option "#61 · Publicação recorrente conforme o calendário"
+            - option "#62 · Atualização de criativos nas campanhas"
+            - option "#63 · Compilar o relatório mensal de performance"
+            - option "#64 · Conduzir a reunião estratégica mensal"
+            - option "#65 · Registrar os ajustes de rota"
+            - option "#66 · Agendar a reunião de fechamento"
+            - option "#67 · Apresentar o consolidado de resultados"
+            - option "#68 · Apresentar a proposta de continuidade"
+          - group [ref=f1e654]:
+            - generic "Editar dados da fase" [ref=f1e655] [cursor=pointer]
+      - group [ref=f1e656]:
+        - generic "Fase 5 Inteligência Estratégica D5–D7 4 etapas · arraste ⠿ para reordenar" [ref=f1e657] [cursor=pointer]:
+          - generic [ref=f1e658]: Fase 5
+          - generic [ref=f1e659]: Inteligência Estratégica
+          - generic [ref=f1e660]: D5–D7
+          - generic [ref=f1e661]: 4 etapas · arraste ⠿ para reordenar
+        - generic [ref=f1e662]:
+          - paragraph [ref=f1e663]: Transformar o diagnóstico em documento de trabalho para todo o time.
+          - generic [ref=f1e664]:
+            - generic [ref=f1e665]:
+              - generic "Arraste para reordenar" [ref=f1e666]: ⠿
+              - generic [ref=f1e667]:
+                - text: Estudo de Mercado
+                - generic [ref=f1e668]:
+                  - text: "PM · Ana · IA: Lara · SLA 2 dias após diagnóstico · 👁 cliente"
+                  - generic [ref=f1e669]: "· ↳ depende de #18 (Conduzir a reunião de diagnóstico (gravação obrigatória))"
+              - link "Editar" [ref=f1e670] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=742d9b66-640d-4930-a64a-ed1a40438828
+              - button "Excluir" [ref=f1e671] [cursor=pointer]
+            - generic [ref=f1e672]:
+              - generic "Arraste para reordenar" [ref=f1e673]: ⠿
+              - generic [ref=f1e674]:
+                - text: Estudo de Público
+                - generic [ref=f1e675]: "PM · Ana · IA: Lara · SLA 2 dias após diagnóstico · 👁 cliente"
+              - link "Editar" [ref=f1e676] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=16b8cc3d-1a33-4003-bc27-4f493b8b75f0
+              - button "Excluir" [ref=f1e677] [cursor=pointer]
+            - generic [ref=f1e678]:
+              - generic "Arraste para reordenar" [ref=f1e679]: ⠿
+              - generic [ref=f1e680]:
+                - text: Dossiê Estratégico
+                - generic [ref=f1e681]: "PM · Ana · IA: Lara · SLA 2 dias após diagnóstico · 👁 cliente"
+              - link "Editar" [ref=f1e682] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=18e90cbb-7239-4a7d-b447-fd64e04c1d28
+              - button "Excluir" [ref=f1e683] [cursor=pointer]
+            - generic [ref=f1e684]:
+              - generic "Arraste para reordenar" [ref=f1e685]: ⠿
+              - generic [ref=f1e686]:
+                - text: Publicar no Notion e notificar Gabriel, Vinicius e Redação
+                - generic [ref=f1e687]: PM · Ana · SLA Mesmo dia
+              - link "Editar" [ref=f1e688] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=5f760081-0a2b-4907-acc3-d3abbe91bdae
+              - button "Excluir" [ref=f1e689] [cursor=pointer]
+          - group [ref=f1e690]:
+            - generic "+ Adicionar etapa nesta fase" [ref=f1e691] [cursor=pointer]
+            - option "—" [selected]
+            - option "Comercial"
+            - option "PM"
+            - option "CS"
+            - option "Audiovisual"
+            - option "Social"
+            - option "Tráfego"
+            - option "Cliente"
+            - option "— nenhum" [selected]
+            - option "Lara"
+            - option "Sofia"
+            - option "Alan"
+            - option "Nina"
+            - option "— nenhuma" [selected]
+            - option "#1 · Solicitar dados cadastrais para o contrato"
+            - option "#2 · Enviar instruções de pagamento"
+            - option "#3 · Reunião de passagem Comercial → PM (15 min)"
+            - option "#4 · Criar grupo oficial com o cliente"
+            - option "#5 · Emitir e enviar o contrato"
+            - option "#6 · Criar pasta no Drive e subir documentos iniciais"
+            - option "#7 · Montar o ecossistema do cliente no Notion"
+            - option "#8 · Criar a view personalizada do cliente"
+            - option "#9 · Validar o pagamento"
+            - option "#10 · Follow-up de pendências contratuais ou financeiras"
+            - option "#11 · Boas-vindas e alinhamento inicial"
+            - option "#12 · Enviar as instruções de funcionamento"
+            - option "#13 · Enviar o formulário de onboarding"
+            - option "#14 · Monitorar preenchimento e validar respostas"
+            - option "#15 · Agendar a reunião de diagnóstico"
+            - option "#16 · Confirmar presença (D-1 e H-1)"
+            - option "#17 · Check-in de onboarding e envio do roadmap inicial"
+            - option "#18 · Conduzir a reunião de diagnóstico (gravação obrigatória)"
+            - option "#19 · Levantamento de público, ofertas e metas"
+            - option "#20 · Alinhamento de expectativas ao vivo"
+            - option "#21 · Apresentar o roadmap e os próximos passos"
+            - option "#22 · Solicitar acessos de redes e contas"
+            - option "#23 · Testar e confirmar cada acesso recebido"
+            - option "#24 · Estudo de Mercado"
+            - option "#25 · Estudo de Público"
+            - option "#26 · Dossiê Estratégico"
+            - option "#27 · Publicar no Notion e notificar Gabriel, Vinicius e Redação"
+            - option "#28 · Auditoria das redes atuais"
+            - option "#29 · Nova bio estratégica e proposta de posicionamento"
+            - option "#30 · Enviar a proposta de posicionamento ao cliente"
+            - option "#31 · Aprovação do cliente"
+            - option "#32 · Aplicar as mudanças no perfil"
+            - option "#33 · Solicitar a criação dos roteiros"
+            - option "#34 · Roteiro estratégico"
+            - option "#35 · Alinhar a escrita com a direção audiovisual"
+            - option "#36 · Revisar e enviar os roteiros ao cliente"
+            - option "#37 · Aprovação dos roteiros pelo cliente"
+            - option "#38 · Agendar a data de gravação"
+            - option "#39 · Alinhamento técnico com o videomaker"
+            - option "#40 · Confirmar presença do cliente (D-1 e H-1)"
+            - option "#41 · Vídeo captado"
+            - option "#42 · Subir os brutos no Drive e notificar o time"
+            - option "#43 · Vídeo editado"
+            - option "#44 · Revisão técnica interna (QC)"
+            - option "#45 · Enviar os vídeos para validação do cliente"
+            - option "#46 · Aprovação ou feedback do cliente"
+            - option "#47 · Vídeo ajustado"
+            - option "#48 · Legenda / copy"
+            - option "#49 · Montar o calendário editorial e agendar as postagens"
+            - option "#50 · Conferir as publicações no ar"
+            - option "#51 · Estruturar BM, conta de anúncios e pixel"
+            - option "#52 · Enviar o boleto ou guia de investimento"
+            - option "#53 · Confirmar a compensação do pagamento"
+            - option "#54 · Subir e estruturar as campanhas"
+            - option "#55 · Otimização diária das campanhas"
+            - option "#56 · Mapear e solicitar indicações ao cliente"
+            - option "#57 · Agendar a gravação dos depoimentos"
+            - option "#58 · Produzir e finalizar os materiais de depoimento"
+            - option "#59 · Roteiro (nova remessa)"
+            - option "#60 · Vídeo captado (mensal)"
+            - option "#61 · Publicação recorrente conforme o calendário"
+            - option "#62 · Atualização de criativos nas campanhas"
+            - option "#63 · Compilar o relatório mensal de performance"
+            - option "#64 · Conduzir a reunião estratégica mensal"
+            - option "#65 · Registrar os ajustes de rota"
+            - option "#66 · Agendar a reunião de fechamento"
+            - option "#67 · Apresentar o consolidado de resultados"
+            - option "#68 · Apresentar a proposta de continuidade"
+          - group [ref=f1e692]:
+            - generic "Editar dados da fase" [ref=f1e693] [cursor=pointer]
+      - group [ref=f1e694]:
+        - generic "Fase 6 Posicionamento e Perfil D7–D10 5 etapas · arraste ⠿ para reordenar" [ref=f1e695] [cursor=pointer]:
+          - generic [ref=f1e696]: Fase 6
+          - generic [ref=f1e697]: Posicionamento e Perfil
+          - generic [ref=f1e698]: D7–D10
+          - generic [ref=f1e699]: 5 etapas · arraste ⠿ para reordenar
+        - generic [ref=f1e700]:
+          - paragraph [ref=f1e701]: Deixar o perfil pronto para receber o conteúdo e o tráfego.
+          - generic [ref=f1e702]:
+            - generic [ref=f1e703]:
+              - generic "Arraste para reordenar" [ref=f1e704]: ⠿
+              - generic [ref=f1e705]:
+                - text: Auditoria das redes atuais
+                - generic [ref=f1e706]: "Social · Vinicius · IA: Sofia · SLA 2 dias após diagnóstico · 👁 cliente"
+              - link "Editar" [ref=f1e707] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=61afa4de-1aa7-4126-b6bf-d118f934ae6d
+              - button "Excluir" [ref=f1e708] [cursor=pointer]
+            - generic [ref=f1e709]:
+              - generic "Arraste para reordenar" [ref=f1e710]: ⠿
+              - generic [ref=f1e711]:
+                - text: Nova bio estratégica e proposta de posicionamento
+                - generic [ref=f1e712]: "Social · Vinicius · IA: Sofia · SLA 2 dias"
+              - link "Editar" [ref=f1e713] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=941944aa-0b13-44c0-9aa5-bb27449cf230
+              - button "Excluir" [ref=f1e714] [cursor=pointer]
+            - generic [ref=f1e715]:
+              - generic "Arraste para reordenar" [ref=f1e716]: ⠿
+              - generic [ref=f1e717]:
+                - text: Enviar a proposta de posicionamento ao cliente
+                - generic [ref=f1e718]: PM · Ana · SLA Assim que finalizada · 👁 cliente
+              - link "Editar" [ref=f1e719] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=3aac7a27-c52a-42d3-aae3-db25d07e79ba
+              - button "Excluir" [ref=f1e720] [cursor=pointer]
+            - generic [ref=f1e721]:
+              - generic "Arraste para reordenar" [ref=f1e722]: ⠿
+              - generic [ref=f1e723]:
+                - text: Aprovação do cliente
+                - generic [ref=f1e724]: Cliente · Cliente · SLA 2 dias · 👁 cliente
+              - link "Editar" [ref=f1e725] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=4126debc-555f-49e3-a6e5-f5965e375df9
+              - button "Excluir" [ref=f1e726] [cursor=pointer]
+            - generic [ref=f1e727]:
+              - generic "Arraste para reordenar" [ref=f1e728]: ⠿
+              - generic [ref=f1e729]:
+                - text: Aplicar as mudanças no perfil
+                - generic [ref=f1e730]: Social · Vinicius · SLA 24h após aprovação · 👁 cliente
+              - link "Editar" [ref=f1e731] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=2113ff21-0096-40c7-beb7-30bf7f8dcbd2
+              - button "Excluir" [ref=f1e732] [cursor=pointer]
+          - group [ref=f1e733]:
+            - generic "+ Adicionar etapa nesta fase" [ref=f1e734] [cursor=pointer]
+            - option "—" [selected]
+            - option "Comercial"
+            - option "PM"
+            - option "CS"
+            - option "Audiovisual"
+            - option "Social"
+            - option "Tráfego"
+            - option "Cliente"
+            - option "— nenhum" [selected]
+            - option "Lara"
+            - option "Sofia"
+            - option "Alan"
+            - option "Nina"
+            - option "— nenhuma" [selected]
+            - option "#1 · Solicitar dados cadastrais para o contrato"
+            - option "#2 · Enviar instruções de pagamento"
+            - option "#3 · Reunião de passagem Comercial → PM (15 min)"
+            - option "#4 · Criar grupo oficial com o cliente"
+            - option "#5 · Emitir e enviar o contrato"
+            - option "#6 · Criar pasta no Drive e subir documentos iniciais"
+            - option "#7 · Montar o ecossistema do cliente no Notion"
+            - option "#8 · Criar a view personalizada do cliente"
+            - option "#9 · Validar o pagamento"
+            - option "#10 · Follow-up de pendências contratuais ou financeiras"
+            - option "#11 · Boas-vindas e alinhamento inicial"
+            - option "#12 · Enviar as instruções de funcionamento"
+            - option "#13 · Enviar o formulário de onboarding"
+            - option "#14 · Monitorar preenchimento e validar respostas"
+            - option "#15 · Agendar a reunião de diagnóstico"
+            - option "#16 · Confirmar presença (D-1 e H-1)"
+            - option "#17 · Check-in de onboarding e envio do roadmap inicial"
+            - option "#18 · Conduzir a reunião de diagnóstico (gravação obrigatória)"
+            - option "#19 · Levantamento de público, ofertas e metas"
+            - option "#20 · Alinhamento de expectativas ao vivo"
+            - option "#21 · Apresentar o roadmap e os próximos passos"
+            - option "#22 · Solicitar acessos de redes e contas"
+            - option "#23 · Testar e confirmar cada acesso recebido"
+            - option "#24 · Estudo de Mercado"
+            - option "#25 · Estudo de Público"
+            - option "#26 · Dossiê Estratégico"
+            - option "#27 · Publicar no Notion e notificar Gabriel, Vinicius e Redação"
+            - option "#28 · Auditoria das redes atuais"
+            - option "#29 · Nova bio estratégica e proposta de posicionamento"
+            - option "#30 · Enviar a proposta de posicionamento ao cliente"
+            - option "#31 · Aprovação do cliente"
+            - option "#32 · Aplicar as mudanças no perfil"
+            - option "#33 · Solicitar a criação dos roteiros"
+            - option "#34 · Roteiro estratégico"
+            - option "#35 · Alinhar a escrita com a direção audiovisual"
+            - option "#36 · Revisar e enviar os roteiros ao cliente"
+            - option "#37 · Aprovação dos roteiros pelo cliente"
+            - option "#38 · Agendar a data de gravação"
+            - option "#39 · Alinhamento técnico com o videomaker"
+            - option "#40 · Confirmar presença do cliente (D-1 e H-1)"
+            - option "#41 · Vídeo captado"
+            - option "#42 · Subir os brutos no Drive e notificar o time"
+            - option "#43 · Vídeo editado"
+            - option "#44 · Revisão técnica interna (QC)"
+            - option "#45 · Enviar os vídeos para validação do cliente"
+            - option "#46 · Aprovação ou feedback do cliente"
+            - option "#47 · Vídeo ajustado"
+            - option "#48 · Legenda / copy"
+            - option "#49 · Montar o calendário editorial e agendar as postagens"
+            - option "#50 · Conferir as publicações no ar"
+            - option "#51 · Estruturar BM, conta de anúncios e pixel"
+            - option "#52 · Enviar o boleto ou guia de investimento"
+            - option "#53 · Confirmar a compensação do pagamento"
+            - option "#54 · Subir e estruturar as campanhas"
+            - option "#55 · Otimização diária das campanhas"
+            - option "#56 · Mapear e solicitar indicações ao cliente"
+            - option "#57 · Agendar a gravação dos depoimentos"
+            - option "#58 · Produzir e finalizar os materiais de depoimento"
+            - option "#59 · Roteiro (nova remessa)"
+            - option "#60 · Vídeo captado (mensal)"
+            - option "#61 · Publicação recorrente conforme o calendário"
+            - option "#62 · Atualização de criativos nas campanhas"
+            - option "#63 · Compilar o relatório mensal de performance"
+            - option "#64 · Conduzir a reunião estratégica mensal"
+            - option "#65 · Registrar os ajustes de rota"
+            - option "#66 · Agendar a reunião de fechamento"
+            - option "#67 · Apresentar o consolidado de resultados"
+            - option "#68 · Apresentar a proposta de continuidade"
+          - group [ref=f1e735]:
+            - generic "Editar dados da fase" [ref=f1e736] [cursor=pointer]
+      - group [ref=f1e737]:
+        - generic "Fase 7 Roteirização D7–D12 5 etapas · arraste ⠿ para reordenar" [ref=f1e738] [cursor=pointer]:
+          - generic [ref=f1e739]: Fase 7
+          - generic [ref=f1e740]: Roteirização
+          - generic [ref=f1e741]: D7–D12
+          - generic [ref=f1e742]: 5 etapas · arraste ⠿ para reordenar
+        - generic [ref=f1e743]:
+          - paragraph [ref=f1e744]: Nove roteiros alinhados à estratégia e à direção audiovisual.
+          - generic [ref=f1e745]:
+            - generic [ref=f1e746]:
+              - generic "Arraste para reordenar" [ref=f1e747]: ⠿
+              - generic [ref=f1e748]:
+                - text: Solicitar a criação dos roteiros
+                - generic [ref=f1e749]:
+                  - text: PM · Ana · SLA 2 dias após o dossiê
+                  - generic [ref=f1e750]: "· ↳ depende de #26 (Dossiê Estratégico)"
+              - link "Editar" [ref=f1e751] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=f8173bf5-7a44-4d08-aff6-f36ce9951a99
+              - button "Excluir" [ref=f1e752] [cursor=pointer]
+            - generic [ref=f1e753]:
+              - generic "Arraste para reordenar" [ref=f1e754]: ⠿
+              - generic [ref=f1e755]:
+                - text: Roteiro estratégico
+                - generic [ref=f1e756]: ×9
+                - generic [ref=f1e757]:
+                  - text: "Audiovisual · Redação · IA: Alan · SLA 2 dias (+2 de ajuste) · 👁 cliente"
+                  - generic [ref=f1e758]: "· ↳ depende de #33 (Solicitar a criação dos roteiros)"
+              - link "Editar" [ref=f1e759] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=1eef8d4a-2ab5-4aa2-9f60-d979e8f32195
+              - button "Excluir" [ref=f1e760] [cursor=pointer]
+            - generic [ref=f1e761]:
+              - generic "Arraste para reordenar" [ref=f1e762]: ⠿
+              - generic [ref=f1e763]:
+                - text: Alinhar a escrita com a direção audiovisual
+                - generic [ref=f1e764]: Audiovisual · Gabriel · SLA 1 dia
+              - link "Editar" [ref=f1e765] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=e0dbb2cc-d898-4a0b-b738-9a4de4ba8f6a
+              - button "Excluir" [ref=f1e766] [cursor=pointer]
+            - generic [ref=f1e767]:
+              - generic "Arraste para reordenar" [ref=f1e768]: ⠿
+              - generic [ref=f1e769]:
+                - text: Revisar e enviar os roteiros ao cliente
+                - generic [ref=f1e770]: PM · Ana · SLA 1 dia · 👁 cliente
+              - link "Editar" [ref=f1e771] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=b212d21c-7356-4bf2-aa51-9d24086d1282
+              - button "Excluir" [ref=f1e772] [cursor=pointer]
+            - generic [ref=f1e773]:
+              - generic "Arraste para reordenar" [ref=f1e774]: ⠿
+              - generic [ref=f1e775]:
+                - text: ◆Aprovação dos roteiros pelo cliente
+                - generic [ref=f1e776]: Cliente · Cliente · SLA 2 dias · 👁 cliente
+              - link "Editar" [ref=f1e777] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=7eefc311-f464-45f6-88a4-c6fbab9d2d26
+              - button "Excluir" [ref=f1e778] [cursor=pointer]
+          - group [ref=f1e779]:
+            - generic "+ Adicionar etapa nesta fase" [ref=f1e780] [cursor=pointer]
+            - option "—" [selected]
+            - option "Comercial"
+            - option "PM"
+            - option "CS"
+            - option "Audiovisual"
+            - option "Social"
+            - option "Tráfego"
+            - option "Cliente"
+            - option "— nenhum" [selected]
+            - option "Lara"
+            - option "Sofia"
+            - option "Alan"
+            - option "Nina"
+            - option "— nenhuma" [selected]
+            - option "#1 · Solicitar dados cadastrais para o contrato"
+            - option "#2 · Enviar instruções de pagamento"
+            - option "#3 · Reunião de passagem Comercial → PM (15 min)"
+            - option "#4 · Criar grupo oficial com o cliente"
+            - option "#5 · Emitir e enviar o contrato"
+            - option "#6 · Criar pasta no Drive e subir documentos iniciais"
+            - option "#7 · Montar o ecossistema do cliente no Notion"
+            - option "#8 · Criar a view personalizada do cliente"
+            - option "#9 · Validar o pagamento"
+            - option "#10 · Follow-up de pendências contratuais ou financeiras"
+            - option "#11 · Boas-vindas e alinhamento inicial"
+            - option "#12 · Enviar as instruções de funcionamento"
+            - option "#13 · Enviar o formulário de onboarding"
+            - option "#14 · Monitorar preenchimento e validar respostas"
+            - option "#15 · Agendar a reunião de diagnóstico"
+            - option "#16 · Confirmar presença (D-1 e H-1)"
+            - option "#17 · Check-in de onboarding e envio do roadmap inicial"
+            - option "#18 · Conduzir a reunião de diagnóstico (gravação obrigatória)"
+            - option "#19 · Levantamento de público, ofertas e metas"
+            - option "#20 · Alinhamento de expectativas ao vivo"
+            - option "#21 · Apresentar o roadmap e os próximos passos"
+            - option "#22 · Solicitar acessos de redes e contas"
+            - option "#23 · Testar e confirmar cada acesso recebido"
+            - option "#24 · Estudo de Mercado"
+            - option "#25 · Estudo de Público"
+            - option "#26 · Dossiê Estratégico"
+            - option "#27 · Publicar no Notion e notificar Gabriel, Vinicius e Redação"
+            - option "#28 · Auditoria das redes atuais"
+            - option "#29 · Nova bio estratégica e proposta de posicionamento"
+            - option "#30 · Enviar a proposta de posicionamento ao cliente"
+            - option "#31 · Aprovação do cliente"
+            - option "#32 · Aplicar as mudanças no perfil"
+            - option "#33 · Solicitar a criação dos roteiros"
+            - option "#34 · Roteiro estratégico"
+            - option "#35 · Alinhar a escrita com a direção audiovisual"
+            - option "#36 · Revisar e enviar os roteiros ao cliente"
+            - option "#37 · Aprovação dos roteiros pelo cliente"
+            - option "#38 · Agendar a data de gravação"
+            - option "#39 · Alinhamento técnico com o videomaker"
+            - option "#40 · Confirmar presença do cliente (D-1 e H-1)"
+            - option "#41 · Vídeo captado"
+            - option "#42 · Subir os brutos no Drive e notificar o time"
+            - option "#43 · Vídeo editado"
+            - option "#44 · Revisão técnica interna (QC)"
+            - option "#45 · Enviar os vídeos para validação do cliente"
+            - option "#46 · Aprovação ou feedback do cliente"
+            - option "#47 · Vídeo ajustado"
+            - option "#48 · Legenda / copy"
+            - option "#49 · Montar o calendário editorial e agendar as postagens"
+            - option "#50 · Conferir as publicações no ar"
+            - option "#51 · Estruturar BM, conta de anúncios e pixel"
+            - option "#52 · Enviar o boleto ou guia de investimento"
+            - option "#53 · Confirmar a compensação do pagamento"
+            - option "#54 · Subir e estruturar as campanhas"
+            - option "#55 · Otimização diária das campanhas"
+            - option "#56 · Mapear e solicitar indicações ao cliente"
+            - option "#57 · Agendar a gravação dos depoimentos"
+            - option "#58 · Produzir e finalizar os materiais de depoimento"
+            - option "#59 · Roteiro (nova remessa)"
+            - option "#60 · Vídeo captado (mensal)"
+            - option "#61 · Publicação recorrente conforme o calendário"
+            - option "#62 · Atualização de criativos nas campanhas"
+            - option "#63 · Compilar o relatório mensal de performance"
+            - option "#64 · Conduzir a reunião estratégica mensal"
+            - option "#65 · Registrar os ajustes de rota"
+            - option "#66 · Agendar a reunião de fechamento"
+            - option "#67 · Apresentar o consolidado de resultados"
+            - option "#68 · Apresentar a proposta de continuidade"
+          - group [ref=f1e781]:
+            - generic "Editar dados da fase" [ref=f1e782] [cursor=pointer]
+      - group [ref=f1e783]:
+        - generic "Fase 8 Dia de Gravação Expand D12–D18 5 etapas · arraste ⠿ para reordenar" [ref=f1e784] [cursor=pointer]:
+          - generic [ref=f1e785]: Fase 8
+          - generic [ref=f1e786]: Dia de Gravação Expand
+          - generic [ref=f1e787]: D12–D18
+          - generic [ref=f1e788]: 5 etapas · arraste ⠿ para reordenar
+        - generic [ref=f1e789]:
+          - paragraph [ref=f1e790]: Captar o material com o cliente dirigido ao vivo.
+          - generic [ref=f1e791]:
+            - generic [ref=f1e792]:
+              - generic "Arraste para reordenar" [ref=f1e793]: ⠿
+              - generic [ref=f1e794]:
+                - text: Agendar a data de gravação
+                - generic [ref=f1e795]:
+                  - text: PM · Ana + Adriane · SLA Até 6 dias da aprovação · 👁 cliente
+                  - generic [ref=f1e796]: "· ↳ depende de #37 (Aprovação dos roteiros pelo cliente)"
+              - link "Editar" [ref=f1e797] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=d3c0924f-9a53-4a30-a246-4934333cc38f
+              - button "Excluir" [ref=f1e798] [cursor=pointer]
+            - generic [ref=f1e799]:
+              - generic "Arraste para reordenar" [ref=f1e800]: ⠿
+              - generic [ref=f1e801]:
+                - text: Alinhamento técnico com o videomaker
+                - generic [ref=f1e802]: Audiovisual · Gabriel · SLA D-1 da gravação
+              - link "Editar" [ref=f1e803] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=e0b3ba6a-8de8-4b1f-b1e1-596305e66a20
+              - button "Excluir" [ref=f1e804] [cursor=pointer]
+            - generic [ref=f1e805]:
+              - generic "Arraste para reordenar" [ref=f1e806]: ⠿
+              - generic [ref=f1e807]:
+                - text: Confirmar presença do cliente (D-1 e H-1)
+                - generic [ref=f1e808]: CS · Adriane · SLA D-1 e H-1 · 👁 cliente
+              - link "Editar" [ref=f1e809] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=2361d258-22a5-4312-b43d-9391efca1632
+              - button "Excluir" [ref=f1e810] [cursor=pointer]
+            - generic [ref=f1e811]:
+              - generic "Arraste para reordenar" [ref=f1e812]: ⠿
+              - generic [ref=f1e813]:
+                - text: ◆Vídeo captado
+                - generic [ref=f1e814]: ×9
+                - generic [ref=f1e815]:
+                  - text: Audiovisual · Videomaker · SLA Data agendada · 👁 cliente
+                  - generic [ref=f1e816]: "· ↳ depende de #38 (Agendar a data de gravação)"
+              - link "Editar" [ref=f1e817] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=d49cb302-4193-4994-8f21-0785c78aa001
+              - button "Excluir" [ref=f1e818] [cursor=pointer]
+            - generic [ref=f1e819]:
+              - generic "Arraste para reordenar" [ref=f1e820]: ⠿
+              - generic [ref=f1e821]:
+                - text: Subir os brutos no Drive e notificar o time
+                - generic [ref=f1e822]: Audiovisual · Videomaker · SLA Mesmo dia
+              - link "Editar" [ref=f1e823] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=5ef0487d-6747-4b03-b7aa-d3433e8c6ec3
+              - button "Excluir" [ref=f1e824] [cursor=pointer]
+          - group [ref=f1e825]:
+            - generic "+ Adicionar etapa nesta fase" [ref=f1e826] [cursor=pointer]
+            - option "—" [selected]
+            - option "Comercial"
+            - option "PM"
+            - option "CS"
+            - option "Audiovisual"
+            - option "Social"
+            - option "Tráfego"
+            - option "Cliente"
+            - option "— nenhum" [selected]
+            - option "Lara"
+            - option "Sofia"
+            - option "Alan"
+            - option "Nina"
+            - option "— nenhuma" [selected]
+            - option "#1 · Solicitar dados cadastrais para o contrato"
+            - option "#2 · Enviar instruções de pagamento"
+            - option "#3 · Reunião de passagem Comercial → PM (15 min)"
+            - option "#4 · Criar grupo oficial com o cliente"
+            - option "#5 · Emitir e enviar o contrato"
+            - option "#6 · Criar pasta no Drive e subir documentos iniciais"
+            - option "#7 · Montar o ecossistema do cliente no Notion"
+            - option "#8 · Criar a view personalizada do cliente"
+            - option "#9 · Validar o pagamento"
+            - option "#10 · Follow-up de pendências contratuais ou financeiras"
+            - option "#11 · Boas-vindas e alinhamento inicial"
+            - option "#12 · Enviar as instruções de funcionamento"
+            - option "#13 · Enviar o formulário de onboarding"
+            - option "#14 · Monitorar preenchimento e validar respostas"
+            - option "#15 · Agendar a reunião de diagnóstico"
+            - option "#16 · Confirmar presença (D-1 e H-1)"
+            - option "#17 · Check-in de onboarding e envio do roadmap inicial"
+            - option "#18 · Conduzir a reunião de diagnóstico (gravação obrigatória)"
+            - option "#19 · Levantamento de público, ofertas e metas"
+            - option "#20 · Alinhamento de expectativas ao vivo"
+            - option "#21 · Apresentar o roadmap e os próximos passos"
+            - option "#22 · Solicitar acessos de redes e contas"
+            - option "#23 · Testar e confirmar cada acesso recebido"
+            - option "#24 · Estudo de Mercado"
+            - option "#25 · Estudo de Público"
+            - option "#26 · Dossiê Estratégico"
+            - option "#27 · Publicar no Notion e notificar Gabriel, Vinicius e Redação"
+            - option "#28 · Auditoria das redes atuais"
+            - option "#29 · Nova bio estratégica e proposta de posicionamento"
+            - option "#30 · Enviar a proposta de posicionamento ao cliente"
+            - option "#31 · Aprovação do cliente"
+            - option "#32 · Aplicar as mudanças no perfil"
+            - option "#33 · Solicitar a criação dos roteiros"
+            - option "#34 · Roteiro estratégico"
+            - option "#35 · Alinhar a escrita com a direção audiovisual"
+            - option "#36 · Revisar e enviar os roteiros ao cliente"
+            - option "#37 · Aprovação dos roteiros pelo cliente"
+            - option "#38 · Agendar a data de gravação"
+            - option "#39 · Alinhamento técnico com o videomaker"
+            - option "#40 · Confirmar presença do cliente (D-1 e H-1)"
+            - option "#41 · Vídeo captado"
+            - option "#42 · Subir os brutos no Drive e notificar o time"
+            - option "#43 · Vídeo editado"
+            - option "#44 · Revisão técnica interna (QC)"
+            - option "#45 · Enviar os vídeos para validação do cliente"
+            - option "#46 · Aprovação ou feedback do cliente"
+            - option "#47 · Vídeo ajustado"
+            - option "#48 · Legenda / copy"
+            - option "#49 · Montar o calendário editorial e agendar as postagens"
+            - option "#50 · Conferir as publicações no ar"
+            - option "#51 · Estruturar BM, conta de anúncios e pixel"
+            - option "#52 · Enviar o boleto ou guia de investimento"
+            - option "#53 · Confirmar a compensação do pagamento"
+            - option "#54 · Subir e estruturar as campanhas"
+            - option "#55 · Otimização diária das campanhas"
+            - option "#56 · Mapear e solicitar indicações ao cliente"
+            - option "#57 · Agendar a gravação dos depoimentos"
+            - option "#58 · Produzir e finalizar os materiais de depoimento"
+            - option "#59 · Roteiro (nova remessa)"
+            - option "#60 · Vídeo captado (mensal)"
+            - option "#61 · Publicação recorrente conforme o calendário"
+            - option "#62 · Atualização de criativos nas campanhas"
+            - option "#63 · Compilar o relatório mensal de performance"
+            - option "#64 · Conduzir a reunião estratégica mensal"
+            - option "#65 · Registrar os ajustes de rota"
+            - option "#66 · Agendar a reunião de fechamento"
+            - option "#67 · Apresentar o consolidado de resultados"
+            - option "#68 · Apresentar a proposta de continuidade"
+          - group [ref=f1e827]:
+            - generic "Editar dados da fase" [ref=f1e828] [cursor=pointer]
+      - group [ref=f1e829]:
+        - generic "Fase 9 Pós-produção D18–D22 5 etapas · arraste ⠿ para reordenar" [ref=f1e830] [cursor=pointer]:
+          - generic [ref=f1e831]: Fase 9
+          - generic [ref=f1e832]: Pós-produção
+          - generic [ref=f1e833]: D18–D22
+          - generic [ref=f1e834]: 5 etapas · arraste ⠿ para reordenar
+        - generic [ref=f1e835]:
+          - paragraph [ref=f1e836]: Entregar os vídeos prontos com um único ciclo de ajuste.
+          - generic [ref=f1e837]:
+            - generic [ref=f1e838]:
+              - generic "Arraste para reordenar" [ref=f1e839]: ⠿
+              - generic [ref=f1e840]:
+                - text: Vídeo editado
+                - generic [ref=f1e841]: ×9
+                - generic [ref=f1e842]:
+                  - text: "Audiovisual · Editores (Gabriel) · IA: Nina · SLA 2 dias após os brutos · 👁 cliente"
+                  - generic [ref=f1e843]: "· ↳ depende de #41 (Vídeo captado)"
+              - link "Editar" [ref=f1e844] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=f7aa9a7c-d94b-415a-8682-debd62ed7efe
+              - button "Excluir" [ref=f1e845] [cursor=pointer]
+            - generic [ref=f1e846]:
+              - generic "Arraste para reordenar" [ref=f1e847]: ⠿
+              - generic [ref=f1e848]:
+                - text: Revisão técnica interna (QC)
+                - generic [ref=f1e849]: Audiovisual · Gabriel · SLA 1 dia
+              - link "Editar" [ref=f1e850] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=66e0133d-de0f-4925-8edd-7a827942e6ff
+              - button "Excluir" [ref=f1e851] [cursor=pointer]
+            - generic [ref=f1e852]:
+              - generic "Arraste para reordenar" [ref=f1e853]: ⠿
+              - generic [ref=f1e854]:
+                - text: Enviar os vídeos para validação do cliente
+                - generic [ref=f1e855]: PM · Ana · SLA Mesmo dia do QC · 👁 cliente
+              - link "Editar" [ref=f1e856] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=72e35071-39e9-48ca-8834-5d88b2889c6a
+              - button "Excluir" [ref=f1e857] [cursor=pointer]
+            - generic [ref=f1e858]:
+              - generic "Arraste para reordenar" [ref=f1e859]: ⠿
+              - generic [ref=f1e860]:
+                - text: Aprovação ou feedback do cliente
+                - generic [ref=f1e861]: Cliente · Cliente · SLA 2 dias · 👁 cliente
+              - link "Editar" [ref=f1e862] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=80b30743-5882-4555-9827-9a378c206f56
+              - button "Excluir" [ref=f1e863] [cursor=pointer]
+            - generic [ref=f1e864]:
+              - generic "Arraste para reordenar" [ref=f1e865]: ⠿
+              - generic [ref=f1e866]:
+                - text: Vídeo ajustado
+                - generic [ref=f1e867]: ×9
+                - generic [ref=f1e868]:
+                  - text: Audiovisual · Editores (Gabriel) · SLA 2 dias · 👁 cliente
+                  - generic [ref=f1e869]: "· ↳ depende de #46 (Aprovação ou feedback do cliente)"
+              - link "Editar" [ref=f1e870] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=f050aede-4dbc-4693-ae5c-db986f51751e
+              - button "Excluir" [ref=f1e871] [cursor=pointer]
+          - group [ref=f1e872]:
+            - generic "+ Adicionar etapa nesta fase" [ref=f1e873] [cursor=pointer]
+            - option "—" [selected]
+            - option "Comercial"
+            - option "PM"
+            - option "CS"
+            - option "Audiovisual"
+            - option "Social"
+            - option "Tráfego"
+            - option "Cliente"
+            - option "— nenhum" [selected]
+            - option "Lara"
+            - option "Sofia"
+            - option "Alan"
+            - option "Nina"
+            - option "— nenhuma" [selected]
+            - option "#1 · Solicitar dados cadastrais para o contrato"
+            - option "#2 · Enviar instruções de pagamento"
+            - option "#3 · Reunião de passagem Comercial → PM (15 min)"
+            - option "#4 · Criar grupo oficial com o cliente"
+            - option "#5 · Emitir e enviar o contrato"
+            - option "#6 · Criar pasta no Drive e subir documentos iniciais"
+            - option "#7 · Montar o ecossistema do cliente no Notion"
+            - option "#8 · Criar a view personalizada do cliente"
+            - option "#9 · Validar o pagamento"
+            - option "#10 · Follow-up de pendências contratuais ou financeiras"
+            - option "#11 · Boas-vindas e alinhamento inicial"
+            - option "#12 · Enviar as instruções de funcionamento"
+            - option "#13 · Enviar o formulário de onboarding"
+            - option "#14 · Monitorar preenchimento e validar respostas"
+            - option "#15 · Agendar a reunião de diagnóstico"
+            - option "#16 · Confirmar presença (D-1 e H-1)"
+            - option "#17 · Check-in de onboarding e envio do roadmap inicial"
+            - option "#18 · Conduzir a reunião de diagnóstico (gravação obrigatória)"
+            - option "#19 · Levantamento de público, ofertas e metas"
+            - option "#20 · Alinhamento de expectativas ao vivo"
+            - option "#21 · Apresentar o roadmap e os próximos passos"
+            - option "#22 · Solicitar acessos de redes e contas"
+            - option "#23 · Testar e confirmar cada acesso recebido"
+            - option "#24 · Estudo de Mercado"
+            - option "#25 · Estudo de Público"
+            - option "#26 · Dossiê Estratégico"
+            - option "#27 · Publicar no Notion e notificar Gabriel, Vinicius e Redação"
+            - option "#28 · Auditoria das redes atuais"
+            - option "#29 · Nova bio estratégica e proposta de posicionamento"
+            - option "#30 · Enviar a proposta de posicionamento ao cliente"
+            - option "#31 · Aprovação do cliente"
+            - option "#32 · Aplicar as mudanças no perfil"
+            - option "#33 · Solicitar a criação dos roteiros"
+            - option "#34 · Roteiro estratégico"
+            - option "#35 · Alinhar a escrita com a direção audiovisual"
+            - option "#36 · Revisar e enviar os roteiros ao cliente"
+            - option "#37 · Aprovação dos roteiros pelo cliente"
+            - option "#38 · Agendar a data de gravação"
+            - option "#39 · Alinhamento técnico com o videomaker"
+            - option "#40 · Confirmar presença do cliente (D-1 e H-1)"
+            - option "#41 · Vídeo captado"
+            - option "#42 · Subir os brutos no Drive e notificar o time"
+            - option "#43 · Vídeo editado"
+            - option "#44 · Revisão técnica interna (QC)"
+            - option "#45 · Enviar os vídeos para validação do cliente"
+            - option "#46 · Aprovação ou feedback do cliente"
+            - option "#47 · Vídeo ajustado"
+            - option "#48 · Legenda / copy"
+            - option "#49 · Montar o calendário editorial e agendar as postagens"
+            - option "#50 · Conferir as publicações no ar"
+            - option "#51 · Estruturar BM, conta de anúncios e pixel"
+            - option "#52 · Enviar o boleto ou guia de investimento"
+            - option "#53 · Confirmar a compensação do pagamento"
+            - option "#54 · Subir e estruturar as campanhas"
+            - option "#55 · Otimização diária das campanhas"
+            - option "#56 · Mapear e solicitar indicações ao cliente"
+            - option "#57 · Agendar a gravação dos depoimentos"
+            - option "#58 · Produzir e finalizar os materiais de depoimento"
+            - option "#59 · Roteiro (nova remessa)"
+            - option "#60 · Vídeo captado (mensal)"
+            - option "#61 · Publicação recorrente conforme o calendário"
+            - option "#62 · Atualização de criativos nas campanhas"
+            - option "#63 · Compilar o relatório mensal de performance"
+            - option "#64 · Conduzir a reunião estratégica mensal"
+            - option "#65 · Registrar os ajustes de rota"
+            - option "#66 · Agendar a reunião de fechamento"
+            - option "#67 · Apresentar o consolidado de resultados"
+            - option "#68 · Apresentar a proposta de continuidade"
+          - group [ref=f1e874]:
+            - generic "Editar dados da fase" [ref=f1e875] [cursor=pointer]
+      - group [ref=f1e876]:
+        - generic "Fase 10 Publicação D22–D25 3 etapas · arraste ⠿ para reordenar" [ref=f1e877] [cursor=pointer]:
+          - generic [ref=f1e878]: Fase 10
+          - generic [ref=f1e879]: Publicação
+          - generic [ref=f1e880]: D22–D25
+          - generic [ref=f1e881]: 3 etapas · arraste ⠿ para reordenar
+        - generic [ref=f1e882]:
+          - paragraph [ref=f1e883]: Colocar o conteúdo no ar com calendário e copy estratégicos.
+          - generic [ref=f1e884]:
+            - generic [ref=f1e885]:
+              - generic "Arraste para reordenar" [ref=f1e886]: ⠿
+              - generic [ref=f1e887]:
+                - text: Legenda / copy
+                - generic [ref=f1e888]: ×9
+                - generic [ref=f1e889]: "Audiovisual · Redação · IA: Alan · SLA 2 dias após aprovação"
+              - link "Editar" [ref=f1e890] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=414ab244-a832-436d-8709-9f6a31e6694c
+              - button "Excluir" [ref=f1e891] [cursor=pointer]
+            - generic [ref=f1e892]:
+              - generic "Arraste para reordenar" [ref=f1e893]: ⠿
+              - generic [ref=f1e894]:
+                - text: Montar o calendário editorial e agendar as postagens
+                - generic [ref=f1e895]:
+                  - text: "Social · Vinicius · IA: Sofia · SLA 2 dias · 👁 cliente"
+                  - generic [ref=f1e896]: "· ↳ depende de #47 (Vídeo ajustado)"
+              - link "Editar" [ref=f1e897] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=bec7d1cc-d7f7-43bf-a8c5-4b8fd3ff6ec0
+              - button "Excluir" [ref=f1e898] [cursor=pointer]
+            - generic [ref=f1e899]:
+              - generic "Arraste para reordenar" [ref=f1e900]: ⠿
+              - generic [ref=f1e901]:
+                - text: ◆Conferir as publicações no ar
+                - generic [ref=f1e902]: Social · Vinicius · SLA No dia de cada post
+              - link "Editar" [ref=f1e903] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=fcfab459-83a8-4606-91a4-4fb3261beb91
+              - button "Excluir" [ref=f1e904] [cursor=pointer]
+          - group [ref=f1e905]:
+            - generic "+ Adicionar etapa nesta fase" [ref=f1e906] [cursor=pointer]
+            - option "—" [selected]
+            - option "Comercial"
+            - option "PM"
+            - option "CS"
+            - option "Audiovisual"
+            - option "Social"
+            - option "Tráfego"
+            - option "Cliente"
+            - option "— nenhum" [selected]
+            - option "Lara"
+            - option "Sofia"
+            - option "Alan"
+            - option "Nina"
+            - option "— nenhuma" [selected]
+            - option "#1 · Solicitar dados cadastrais para o contrato"
+            - option "#2 · Enviar instruções de pagamento"
+            - option "#3 · Reunião de passagem Comercial → PM (15 min)"
+            - option "#4 · Criar grupo oficial com o cliente"
+            - option "#5 · Emitir e enviar o contrato"
+            - option "#6 · Criar pasta no Drive e subir documentos iniciais"
+            - option "#7 · Montar o ecossistema do cliente no Notion"
+            - option "#8 · Criar a view personalizada do cliente"
+            - option "#9 · Validar o pagamento"
+            - option "#10 · Follow-up de pendências contratuais ou financeiras"
+            - option "#11 · Boas-vindas e alinhamento inicial"
+            - option "#12 · Enviar as instruções de funcionamento"
+            - option "#13 · Enviar o formulário de onboarding"
+            - option "#14 · Monitorar preenchimento e validar respostas"
+            - option "#15 · Agendar a reunião de diagnóstico"
+            - option "#16 · Confirmar presença (D-1 e H-1)"
+            - option "#17 · Check-in de onboarding e envio do roadmap inicial"
+            - option "#18 · Conduzir a reunião de diagnóstico (gravação obrigatória)"
+            - option "#19 · Levantamento de público, ofertas e metas"
+            - option "#20 · Alinhamento de expectativas ao vivo"
+            - option "#21 · Apresentar o roadmap e os próximos passos"
+            - option "#22 · Solicitar acessos de redes e contas"
+            - option "#23 · Testar e confirmar cada acesso recebido"
+            - option "#24 · Estudo de Mercado"
+            - option "#25 · Estudo de Público"
+            - option "#26 · Dossiê Estratégico"
+            - option "#27 · Publicar no Notion e notificar Gabriel, Vinicius e Redação"
+            - option "#28 · Auditoria das redes atuais"
+            - option "#29 · Nova bio estratégica e proposta de posicionamento"
+            - option "#30 · Enviar a proposta de posicionamento ao cliente"
+            - option "#31 · Aprovação do cliente"
+            - option "#32 · Aplicar as mudanças no perfil"
+            - option "#33 · Solicitar a criação dos roteiros"
+            - option "#34 · Roteiro estratégico"
+            - option "#35 · Alinhar a escrita com a direção audiovisual"
+            - option "#36 · Revisar e enviar os roteiros ao cliente"
+            - option "#37 · Aprovação dos roteiros pelo cliente"
+            - option "#38 · Agendar a data de gravação"
+            - option "#39 · Alinhamento técnico com o videomaker"
+            - option "#40 · Confirmar presença do cliente (D-1 e H-1)"
+            - option "#41 · Vídeo captado"
+            - option "#42 · Subir os brutos no Drive e notificar o time"
+            - option "#43 · Vídeo editado"
+            - option "#44 · Revisão técnica interna (QC)"
+            - option "#45 · Enviar os vídeos para validação do cliente"
+            - option "#46 · Aprovação ou feedback do cliente"
+            - option "#47 · Vídeo ajustado"
+            - option "#48 · Legenda / copy"
+            - option "#49 · Montar o calendário editorial e agendar as postagens"
+            - option "#50 · Conferir as publicações no ar"
+            - option "#51 · Estruturar BM, conta de anúncios e pixel"
+            - option "#52 · Enviar o boleto ou guia de investimento"
+            - option "#53 · Confirmar a compensação do pagamento"
+            - option "#54 · Subir e estruturar as campanhas"
+            - option "#55 · Otimização diária das campanhas"
+            - option "#56 · Mapear e solicitar indicações ao cliente"
+            - option "#57 · Agendar a gravação dos depoimentos"
+            - option "#58 · Produzir e finalizar os materiais de depoimento"
+            - option "#59 · Roteiro (nova remessa)"
+            - option "#60 · Vídeo captado (mensal)"
+            - option "#61 · Publicação recorrente conforme o calendário"
+            - option "#62 · Atualização de criativos nas campanhas"
+            - option "#63 · Compilar o relatório mensal de performance"
+            - option "#64 · Conduzir a reunião estratégica mensal"
+            - option "#65 · Registrar os ajustes de rota"
+            - option "#66 · Agendar a reunião de fechamento"
+            - option "#67 · Apresentar o consolidado de resultados"
+            - option "#68 · Apresentar a proposta de continuidade"
+          - group [ref=f1e907]:
+            - generic "Editar dados da fase" [ref=f1e908] [cursor=pointer]
+      - group [ref=f1e909]:
+        - generic "Fase 11 Tráfego Pago Paralelo · D5–D25 5 etapas · arraste ⠿ para reordenar" [ref=f1e910] [cursor=pointer]:
+          - generic [ref=f1e911]: Fase 11
+          - generic [ref=f1e912]: Tráfego Pago
+          - generic [ref=f1e913]: Paralelo · D5–D25
+          - generic [ref=f1e914]: 5 etapas · arraste ⠿ para reordenar
+        - generic [ref=f1e915]:
+          - paragraph [ref=f1e916]: Estrutura pronta antes dos criativos e campanhas no ar logo depois.
+          - generic [ref=f1e917]:
+            - generic [ref=f1e918]:
+              - generic "Arraste para reordenar" [ref=f1e919]: ⠿
+              - generic [ref=f1e920]:
+                - text: Estruturar BM, conta de anúncios e pixel
+                - generic [ref=f1e921]: Tráfego · Ana · SLA 3 dias após os acessos · 👁 cliente
+              - link "Editar" [ref=f1e922] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=77110163-ecc3-4984-8902-2a946e103c73
+              - button "Excluir" [ref=f1e923] [cursor=pointer]
+            - generic [ref=f1e924]:
+              - generic "Arraste para reordenar" [ref=f1e925]: ⠿
+              - generic [ref=f1e926]:
+                - text: Enviar o boleto ou guia de investimento
+                - generic [ref=f1e927]: Tráfego · Ana · SLA 3 dias após vídeos prontos · 👁 cliente
+              - link "Editar" [ref=f1e928] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=415fa3b4-6484-4fda-ad93-74faae6ff49a
+              - button "Excluir" [ref=f1e929] [cursor=pointer]
+            - generic [ref=f1e930]:
+              - generic "Arraste para reordenar" [ref=f1e931]: ⠿
+              - generic [ref=f1e932]:
+                - text: Confirmar a compensação do pagamento
+                - generic [ref=f1e933]: Comercial · Pedro · SLA 24h · 👁 cliente
+              - link "Editar" [ref=f1e934] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=62fd31c7-9122-4928-82e8-331310d40eb8
+              - button "Excluir" [ref=f1e935] [cursor=pointer]
+            - generic [ref=f1e936]:
+              - generic "Arraste para reordenar" [ref=f1e937]: ⠿
+              - generic [ref=f1e938]:
+                - text: Subir e estruturar as campanhas
+                - generic [ref=f1e939]:
+                  - text: Tráfego · Ana · SLA 2 dias após compensação · 👁 cliente
+                  - generic [ref=f1e940]: "· ↳ depende de #47 (Vídeo ajustado)"
+              - link "Editar" [ref=f1e941] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=254b316b-3f31-4784-9410-63c8e08b842b
+              - button "Excluir" [ref=f1e942] [cursor=pointer]
+            - generic [ref=f1e943]:
+              - generic "Arraste para reordenar" [ref=f1e944]: ⠿
+              - generic [ref=f1e945]:
+                - text: Otimização diária das campanhas
+                - generic [ref=f1e946]: Tráfego · Ana · SLA Diário · 👁 cliente
+              - link "Editar" [ref=f1e947] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=bde688e3-73b3-490f-9cf2-1069977995c6
+              - button "Excluir" [ref=f1e948] [cursor=pointer]
+          - group [ref=f1e949]:
+            - generic "+ Adicionar etapa nesta fase" [ref=f1e950] [cursor=pointer]
+            - option "—" [selected]
+            - option "Comercial"
+            - option "PM"
+            - option "CS"
+            - option "Audiovisual"
+            - option "Social"
+            - option "Tráfego"
+            - option "Cliente"
+            - option "— nenhum" [selected]
+            - option "Lara"
+            - option "Sofia"
+            - option "Alan"
+            - option "Nina"
+            - option "— nenhuma" [selected]
+            - option "#1 · Solicitar dados cadastrais para o contrato"
+            - option "#2 · Enviar instruções de pagamento"
+            - option "#3 · Reunião de passagem Comercial → PM (15 min)"
+            - option "#4 · Criar grupo oficial com o cliente"
+            - option "#5 · Emitir e enviar o contrato"
+            - option "#6 · Criar pasta no Drive e subir documentos iniciais"
+            - option "#7 · Montar o ecossistema do cliente no Notion"
+            - option "#8 · Criar a view personalizada do cliente"
+            - option "#9 · Validar o pagamento"
+            - option "#10 · Follow-up de pendências contratuais ou financeiras"
+            - option "#11 · Boas-vindas e alinhamento inicial"
+            - option "#12 · Enviar as instruções de funcionamento"
+            - option "#13 · Enviar o formulário de onboarding"
+            - option "#14 · Monitorar preenchimento e validar respostas"
+            - option "#15 · Agendar a reunião de diagnóstico"
+            - option "#16 · Confirmar presença (D-1 e H-1)"
+            - option "#17 · Check-in de onboarding e envio do roadmap inicial"
+            - option "#18 · Conduzir a reunião de diagnóstico (gravação obrigatória)"
+            - option "#19 · Levantamento de público, ofertas e metas"
+            - option "#20 · Alinhamento de expectativas ao vivo"
+            - option "#21 · Apresentar o roadmap e os próximos passos"
+            - option "#22 · Solicitar acessos de redes e contas"
+            - option "#23 · Testar e confirmar cada acesso recebido"
+            - option "#24 · Estudo de Mercado"
+            - option "#25 · Estudo de Público"
+            - option "#26 · Dossiê Estratégico"
+            - option "#27 · Publicar no Notion e notificar Gabriel, Vinicius e Redação"
+            - option "#28 · Auditoria das redes atuais"
+            - option "#29 · Nova bio estratégica e proposta de posicionamento"
+            - option "#30 · Enviar a proposta de posicionamento ao cliente"
+            - option "#31 · Aprovação do cliente"
+            - option "#32 · Aplicar as mudanças no perfil"
+            - option "#33 · Solicitar a criação dos roteiros"
+            - option "#34 · Roteiro estratégico"
+            - option "#35 · Alinhar a escrita com a direção audiovisual"
+            - option "#36 · Revisar e enviar os roteiros ao cliente"
+            - option "#37 · Aprovação dos roteiros pelo cliente"
+            - option "#38 · Agendar a data de gravação"
+            - option "#39 · Alinhamento técnico com o videomaker"
+            - option "#40 · Confirmar presença do cliente (D-1 e H-1)"
+            - option "#41 · Vídeo captado"
+            - option "#42 · Subir os brutos no Drive e notificar o time"
+            - option "#43 · Vídeo editado"
+            - option "#44 · Revisão técnica interna (QC)"
+            - option "#45 · Enviar os vídeos para validação do cliente"
+            - option "#46 · Aprovação ou feedback do cliente"
+            - option "#47 · Vídeo ajustado"
+            - option "#48 · Legenda / copy"
+            - option "#49 · Montar o calendário editorial e agendar as postagens"
+            - option "#50 · Conferir as publicações no ar"
+            - option "#51 · Estruturar BM, conta de anúncios e pixel"
+            - option "#52 · Enviar o boleto ou guia de investimento"
+            - option "#53 · Confirmar a compensação do pagamento"
+            - option "#54 · Subir e estruturar as campanhas"
+            - option "#55 · Otimização diária das campanhas"
+            - option "#56 · Mapear e solicitar indicações ao cliente"
+            - option "#57 · Agendar a gravação dos depoimentos"
+            - option "#58 · Produzir e finalizar os materiais de depoimento"
+            - option "#59 · Roteiro (nova remessa)"
+            - option "#60 · Vídeo captado (mensal)"
+            - option "#61 · Publicação recorrente conforme o calendário"
+            - option "#62 · Atualização de criativos nas campanhas"
+            - option "#63 · Compilar o relatório mensal de performance"
+            - option "#64 · Conduzir a reunião estratégica mensal"
+            - option "#65 · Registrar os ajustes de rota"
+            - option "#66 · Agendar a reunião de fechamento"
+            - option "#67 · Apresentar o consolidado de resultados"
+            - option "#68 · Apresentar a proposta de continuidade"
+          - group [ref=f1e951]:
+            - generic "Editar dados da fase" [ref=f1e952] [cursor=pointer]
+      - group [ref=f1e953]:
+        - generic "Fase 12 Provas Sociais Após o 1º lote 3 etapas · arraste ⠿ para reordenar" [ref=f1e954] [cursor=pointer]:
+          - generic [ref=f1e955]: Fase 12
+          - generic [ref=f1e956]: Provas Sociais
+          - generic [ref=f1e957]: Após o 1º lote
+          - generic [ref=f1e958]: 3 etapas · arraste ⠿ para reordenar
+        - generic [ref=f1e959]:
+          - paragraph [ref=f1e960]: Capturar depoimentos para alimentar o segundo lote de conteúdo.
+          - generic [ref=f1e961]:
+            - generic [ref=f1e962]:
+              - generic "Arraste para reordenar" [ref=f1e963]: ⠿
+              - generic [ref=f1e964]:
+                - text: Mapear e solicitar indicações ao cliente
+                - generic [ref=f1e965]: PM · Ana · SLA Após o 1º lote entregue · 👁 cliente
+              - link "Editar" [ref=f1e966] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=d9fbde33-d8af-4e22-aff1-5edf9fe87fc8
+              - button "Excluir" [ref=f1e967] [cursor=pointer]
+            - generic [ref=f1e968]:
+              - generic "Arraste para reordenar" [ref=f1e969]: ⠿
+              - generic [ref=f1e970]:
+                - text: Agendar a gravação dos depoimentos
+                - generic [ref=f1e971]: PM · Ana · SLA 7 dias após a indicação · 👁 cliente
+              - link "Editar" [ref=f1e972] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=7ec1070e-75a8-482d-b7bc-b169295efd4b
+              - button "Excluir" [ref=f1e973] [cursor=pointer]
+            - generic [ref=f1e974]:
+              - generic "Arraste para reordenar" [ref=f1e975]: ⠿
+              - generic [ref=f1e976]:
+                - text: Produzir e finalizar os materiais de depoimento
+                - generic [ref=f1e977]: Audiovisual · Gabriel · SLA 4 dias após a captação · 👁 cliente
+              - link "Editar" [ref=f1e978] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=1973d0aa-7b7b-498b-95c8-421e5f8133ce
+              - button "Excluir" [ref=f1e979] [cursor=pointer]
+          - group [ref=f1e980]:
+            - generic "+ Adicionar etapa nesta fase" [ref=f1e981] [cursor=pointer]
+            - option "—" [selected]
+            - option "Comercial"
+            - option "PM"
+            - option "CS"
+            - option "Audiovisual"
+            - option "Social"
+            - option "Tráfego"
+            - option "Cliente"
+            - option "— nenhum" [selected]
+            - option "Lara"
+            - option "Sofia"
+            - option "Alan"
+            - option "Nina"
+            - option "— nenhuma" [selected]
+            - option "#1 · Solicitar dados cadastrais para o contrato"
+            - option "#2 · Enviar instruções de pagamento"
+            - option "#3 · Reunião de passagem Comercial → PM (15 min)"
+            - option "#4 · Criar grupo oficial com o cliente"
+            - option "#5 · Emitir e enviar o contrato"
+            - option "#6 · Criar pasta no Drive e subir documentos iniciais"
+            - option "#7 · Montar o ecossistema do cliente no Notion"
+            - option "#8 · Criar a view personalizada do cliente"
+            - option "#9 · Validar o pagamento"
+            - option "#10 · Follow-up de pendências contratuais ou financeiras"
+            - option "#11 · Boas-vindas e alinhamento inicial"
+            - option "#12 · Enviar as instruções de funcionamento"
+            - option "#13 · Enviar o formulário de onboarding"
+            - option "#14 · Monitorar preenchimento e validar respostas"
+            - option "#15 · Agendar a reunião de diagnóstico"
+            - option "#16 · Confirmar presença (D-1 e H-1)"
+            - option "#17 · Check-in de onboarding e envio do roadmap inicial"
+            - option "#18 · Conduzir a reunião de diagnóstico (gravação obrigatória)"
+            - option "#19 · Levantamento de público, ofertas e metas"
+            - option "#20 · Alinhamento de expectativas ao vivo"
+            - option "#21 · Apresentar o roadmap e os próximos passos"
+            - option "#22 · Solicitar acessos de redes e contas"
+            - option "#23 · Testar e confirmar cada acesso recebido"
+            - option "#24 · Estudo de Mercado"
+            - option "#25 · Estudo de Público"
+            - option "#26 · Dossiê Estratégico"
+            - option "#27 · Publicar no Notion e notificar Gabriel, Vinicius e Redação"
+            - option "#28 · Auditoria das redes atuais"
+            - option "#29 · Nova bio estratégica e proposta de posicionamento"
+            - option "#30 · Enviar a proposta de posicionamento ao cliente"
+            - option "#31 · Aprovação do cliente"
+            - option "#32 · Aplicar as mudanças no perfil"
+            - option "#33 · Solicitar a criação dos roteiros"
+            - option "#34 · Roteiro estratégico"
+            - option "#35 · Alinhar a escrita com a direção audiovisual"
+            - option "#36 · Revisar e enviar os roteiros ao cliente"
+            - option "#37 · Aprovação dos roteiros pelo cliente"
+            - option "#38 · Agendar a data de gravação"
+            - option "#39 · Alinhamento técnico com o videomaker"
+            - option "#40 · Confirmar presença do cliente (D-1 e H-1)"
+            - option "#41 · Vídeo captado"
+            - option "#42 · Subir os brutos no Drive e notificar o time"
+            - option "#43 · Vídeo editado"
+            - option "#44 · Revisão técnica interna (QC)"
+            - option "#45 · Enviar os vídeos para validação do cliente"
+            - option "#46 · Aprovação ou feedback do cliente"
+            - option "#47 · Vídeo ajustado"
+            - option "#48 · Legenda / copy"
+            - option "#49 · Montar o calendário editorial e agendar as postagens"
+            - option "#50 · Conferir as publicações no ar"
+            - option "#51 · Estruturar BM, conta de anúncios e pixel"
+            - option "#52 · Enviar o boleto ou guia de investimento"
+            - option "#53 · Confirmar a compensação do pagamento"
+            - option "#54 · Subir e estruturar as campanhas"
+            - option "#55 · Otimização diária das campanhas"
+            - option "#56 · Mapear e solicitar indicações ao cliente"
+            - option "#57 · Agendar a gravação dos depoimentos"
+            - option "#58 · Produzir e finalizar os materiais de depoimento"
+            - option "#59 · Roteiro (nova remessa)"
+            - option "#60 · Vídeo captado (mensal)"
+            - option "#61 · Publicação recorrente conforme o calendário"
+            - option "#62 · Atualização de criativos nas campanhas"
+            - option "#63 · Compilar o relatório mensal de performance"
+            - option "#64 · Conduzir a reunião estratégica mensal"
+            - option "#65 · Registrar os ajustes de rota"
+            - option "#66 · Agendar a reunião de fechamento"
+            - option "#67 · Apresentar o consolidado de resultados"
+            - option "#68 · Apresentar a proposta de continuidade"
+          - group [ref=f1e982]:
+            - generic "Editar dados da fase" [ref=f1e983] [cursor=pointer]
+      - group [ref=f1e984]:
+        - generic "Fase 13 Ciclo Mensal Recorrente D30+ 4 etapas · arraste ⠿ para reordenar" [ref=f1e985] [cursor=pointer]:
+          - generic [ref=f1e986]: Fase 13
+          - generic [ref=f1e987]: Ciclo Mensal Recorrente
+          - generic [ref=f1e988]: D30+
+          - generic [ref=f1e989]: 4 etapas · arraste ⠿ para reordenar
+        - generic [ref=f1e990]:
+          - paragraph [ref=f1e991]: Manter a esteira girando sem depender de cobrança.
+          - generic [ref=f1e992]:
+            - generic [ref=f1e993]:
+              - generic "Arraste para reordenar" [ref=f1e994]: ⠿
+              - generic [ref=f1e995]:
+                - text: Roteiro (nova remessa)
+                - generic [ref=f1e996]: ×9
+                - generic [ref=f1e997]: "Audiovisual · Redação · IA: Alan · SLA 35–40 dias do lote anterior · 👁 cliente"
+              - link "Editar" [ref=f1e998] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=fe298d7f-a97a-4deb-8bf2-fc987cc08306
+              - button "Excluir" [ref=f1e999] [cursor=pointer]
+            - generic [ref=f1e1000]:
+              - generic "Arraste para reordenar" [ref=f1e1001]: ⠿
+              - generic [ref=f1e1002]:
+                - text: Vídeo captado (mensal)
+                - generic [ref=f1e1003]: ×9
+                - generic [ref=f1e1004]: Audiovisual · Videomaker · SLA Mensal · 👁 cliente
+              - link "Editar" [ref=f1e1005] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=90a6d1e8-f6a0-4d72-abc7-d18ba8d5be55
+              - button "Excluir" [ref=f1e1006] [cursor=pointer]
+            - generic [ref=f1e1007]:
+              - generic "Arraste para reordenar" [ref=f1e1008]: ⠿
+              - generic [ref=f1e1009]:
+                - text: Publicação recorrente conforme o calendário
+                - generic [ref=f1e1010]: "Social · Vinicius · IA: Sofia · SLA Contínuo · 👁 cliente"
+              - link "Editar" [ref=f1e1011] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=8a70488e-436c-45d4-9a83-47bbe10b0dab
+              - button "Excluir" [ref=f1e1012] [cursor=pointer]
+            - generic [ref=f1e1013]:
+              - generic "Arraste para reordenar" [ref=f1e1014]: ⠿
+              - generic [ref=f1e1015]:
+                - text: Atualização de criativos nas campanhas
+                - generic [ref=f1e1016]: Tráfego · Ana · SLA A cada novo lote · 👁 cliente
+              - link "Editar" [ref=f1e1017] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=44840d18-9037-41d3-add3-9d49c1c4b5ab
+              - button "Excluir" [ref=f1e1018] [cursor=pointer]
+          - group [ref=f1e1019]:
+            - generic "+ Adicionar etapa nesta fase" [ref=f1e1020] [cursor=pointer]
+            - option "—" [selected]
+            - option "Comercial"
+            - option "PM"
+            - option "CS"
+            - option "Audiovisual"
+            - option "Social"
+            - option "Tráfego"
+            - option "Cliente"
+            - option "— nenhum" [selected]
+            - option "Lara"
+            - option "Sofia"
+            - option "Alan"
+            - option "Nina"
+            - option "— nenhuma" [selected]
+            - option "#1 · Solicitar dados cadastrais para o contrato"
+            - option "#2 · Enviar instruções de pagamento"
+            - option "#3 · Reunião de passagem Comercial → PM (15 min)"
+            - option "#4 · Criar grupo oficial com o cliente"
+            - option "#5 · Emitir e enviar o contrato"
+            - option "#6 · Criar pasta no Drive e subir documentos iniciais"
+            - option "#7 · Montar o ecossistema do cliente no Notion"
+            - option "#8 · Criar a view personalizada do cliente"
+            - option "#9 · Validar o pagamento"
+            - option "#10 · Follow-up de pendências contratuais ou financeiras"
+            - option "#11 · Boas-vindas e alinhamento inicial"
+            - option "#12 · Enviar as instruções de funcionamento"
+            - option "#13 · Enviar o formulário de onboarding"
+            - option "#14 · Monitorar preenchimento e validar respostas"
+            - option "#15 · Agendar a reunião de diagnóstico"
+            - option "#16 · Confirmar presença (D-1 e H-1)"
+            - option "#17 · Check-in de onboarding e envio do roadmap inicial"
+            - option "#18 · Conduzir a reunião de diagnóstico (gravação obrigatória)"
+            - option "#19 · Levantamento de público, ofertas e metas"
+            - option "#20 · Alinhamento de expectativas ao vivo"
+            - option "#21 · Apresentar o roadmap e os próximos passos"
+            - option "#22 · Solicitar acessos de redes e contas"
+            - option "#23 · Testar e confirmar cada acesso recebido"
+            - option "#24 · Estudo de Mercado"
+            - option "#25 · Estudo de Público"
+            - option "#26 · Dossiê Estratégico"
+            - option "#27 · Publicar no Notion e notificar Gabriel, Vinicius e Redação"
+            - option "#28 · Auditoria das redes atuais"
+            - option "#29 · Nova bio estratégica e proposta de posicionamento"
+            - option "#30 · Enviar a proposta de posicionamento ao cliente"
+            - option "#31 · Aprovação do cliente"
+            - option "#32 · Aplicar as mudanças no perfil"
+            - option "#33 · Solicitar a criação dos roteiros"
+            - option "#34 · Roteiro estratégico"
+            - option "#35 · Alinhar a escrita com a direção audiovisual"
+            - option "#36 · Revisar e enviar os roteiros ao cliente"
+            - option "#37 · Aprovação dos roteiros pelo cliente"
+            - option "#38 · Agendar a data de gravação"
+            - option "#39 · Alinhamento técnico com o videomaker"
+            - option "#40 · Confirmar presença do cliente (D-1 e H-1)"
+            - option "#41 · Vídeo captado"
+            - option "#42 · Subir os brutos no Drive e notificar o time"
+            - option "#43 · Vídeo editado"
+            - option "#44 · Revisão técnica interna (QC)"
+            - option "#45 · Enviar os vídeos para validação do cliente"
+            - option "#46 · Aprovação ou feedback do cliente"
+            - option "#47 · Vídeo ajustado"
+            - option "#48 · Legenda / copy"
+            - option "#49 · Montar o calendário editorial e agendar as postagens"
+            - option "#50 · Conferir as publicações no ar"
+            - option "#51 · Estruturar BM, conta de anúncios e pixel"
+            - option "#52 · Enviar o boleto ou guia de investimento"
+            - option "#53 · Confirmar a compensação do pagamento"
+            - option "#54 · Subir e estruturar as campanhas"
+            - option "#55 · Otimização diária das campanhas"
+            - option "#56 · Mapear e solicitar indicações ao cliente"
+            - option "#57 · Agendar a gravação dos depoimentos"
+            - option "#58 · Produzir e finalizar os materiais de depoimento"
+            - option "#59 · Roteiro (nova remessa)"
+            - option "#60 · Vídeo captado (mensal)"
+            - option "#61 · Publicação recorrente conforme o calendário"
+            - option "#62 · Atualização de criativos nas campanhas"
+            - option "#63 · Compilar o relatório mensal de performance"
+            - option "#64 · Conduzir a reunião estratégica mensal"
+            - option "#65 · Registrar os ajustes de rota"
+            - option "#66 · Agendar a reunião de fechamento"
+            - option "#67 · Apresentar o consolidado de resultados"
+            - option "#68 · Apresentar a proposta de continuidade"
+          - group [ref=f1e1021]:
+            - generic "Editar dados da fase" [ref=f1e1022] [cursor=pointer]
+      - group [ref=f1e1023]:
+        - generic "Fase 14 Relatório e Reunião Mensal Fim de cada ciclo 3 etapas · arraste ⠿ para reordenar" [ref=f1e1024] [cursor=pointer]:
+          - generic [ref=f1e1025]: Fase 14
+          - generic [ref=f1e1026]: Relatório e Reunião Mensal
+          - generic [ref=f1e1027]: Fim de cada ciclo
+          - generic [ref=f1e1028]: 3 etapas · arraste ⠿ para reordenar
+        - generic [ref=f1e1029]:
+          - paragraph [ref=f1e1030]: Mostrar o que aconteceu e decidir o que muda.
+          - generic [ref=f1e1031]:
+            - generic [ref=f1e1032]:
+              - generic "Arraste para reordenar" [ref=f1e1033]: ⠿
+              - generic [ref=f1e1034]:
+                - text: Compilar o relatório mensal de performance
+                - generic [ref=f1e1035]: "CS · Adriane + Ana · IA: Alan · SLA Até o dia 30 do ciclo · 👁 cliente"
+              - link "Editar" [ref=f1e1036] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=d9f393b7-f8f1-4356-b6e4-af85dbef2fb1
+              - button "Excluir" [ref=f1e1037] [cursor=pointer]
+            - generic [ref=f1e1038]:
+              - generic "Arraste para reordenar" [ref=f1e1039]: ⠿
+              - generic [ref=f1e1040]:
+                - text: ◆Conduzir a reunião estratégica mensal
+                - generic [ref=f1e1041]: CS · Ana + Adriane · SLA Mensal · 👁 cliente
+              - link "Editar" [ref=f1e1042] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=029e114c-690c-4a38-8736-fcc67d2d6b57
+              - button "Excluir" [ref=f1e1043] [cursor=pointer]
+            - generic [ref=f1e1044]:
+              - generic "Arraste para reordenar" [ref=f1e1045]: ⠿
+              - generic [ref=f1e1046]:
+                - text: Registrar os ajustes de rota
+                - generic [ref=f1e1047]: PM · Ana · SLA 24h após a reunião
+              - link "Editar" [ref=f1e1048] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=53d8cee2-f411-4355-9a1b-73e61b731a15
+              - button "Excluir" [ref=f1e1049] [cursor=pointer]
+          - group [ref=f1e1050]:
+            - generic "+ Adicionar etapa nesta fase" [ref=f1e1051] [cursor=pointer]
+            - option "—" [selected]
+            - option "Comercial"
+            - option "PM"
+            - option "CS"
+            - option "Audiovisual"
+            - option "Social"
+            - option "Tráfego"
+            - option "Cliente"
+            - option "— nenhum" [selected]
+            - option "Lara"
+            - option "Sofia"
+            - option "Alan"
+            - option "Nina"
+            - option "— nenhuma" [selected]
+            - option "#1 · Solicitar dados cadastrais para o contrato"
+            - option "#2 · Enviar instruções de pagamento"
+            - option "#3 · Reunião de passagem Comercial → PM (15 min)"
+            - option "#4 · Criar grupo oficial com o cliente"
+            - option "#5 · Emitir e enviar o contrato"
+            - option "#6 · Criar pasta no Drive e subir documentos iniciais"
+            - option "#7 · Montar o ecossistema do cliente no Notion"
+            - option "#8 · Criar a view personalizada do cliente"
+            - option "#9 · Validar o pagamento"
+            - option "#10 · Follow-up de pendências contratuais ou financeiras"
+            - option "#11 · Boas-vindas e alinhamento inicial"
+            - option "#12 · Enviar as instruções de funcionamento"
+            - option "#13 · Enviar o formulário de onboarding"
+            - option "#14 · Monitorar preenchimento e validar respostas"
+            - option "#15 · Agendar a reunião de diagnóstico"
+            - option "#16 · Confirmar presença (D-1 e H-1)"
+            - option "#17 · Check-in de onboarding e envio do roadmap inicial"
+            - option "#18 · Conduzir a reunião de diagnóstico (gravação obrigatória)"
+            - option "#19 · Levantamento de público, ofertas e metas"
+            - option "#20 · Alinhamento de expectativas ao vivo"
+            - option "#21 · Apresentar o roadmap e os próximos passos"
+            - option "#22 · Solicitar acessos de redes e contas"
+            - option "#23 · Testar e confirmar cada acesso recebido"
+            - option "#24 · Estudo de Mercado"
+            - option "#25 · Estudo de Público"
+            - option "#26 · Dossiê Estratégico"
+            - option "#27 · Publicar no Notion e notificar Gabriel, Vinicius e Redação"
+            - option "#28 · Auditoria das redes atuais"
+            - option "#29 · Nova bio estratégica e proposta de posicionamento"
+            - option "#30 · Enviar a proposta de posicionamento ao cliente"
+            - option "#31 · Aprovação do cliente"
+            - option "#32 · Aplicar as mudanças no perfil"
+            - option "#33 · Solicitar a criação dos roteiros"
+            - option "#34 · Roteiro estratégico"
+            - option "#35 · Alinhar a escrita com a direção audiovisual"
+            - option "#36 · Revisar e enviar os roteiros ao cliente"
+            - option "#37 · Aprovação dos roteiros pelo cliente"
+            - option "#38 · Agendar a data de gravação"
+            - option "#39 · Alinhamento técnico com o videomaker"
+            - option "#40 · Confirmar presença do cliente (D-1 e H-1)"
+            - option "#41 · Vídeo captado"
+            - option "#42 · Subir os brutos no Drive e notificar o time"
+            - option "#43 · Vídeo editado"
+            - option "#44 · Revisão técnica interna (QC)"
+            - option "#45 · Enviar os vídeos para validação do cliente"
+            - option "#46 · Aprovação ou feedback do cliente"
+            - option "#47 · Vídeo ajustado"
+            - option "#48 · Legenda / copy"
+            - option "#49 · Montar o calendário editorial e agendar as postagens"
+            - option "#50 · Conferir as publicações no ar"
+            - option "#51 · Estruturar BM, conta de anúncios e pixel"
+            - option "#52 · Enviar o boleto ou guia de investimento"
+            - option "#53 · Confirmar a compensação do pagamento"
+            - option "#54 · Subir e estruturar as campanhas"
+            - option "#55 · Otimização diária das campanhas"
+            - option "#56 · Mapear e solicitar indicações ao cliente"
+            - option "#57 · Agendar a gravação dos depoimentos"
+            - option "#58 · Produzir e finalizar os materiais de depoimento"
+            - option "#59 · Roteiro (nova remessa)"
+            - option "#60 · Vídeo captado (mensal)"
+            - option "#61 · Publicação recorrente conforme o calendário"
+            - option "#62 · Atualização de criativos nas campanhas"
+            - option "#63 · Compilar o relatório mensal de performance"
+            - option "#64 · Conduzir a reunião estratégica mensal"
+            - option "#65 · Registrar os ajustes de rota"
+            - option "#66 · Agendar a reunião de fechamento"
+            - option "#67 · Apresentar o consolidado de resultados"
+            - option "#68 · Apresentar a proposta de continuidade"
+          - group [ref=f1e1052]:
+            - generic "Editar dados da fase" [ref=f1e1053] [cursor=pointer]
+      - group [ref=f1e1054]:
+        - generic "Fase 15 Encerramento e Renovação D-5 do fim do contrato 3 etapas · arraste ⠿ para reordenar" [ref=f1e1055] [cursor=pointer]:
+          - generic [ref=f1e1056]: Fase 15
+          - generic [ref=f1e1057]: Encerramento e Renovação
+          - generic [ref=f1e1058]: D-5 do fim do contrato
+          - generic [ref=f1e1059]: 3 etapas · arraste ⠿ para reordenar
+        - generic [ref=f1e1060]:
+          - paragraph [ref=f1e1061]: Chegar na renovação com o resultado já apresentado.
+          - generic [ref=f1e1062]:
+            - generic [ref=f1e1063]:
+              - generic "Arraste para reordenar" [ref=f1e1064]: ⠿
+              - generic [ref=f1e1065]:
+                - text: Agendar a reunião de fechamento
+                - generic [ref=f1e1066]: Comercial · Comercial + Adriane + Ana · SLA 5 dias antes do fim · 👁 cliente
+              - link "Editar" [ref=f1e1067] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=0f710d8b-cc09-4d6d-a255-cbc2bb015319
+              - button "Excluir" [ref=f1e1068] [cursor=pointer]
+            - generic [ref=f1e1069]:
+              - generic "Arraste para reordenar" [ref=f1e1070]: ⠿
+              - generic [ref=f1e1071]:
+                - text: Apresentar o consolidado de resultados
+                - generic [ref=f1e1072]: CS · Adriane · SLA Na reunião · 👁 cliente
+              - link "Editar" [ref=f1e1073] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=23469667-6d65-4cdb-ae6f-654d0237626b
+              - button "Excluir" [ref=f1e1074] [cursor=pointer]
+            - generic [ref=f1e1075]:
+              - generic "Arraste para reordenar" [ref=f1e1076]: ⠿
+              - generic [ref=f1e1077]:
+                - text: Apresentar a proposta de continuidade
+                - generic [ref=f1e1078]: Comercial · Adriane + Comercial · SLA Na reunião · 👁 cliente
+              - link "Editar" [ref=f1e1079] [cursor=pointer]:
+                - /url: /expand/produtos/pide/processo?edit=41a915a0-ce66-4068-83e4-b4089d502b0d
+              - button "Excluir" [ref=f1e1080] [cursor=pointer]
+          - group [ref=f1e1081]:
+            - generic "+ Adicionar etapa nesta fase" [ref=f1e1082] [cursor=pointer]
+            - option "—" [selected]
+            - option "Comercial"
+            - option "PM"
+            - option "CS"
+            - option "Audiovisual"
+            - option "Social"
+            - option "Tráfego"
+            - option "Cliente"
+            - option "— nenhum" [selected]
+            - option "Lara"
+            - option "Sofia"
+            - option "Alan"
+            - option "Nina"
+            - option "— nenhuma" [selected]
+            - option "#1 · Solicitar dados cadastrais para o contrato"
+            - option "#2 · Enviar instruções de pagamento"
+            - option "#3 · Reunião de passagem Comercial → PM (15 min)"
+            - option "#4 · Criar grupo oficial com o cliente"
+            - option "#5 · Emitir e enviar o contrato"
+            - option "#6 · Criar pasta no Drive e subir documentos iniciais"
+            - option "#7 · Montar o ecossistema do cliente no Notion"
+            - option "#8 · Criar a view personalizada do cliente"
+            - option "#9 · Validar o pagamento"
+            - option "#10 · Follow-up de pendências contratuais ou financeiras"
+            - option "#11 · Boas-vindas e alinhamento inicial"
+            - option "#12 · Enviar as instruções de funcionamento"
+            - option "#13 · Enviar o formulário de onboarding"
+            - option "#14 · Monitorar preenchimento e validar respostas"
+            - option "#15 · Agendar a reunião de diagnóstico"
+            - option "#16 · Confirmar presença (D-1 e H-1)"
+            - option "#17 · Check-in de onboarding e envio do roadmap inicial"
+            - option "#18 · Conduzir a reunião de diagnóstico (gravação obrigatória)"
+            - option "#19 · Levantamento de público, ofertas e metas"
+            - option "#20 · Alinhamento de expectativas ao vivo"
+            - option "#21 · Apresentar o roadmap e os próximos passos"
+            - option "#22 · Solicitar acessos de redes e contas"
+            - option "#23 · Testar e confirmar cada acesso recebido"
+            - option "#24 · Estudo de Mercado"
+            - option "#25 · Estudo de Público"
+            - option "#26 · Dossiê Estratégico"
+            - option "#27 · Publicar no Notion e notificar Gabriel, Vinicius e Redação"
+            - option "#28 · Auditoria das redes atuais"
+            - option "#29 · Nova bio estratégica e proposta de posicionamento"
+            - option "#30 · Enviar a proposta de posicionamento ao cliente"
+            - option "#31 · Aprovação do cliente"
+            - option "#32 · Aplicar as mudanças no perfil"
+            - option "#33 · Solicitar a criação dos roteiros"
+            - option "#34 · Roteiro estratégico"
+            - option "#35 · Alinhar a escrita com a direção audiovisual"
+            - option "#36 · Revisar e enviar os roteiros ao cliente"
+            - option "#37 · Aprovação dos roteiros pelo cliente"
+            - option "#38 · Agendar a data de gravação"
+            - option "#39 · Alinhamento técnico com o videomaker"
+            - option "#40 · Confirmar presença do cliente (D-1 e H-1)"
+            - option "#41 · Vídeo captado"
+            - option "#42 · Subir os brutos no Drive e notificar o time"
+            - option "#43 · Vídeo editado"
+            - option "#44 · Revisão técnica interna (QC)"
+            - option "#45 · Enviar os vídeos para validação do cliente"
+            - option "#46 · Aprovação ou feedback do cliente"
+            - option "#47 · Vídeo ajustado"
+            - option "#48 · Legenda / copy"
+            - option "#49 · Montar o calendário editorial e agendar as postagens"
+            - option "#50 · Conferir as publicações no ar"
+            - option "#51 · Estruturar BM, conta de anúncios e pixel"
+            - option "#52 · Enviar o boleto ou guia de investimento"
+            - option "#53 · Confirmar a compensação do pagamento"
+            - option "#54 · Subir e estruturar as campanhas"
+            - option "#55 · Otimização diária das campanhas"
+            - option "#56 · Mapear e solicitar indicações ao cliente"
+            - option "#57 · Agendar a gravação dos depoimentos"
+            - option "#58 · Produzir e finalizar os materiais de depoimento"
+            - option "#59 · Roteiro (nova remessa)"
+            - option "#60 · Vídeo captado (mensal)"
+            - option "#61 · Publicação recorrente conforme o calendário"
+            - option "#62 · Atualização de criativos nas campanhas"
+            - option "#63 · Compilar o relatório mensal de performance"
+            - option "#64 · Conduzir a reunião estratégica mensal"
+            - option "#65 · Registrar os ajustes de rota"
+            - option "#66 · Agendar a reunião de fechamento"
+            - option "#67 · Apresentar o consolidado de resultados"
+            - option "#68 · Apresentar a proposta de continuidade"
+          - group [ref=f1e1083]:
+            - generic "Editar dados da fase" [ref=f1e1084] [cursor=pointer]
+      - group [ref=f1e1085]:
+        - generic "+ Nova fase" [ref=f1e1086] [cursor=pointer]
+    - contentinfo [ref=f1e1088]:
+      - generic [ref=f1e1089]: EXPAND
+      - generic [ref=f1e1090]: Motor de Trabalho · Grupo Expand · dados da operação em tempo real
+  - button "Assistentes" [ref=f1e1091] [cursor=pointer]
+```
+
+# Test source
+
+```ts
+  1   | import { test, expect, type Page } from "@playwright/test";
+  2   | 
+  3   | // A sessão já está autenticada via storageState (veja playwright.config.ts)
+  4   | 
+  5   | async function navTo(page: Page, path: string) {
+> 6   |   await page.goto(path, { waitUntil: "domcontentloaded", timeout: 30_000 });
+      |              ^ Error: page.goto: Test timeout of 30000ms exceeded.
+  7   | }
+  8   | 
+  9   | test.describe("Painel Expand — autenticado", () => {
+  10  |   test.beforeEach(async ({ page }) => {
+  11  |     await navTo(page, "/expand");
+  12  |   });
+  13  | 
+  14  |   test("Meu Dia carrega com KPIs", async ({ page }) => {
+  15  |     await expect(page.getByText(/Bom dia|Boa tarde|Boa noite/i)).toBeVisible({ timeout: 10_000 });
+  16  |     const kpiCount = await page.locator(".ex-kpi").count();
+  17  |     expect(kpiCount).toBeGreaterThanOrEqual(1);
+  18  |     await expect(page).toHaveTitle(/Expand/);
+  19  |   });
+  20  | 
+  21  |   test("menu lateral contém itens principais", async ({ page }) => {
+  22  |     // Seções da nav (ExpandShell)
+  23  |     await expect(page.getByText("Operação & Atividades")).toBeVisible({ timeout: 10_000 });
+  24  |     await expect(page.getByText("Comercial")).toBeVisible();
+  25  |     await expect(page.getByText("EXPAND").first()).toBeVisible();
+  26  |   });
+  27  | 
+  28  |   test("Carteira carrega sem erro", async ({ page }) => {
+  29  |     await navTo(page, "/expand/carteira");
+  30  |     await expect(page.locator("body")).not.toContainText("Application error");
+  31  |     await expect(page.locator("h1, .ex-h1, [class*='ex-h']").first()).toBeVisible({ timeout: 10_000 });
+  32  |   });
+  33  | 
+  34  |   test("Board de Entrega carrega", async ({ page }) => {
+  35  |     await navTo(page, "/expand/board");
+  36  |     await expect(page.locator("body")).not.toContainText("Application error");
+  37  |     await expect(page.locator("h1, h2, h3").first()).toBeVisible({ timeout: 10_000 });
+  38  |   });
+  39  | 
+  40  |   test("Fluxograma carrega com etapas", async ({ page }) => {
+  41  |     await navTo(page, "/expand/fluxo");
+  42  |     await expect(page.locator("body")).not.toContainText("Application error");
+  43  |     await expect(page.locator("body")).not.toContainText("404");
+  44  |     await expect(page.locator("main, [role='main'], .ex-shell-body").first()).toBeVisible({ timeout: 10_000 });
+  45  |   });
+  46  | 
+  47  |   test("Equipe & Agentes carrega", async ({ page }) => {
+  48  |     await navTo(page, "/expand/equipe");
+  49  |     await expect(page.locator("body")).not.toContainText("Application error");
+  50  |     await expect(page.getByText(/Equipe|Time/i).first()).toBeVisible({ timeout: 10_000 });
+  51  |   });
+  52  | 
+  53  |   test("Gestão carrega com KPIs", async ({ page }) => {
+  54  |     await navTo(page, "/expand/gestao");
+  55  |     await expect(page.locator("body")).not.toContainText("Application error");
+  56  |     const kpiCount = await page.locator(".ex-kpi").count();
+  57  |     expect(kpiCount).toBeGreaterThanOrEqual(1);
+  58  |   });
+  59  | 
+  60  |   test("Finanças — Mini DRE carrega", async ({ page }) => {
+  61  |     await navTo(page, "/expand/financas");
+  62  |     await expect(page.locator("body")).not.toContainText("Application error");
+  63  |     await expect(page.getByText(/DRE|Finan/i).first()).toBeVisible({ timeout: 10_000 });
+  64  |   });
+  65  | 
+  66  |   test("Roadmap carrega com fases", async ({ page }) => {
+  67  |     await navTo(page, "/expand/roadmap");
+  68  |     await expect(page.locator("body")).not.toContainText("Application error");
+  69  |     await expect(page.getByText(/Roadmap/i).first()).toBeVisible({ timeout: 10_000 });
+  70  |     await expect(page.locator("body")).not.toContainText("HASHES");
+  71  |   });
+  72  | 
+  73  |   test("Perfis de clientes carrega", async ({ page }) => {
+  74  |     await navTo(page, "/expand/perfis");
+  75  |     await expect(page.locator("body")).not.toContainText("Application error");
+  76  |     await expect(page.locator("main, .ex-shell-body").first()).toBeVisible({ timeout: 10_000 });
+  77  |   });
+  78  | 
+  79  |   test("Plano de Ação carrega", async ({ page }) => {
+  80  |     await navTo(page, "/expand/plano");
+  81  |     await expect(page.locator("body")).not.toContainText("Application error");
+  82  |     await expect(page.locator("main, .ex-shell-body").first()).toBeVisible({ timeout: 10_000 });
+  83  |   });
+  84  | 
+  85  |   test("Rotinas carrega", async ({ page }) => {
+  86  |     await navTo(page, "/expand/rotinas");
+  87  |     await expect(page.locator("body")).not.toContainText("Application error");
+  88  |     await expect(page.locator("main, .ex-shell-body").first()).toBeVisible({ timeout: 10_000 });
+  89  |   });
+  90  | 
+  91  |   test("Sala do time carrega", async ({ page }) => {
+  92  |     await navTo(page, "/expand/sala");
+  93  |     await expect(page.locator("body")).not.toContainText("Application error");
+  94  |     await expect(page.getByText(/Sala/i).first()).toBeVisible({ timeout: 10_000 });
+  95  |   });
+  96  | 
+  97  |   test("Guia do sistema comercial carrega", async ({ page }) => {
+  98  |     await navTo(page, "/expand/comercial/guia");
+  99  |     await expect(page.locator("body")).not.toContainText("Application error");
+  100 |     await expect(page.getByText(/Guia do/i).first()).toBeVisible({ timeout: 10_000 });
+  101 |   });
+  102 | 
+  103 |   test("filtros de Meu Dia — Semana e Mês funcionam", async ({ page }) => {
+  104 |     await page.locator('a[href*="range=semana"]').click();
+  105 |     await page.waitForURL(/range=semana/, { timeout: 10_000 });
+  106 |     await page.locator('a[href*="range=mes"]').click();
+```

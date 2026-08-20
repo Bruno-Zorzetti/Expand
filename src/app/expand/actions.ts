@@ -151,6 +151,28 @@ export async function concluirEtapa(formData: FormData) {
   revalidatePath("/expand/v2");
 }
 
+// Kanban drag — mover status de uma etapa (PMO / admin)
+export async function moverStatusEtapa(formData: FormData) {
+  const etapaId  = String(formData.get("etapaId") ?? "");
+  const novoStatus = String(formData.get("status") ?? "");
+  const VALIDOS = ["idle", "wait", "run", "done"];
+  if (!etapaId || !VALIDOS.includes(novoStatus)) return;
+  const supabase = await createClient();
+  const { pessoa } = await getPessoa();
+  const upd: Record<string, unknown> = { status: novoStatus };
+  if (novoStatus === "run") { upd.iniciada_em = new Date().toISOString(); }
+  if (novoStatus === "done") {
+    const { data: et } = await supabase.from("expand_etapas").select("iniciada_em, cliente_id").eq("id", etapaId).single();
+    const ini = et?.iniciada_em as string | null;
+    if (ini) upd.duracao_min = Math.max(1, Math.round((Date.now() - new Date(ini).getTime()) / 60000));
+    upd.concluida_em = new Date().toISOString();
+  }
+  await supabase.from("expand_etapas").update(upd).eq("id", etapaId);
+  await logar(supabase, "status", `→ ${novoStatus} (kanban)`, { etapa_id: etapaId, autor: pessoa.nome });
+  revalidatePath("/expand/board");
+  revalidatePath("/expand/v2");
+}
+
 export async function transferirEtapa(formData: FormData) {
   const etapaId = String(formData.get("etapaId") ?? "");
   const para = String(formData.get("para") ?? "").trim();
@@ -246,11 +268,13 @@ export async function removerArquivo(formData: FormData) {
 
 // ---- Cria uma tarefa/evento direto pelo calendário ----
 export async function criarEtapaCal(formData: FormData) {
-  const titulo = String(formData.get("titulo") ?? "").trim();
-  const tipo = String(formData.get("tipo") ?? "reuniao");
-  const clienteId = String(formData.get("clienteId") ?? "");
-  const date = String(formData.get("date") ?? "").trim();
-  const membroNome = String(formData.get("membroNome") ?? "").trim();
+  const titulo        = String(formData.get("titulo")          ?? "").trim();
+  const tipo          = String(formData.get("tipo")            ?? "reuniao");
+  const clienteId     = String(formData.get("clienteId")       ?? "");
+  const date          = String(formData.get("date")            ?? "").trim();
+  const membroNome    = String(formData.get("membroNome")      ?? "").trim();
+  const horarioInicio = String(formData.get("horario_inicio")  ?? "").trim() || null;
+  const horarioFim    = String(formData.get("horario_fim")     ?? "").trim() || null;
   if (!titulo || !clienteId) return;
   const supabase = await createClient();
   const { pessoa } = await getPessoa();
@@ -263,6 +287,8 @@ export async function criarEtapaCal(formData: FormData) {
     marco: false,
     data_prevista: date || null,
     cliente_id: clienteId,
+    horario_inicio: horarioInicio,
+    horario_fim:    horarioFim,
   }).select("id").single();
   if (inserted?.id) {
     await logar(supabase, "criacao", `Criou evento de calendário: ${titulo} (${tipo})`, {
@@ -633,8 +659,33 @@ export async function novaAcaoPlano(formData: FormData) {
   if (!titulo) return;
   const resp = String(formData.get("responsaveis") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
   const data_limite = String(formData.get("data_limite") ?? "").trim() || null;
+  const prioridade = String(formData.get("prioridade") ?? "normal").trim() || "normal";
+  const detalhe    = String(formData.get("detalhe") ?? "").trim() || null;
   const supabase = await createClient();
-  await supabase.from("expand_plano_acao").insert({ titulo, responsaveis: resp, data_limite, origem: "manual" });
+  await supabase.from("expand_plano_acao").insert({ titulo, responsaveis: resp, data_limite, prioridade, detalhe, origem: "manual" });
+  revalidatePath("/expand/plano");
+}
+
+export async function deletarAcaoPlano(formData: FormData) {
+  await exigirAdmin();
+  const id = String(formData.get("id") ?? "").trim();
+  if (!id) return;
+  const supabase = await createClient();
+  await supabase.from("expand_plano_acao").delete().eq("id", id);
+  revalidatePath("/expand/plano");
+}
+
+export async function editarAcaoPlano(formData: FormData) {
+  await exigirAdmin();
+  const id = String(formData.get("id") ?? "").trim();
+  if (!id) return;
+  const titulo     = String(formData.get("titulo") ?? "").trim() || null;
+  const resp       = String(formData.get("responsaveis") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  const data_limite = String(formData.get("data_limite") ?? "").trim() || null;
+  const prioridade = String(formData.get("prioridade") ?? "normal").trim() || "normal";
+  const detalhe    = String(formData.get("detalhe") ?? "").trim() || null;
+  const supabase = await createClient();
+  await supabase.from("expand_plano_acao").update({ titulo, responsaveis: resp, data_limite, prioridade, detalhe }).eq("id", id);
   revalidatePath("/expand/plano");
 }
 
@@ -828,7 +879,8 @@ export async function gerarCustoFinanceiro(payload: {
   area: string;
   agente: string | null;
   duracao_min: number;
-  custo_area: number;
+  responsavel: string | null;
+  custo_responsavel: number;
   custo_agente: number;
   custo_total: number;
   detalhes: string; // JSON serializado

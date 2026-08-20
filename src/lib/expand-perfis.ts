@@ -17,6 +17,10 @@ export type Perfil = {
   arquetipo: Record<string, number> | null; arquetipo_dominante: string | null;
   ics_token: string | null;
   instagram: string | null; linkedin: string | null;
+  google_cal_ics: string | null;
+  whatsapp_grupo: string | null;
+  whatsapp_grupo_link: string | null;
+  departamento: string | null;
 };
 
 export const linhas = (s: string) => s.split("\n").map((x) => x.trim()).filter(Boolean);

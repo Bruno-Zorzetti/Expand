@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getPessoa } from "@/lib/expand-user";
 import type { Perfil } from "@/lib/expand-perfis";
 import MenteMapa from "@/components/expand/MenteMapa";
+import GrafoConhecimento from "@/components/expand/GrafoConhecimento";
 
 export const dynamic = "force-dynamic";
 
@@ -77,6 +78,13 @@ async function removeConhecimento(formData: FormData) {
   revalidatePath(`/expand/equipe/${agente_id}/conhecimento`);
 }
 
+function nomeToSlug(nome: string): string {
+  const clean = nome.toLowerCase()
+    .replace(/[áàãâä]/g, "a").replace(/[éèê]/g, "e").replace(/[íìî]/g, "i")
+    .replace(/[óòõô]/g, "o").replace(/[úùû]/g, "u").replace(/ç/g, "c");
+  return clean.split(/[\s(]/)[0];
+}
+
 export default async function Conhecimento({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
@@ -95,15 +103,27 @@ export default async function Conhecimento({ params }: { params: Promise<{ id: s
       <Link href={`/expand/equipe/${id}`} className="ex-back">← Voltar ao perfil</Link>
       <p className="hx-eyebrow">{p.nome} · Conhecimento & RAG</p>
       <h1 className="ex-h1">O que o <span className="hx-accent-text">{p.nome}</span> sabe</h1>
-      <p className="ex-sub">O prompt real do agente e a base que alimenta o RAG: aprendizados, erros, acertos, modelos, biblioteca de estudo, avaliações do cliente, conversas e o log de trabalhos. Cada registro melhora os próximos trabalhos e os processos.</p>
+      <p className="ex-sub">Grafo interativo do conhecimento estruturado (181 nós, grafo completo), memória operacional e todos os materiais que alimentam o RAG deste agente.</p>
 
+      {/* ── Grafo de Conhecimento ── */}
       <div className="ex-panel hx-glass" style={{ marginBottom: 16 }}>
-        <div className="ph"><span className="pt">Mente do {p.nome} — mapa da memória</span><span style={{ marginLeft: "auto", fontSize: 10.5, color: "var(--dim)" }}>conceito · aprendizado contínuo</span></div>
+        <div className="ph">
+          <span className="pt">Grafo de conhecimento — {p.nome}</span>
+          <span style={{ marginLeft: "auto", fontSize: 10.5, color: "var(--dim)" }}>knowledge graph · force-directed</span>
+        </div>
         <div className="pb">
-          {entradas.length ? <MenteMapa nome={p.nome} tipos={TIPOS} nodes={entradas.map((e) => ({ id: e.id, tipo: e.tipo, titulo: e.titulo, conteudo: e.conteudo, fonte: e.fonte, href: assinado.get(e.id) ?? null }))} /> : <p style={{ fontSize: 12.5, color: "var(--dim)", textAlign: "center", padding: "20px 0" }}>A memória ainda está vazia. Cada acerto, erro e feedback registrado abaixo vira um nó desta mente.</p>}
-          <p style={{ fontSize: 11.5, color: "var(--mut)", lineHeight: 1.55, marginTop: 8, borderTop: "1px solid var(--line)", paddingTop: 10 }}>
-            Cada nó é um pedaço do que o agente sabe — acertos e erros conectam-se a aprendizados, que viram modelos reutilizáveis; avaliações e feedbacks reforçam ou podam caminhos. A curadoria (o que guardar / descartar) é feita pelo agente <b>Curador de Memórias</b>, buscando aprendizado contínuo. Próximo passo do conceito: grafo interativo com força e comparação de caminhos.
+          <GrafoConhecimento agente={nomeToSlug(p.nome)} />
+          <p style={{ fontSize: 11, color: "var(--mut)", lineHeight: 1.55, marginTop: 10, borderTop: "1px solid var(--line)", paddingTop: 10 }}>
+            Cada nó é um conceito extraído dos materiais do agente. Tamanho = centralidade (conexões). Cor = comunidade temática. Clique para explorar o conceito e navegar pelos nós vizinhos.
           </p>
+        </div>
+      </div>
+
+      {/* ── Memória operacional (Supabase) ── */}
+      <div className="ex-panel hx-glass" style={{ marginBottom: 16 }}>
+        <div className="ph"><span className="pt">Memória operacional — aprendizado contínuo</span><span style={{ marginLeft: "auto", fontSize: 10.5, color: "var(--dim)" }}>acertos · erros · feedbacks · modelos</span></div>
+        <div className="pb">
+          {entradas.length ? <MenteMapa nome={p.nome} tipos={TIPOS} nodes={entradas.map((e) => ({ id: e.id, tipo: e.tipo, titulo: e.titulo, conteudo: e.conteudo, fonte: e.fonte, href: assinado.get(e.id) ?? null }))} /> : <p style={{ fontSize: 12.5, color: "var(--dim)", textAlign: "center", padding: "20px 0" }}>A memória operacional ainda está vazia. Registre acertos, erros e feedbacks abaixo para alimentar o aprendizado contínuo.</p>}
         </div>
       </div>
 

@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Pac-Man Championship Edition 2</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👾</text></svg>">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%; height: 100%;
+      background: #000011;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      font-family: monospace;
+    }
+    #game {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    canvas {
+      display: block;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+    /* Neon scanline CRT overlay on top of canvas */
+    #overlay {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 3px,
+        rgba(0,0,0,0.07) 3px,
+        rgba(0,0,0,0.07) 4px
+      );
+      z-index: 999;
+    }
+    #loading {
+      position: fixed;
+      inset: 0;
+      background: #000011;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #ffee00;
+      font-size: 20px;
+      letter-spacing: 3px;
+      z-index: 1000;
+    }
+    #loading .sub {
+      font-size: 11px;
+      color: #0088ff;
+      margin-top: 12px;
+      letter-spacing: 2px;
+    }
+    #loading .dots {
+      display: inline-block;
+      animation: blink 1s step-end infinite;
+    }
+    @keyframes blink { 50% { opacity: 0; } }
+  </style>
+</head>
+<body>
+  <div id="loading">
+    <div>PAC-MAN CE2</div>
+    <div class="sub">LOADING<span class="dots">...</span></div>
+  </div>
+  <div id="overlay"></div>
+  <div id="game"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.87.0/dist/phaser.min.js"></script>
+  <script>
+    // Hide loading screen once Phaser is ready
+    window.addEventListener('load', () => {
+      const hide = () => {
+        const el = document.getElementById('loading');
+        if (el) { el.style.transition='opacity 0.5s'; el.style.opacity='0'; setTimeout(()=>el.remove(),500); }
+      };
+      // Wait for Phaser game to start
+      const check = setInterval(() => {
+        if (window.game && window.game.isRunning) { clearInterval(check); hide(); }
+      }, 100);
+      setTimeout(hide, 3000); // fallback
+    });
+  </script>
+  <script src="game.js"></script>
+</body>
+</html>

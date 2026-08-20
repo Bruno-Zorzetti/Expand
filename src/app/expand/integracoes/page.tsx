@@ -1,142 +1,308 @@
+import { exigirAdmin } from "@/lib/expand-acesso";
+import { lerTodasConfigs, salvarConfig } from "@/lib/system-config";
+import { createClient as createAuth } from "@/lib/supabase/server";
+import { revalidatePath } from "next/cache";
 import WhatsAppConnect from "@/components/WhatsAppConnect";
 import CriarInstancia from "@/components/CriarInstancia";
 
 export const dynamic = "force-dynamic";
 
-const URL_UAZ = process.env.UAZAPI_URL;
-const TOKEN = process.env.UAZAPI_TOKEN;
+// ── Chaves reconhecidas ──────────────────────────────────────────────────────
+type ChaveInfo = {
+  key: string;
+  label: string;
+  hint: string;
+  secret: boolean;
+  link?: string;
+};
 
-async function statusWpp() {
-  if (!URL_UAZ || !TOKEN) return { status: "nao_config" as const };
+const GRUPOS: { nome: string; cor: string; descricao: string; chaves: ChaveInfo[] }[] = [
+  {
+    nome: "WhatsApp (uazapi)",
+    cor: "#25D366",
+    descricao: "Notificações, envios automáticos e leitura dos grupos.",
+    chaves: [
+      { key: "UAZAPI_URL",         label: "URL do servidor",       hint: "Ex: https://free.uazapi.com (ou seu servidor pago)",   secret: false, link: "https://uazapi.com" },
+      { key: "UAZAPI_TOKEN",       label: "Instance Token",        hint: "Token da instância gerado ao criar no painel uazapi",  secret: true  },
+      { key: "UAZAPI_ADMIN_TOKEN", label: "Admin Token (opcional)", hint: "Necessário apenas para criar novas instâncias",        secret: true  },
+    ],
+  },
+  {
+    nome: "Anthropic (IA dos agentes)",
+    cor: "#C89B5E",
+    descricao: "Faz os agentes responderem de verdade no chat e gera resumos.",
+    chaves: [
+      { key: "ANTHROPIC_API_KEY", label: "API Key", hint: "Começa com sk-ant-...", secret: true, link: "https://console.anthropic.com/settings/keys" },
+    ],
+  },
+  {
+    nome: "Apify (leads & inteligência)",
+    cor: "#D9A94E",
+    descricao: "Scraping de leads, análise de mercado e Google Maps.",
+    chaves: [
+      { key: "APIFY_TOKEN", label: "API Token", hint: "Encontre em apify.com → Settings → Integrations", secret: true, link: "https://console.apify.com/account/integrations" },
+    ],
+  },
+  {
+    nome: "IA de design",
+    cor: "#7a5cff",
+    descricao: "O Design Master escolhe a ferramenta pelo custo. Plugue as chaves para geração autônoma.",
+    chaves: [
+      { key: "GEMINI_API_KEY",     label: "Google Gemini / Nano Banana", hint: "Começa com AIza...",  secret: true, link: "https://aistudio.google.com/apikey" },
+      { key: "OPENAI_API_KEY",     label: "OpenAI (GPT-Image)",          hint: "Começa com sk-...",   secret: true, link: "https://platform.openai.com/api-keys" },
+      { key: "HIGGSFIELD_API_KEY", label: "Higgsfield (arte premium)",    hint: "Chave do painel Higgsfield", secret: true, link: "https://app.higgsfield.ai/settings" },
+    ],
+  },
+  {
+    nome: "Infraestrutura",
+    cor: "#86C0A6",
+    descricao: "Banco, rotinas automáticas e domínio público.",
+    chaves: [
+      { key: "NEXT_PUBLIC_SITE_URL",     label: "URL pública do sistema",  hint: "Ex: https://expand.hshs.com.br",        secret: false },
+      { key: "SUPABASE_SERVICE_ROLE_KEY", label: "Supabase Service Role",  hint: "Chave secreta — não compartilhe. Painel Supabase → Settings → API", secret: true },
+      { key: "CRON_SECRET",              label: "Cron Secret",             hint: "Senha para autenticar as chamadas de rotina automática", secret: true },
+    ],
+  },
+];
+
+// ── Server actions ───────────────────────────────────────────────────────────
+async function salvar(formData: FormData) {
+  "use server";
+  await exigirAdmin();
+  const supabase = await createAuth();
+  const { data: { user } } = await supabase.auth.getUser();
+  const chaves = GRUPOS.flatMap(g => g.chaves.map(c => c.key));
+  for (const key of chaves) {
+    const val = formData.get(key);
+    if (val !== null && String(val).trim() !== "") {
+      await salvarConfig(key, String(val).trim(), user?.id);
+    }
+  }
+  revalidatePath("/expand/integracoes");
+}
+
+// ── WhatsApp actions ─────────────────────────────────────────────────────────
+async function statusWpp(url: string | null, token: string | null) {
+  if (!url || !token) return { status: "nao_config" as const };
   try {
-    const res = await fetch(`${URL_UAZ}/instance/status`, { headers: { token: TOKEN }, cache: "no-store" });
-    const j = await res.json();
+    const res = await fetch(`${url}/instance/status`, { headers: { token }, cache: "no-store" });
+    const j   = await res.json();
     const inst = j.instance ?? {};
     return { status: inst.status ?? "unknown", number: inst.owner ?? "", profileName: inst.profileName ?? "" };
   } catch { return { status: "erro" }; }
 }
 
-// integração = nome + para quê + variáveis de ambiente que a ligam
-// quem: "voce" = você põe a chave/saldo no Vercel · "eu" = eu opero por aqui (sem chave no app)
-type Integ = { nome: string; cor: string; ini: string; para: string; vars: string[]; ok: boolean; quem: "voce" | "eu" };
-
+// ── Page ─────────────────────────────────────────────────────────────────────
 export default async function Integracoes() {
-  const wpp = await statusWpp();
-  const integs: Integ[] = [
-    { nome: "Anthropic (IA dos agentes)", cor: "#C89B5E", ini: "AI", para: "Faz os agentes responderem de verdade no chat (prompt + RAG) e o resumo diário.", vars: ["ANTHROPIC_API_KEY"], ok: !!process.env.ANTHROPIC_API_KEY, quem: "voce" },
-    { nome: "WhatsApp (uazapi)", cor: "#6FBF92", ini: "W", para: "Notificações, envios e leitura dos grupos.", vars: ["UAZAPI_URL", "UAZAPI_TOKEN", "UAZAPI_ADMIN_TOKEN"], ok: !!(URL_UAZ && TOKEN), quem: "voce" },
-    { nome: "Supabase", cor: "#86C0A6", ini: "S", para: "Banco, login e Storage dos entregáveis.", vars: ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KEY"], ok: !!process.env.NEXT_PUBLIC_SUPABASE_URL, quem: "voce" },
-    { nome: "Rotinas automáticas", cor: "#7FB0FF", ini: "⏱", para: "Deixa o resumo diário e outras rotinas rodarem sozinhas (cron).", vars: ["SUPABASE_SERVICE_ROLE_KEY", "CRON_SECRET"], ok: !!(process.env.SUPABASE_SERVICE_ROLE_KEY && process.env.CRON_SECRET), quem: "voce" },
-    { nome: "Apify", cor: "#D9A94E", ini: "A", para: "Scraping (leads, inteligência de mercado, GMN).", vars: ["APIFY_TOKEN"], ok: !!process.env.APIFY_TOKEN, quem: "voce" },
-    { nome: "Site (domínio)", cor: "#E0BC85", ini: "@", para: "URL pública nos links de calendário (ICS), grupos e e-mails.", vars: ["NEXT_PUBLIC_SITE_URL"], ok: !!process.env.NEXT_PUBLIC_SITE_URL, quem: "voce" },
-    { nome: "Google Drive", cor: "#86C0A6", ini: "D", para: "Pasta por cliente (criar/abrir/validar). Hoje eu opero pela conexão; para o app fazer sozinho, precisa de uma conta de serviço Google.", vars: ["GOOGLE_SERVICE_ACCOUNT_JSON"], ok: false, quem: "eu" },
-  ];
+  await exigirAdmin();
 
-  // Ferramentas de IA de design a plugar — precisam da sua chave/saldo. O Design Master escolhe pelo custo.
-  const designTools: Integ[] = [
-    { nome: "Google Gemini / Nano Banana", cor: "#7a5cff", ini: "G", para: "Geração de imagem no custo médio (bom custo-benefício).", vars: ["GEMINI_API_KEY"], ok: !!process.env.GEMINI_API_KEY, quem: "voce" },
-    { nome: "OpenAI (GPT-Image)", cor: "#31d0aa", ini: "O", para: "Geração/edição de imagem premium.", vars: ["OPENAI_API_KEY"], ok: !!process.env.OPENAI_API_KEY, quem: "voce" },
-    { nome: "Higgsfield", cor: "#ff7a59", ini: "H", para: "Arte premium (uma das opções, não a única).", vars: ["HIGGSFIELD_API_KEY"], ok: !!process.env.HIGGSFIELD_API_KEY, quem: "voce" },
-    { nome: "Canva", cor: "#2fd3ae", ini: "C", para: "Templates e peças rápidas (via conector Canva).", vars: ["CANVA_CONNECTOR"], ok: false, quem: "eu" },
-  ];
+  // Lê todas as configs do banco (fallback de env vars já está no lerConfig individual)
+  const dbConfigs = await lerTodasConfigs();
+
+  // Merge: env var → banco (env var tem prioridade, mas mostramos o que está no banco se env não existe)
+  const resolve = (key: string): string =>
+    process.env[key] || dbConfigs[key] || "";
+
+  // WhatsApp status
+  const wppUrl   = resolve("UAZAPI_URL") || null;
+  const wppToken = resolve("UAZAPI_TOKEN") || null;
+  const wpp = await statusWpp(wppUrl, wppToken);
 
   async function conectar() {
     "use server";
-    if (!URL_UAZ || !TOKEN) return { erro: "WhatsApp não configurado (variáveis UAZAPI no Vercel)." };
+    const dbC = await lerTodasConfigs();
+    const u   = process.env.UAZAPI_URL   || dbC["UAZAPI_URL"]   || "";
+    const t   = process.env.UAZAPI_TOKEN || dbC["UAZAPI_TOKEN"] || "";
+    if (!u || !t) return { erro: "Configure a URL e o Instance Token do WhatsApp nesta página." };
     try {
-      const res = await fetch(`${URL_UAZ}/instance/connect`, { method: "POST", headers: { "Content-Type": "application/json", token: TOKEN }, body: JSON.stringify({}) });
-      const j = await res.json(); const inst = j.instance ?? {};
-      return { qrcode: inst.qrcode ?? null, paircode: inst.paircode ?? null, status: inst.status ?? (j.connected ? "connected" : "connecting") };
+      const res = await fetch(`${u}/instance/connect`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", token: t },
+        body: JSON.stringify({}),
+      });
+      const j    = await res.json();
+      const inst = j.instance ?? {};
+      if (!inst.qrcode && !inst.paircode) {
+        const msg = j.error ?? j.message ?? null;
+        return { erro: msg ? `Erro: ${msg}` : "O servidor não retornou o QR. Verifique se o Instance Token está correto e se a instância não expirou." };
+      }
+      return { qrcode: inst.qrcode ?? null, paircode: inst.paircode ?? null, status: inst.status ?? "connecting" };
     } catch (e) { return { erro: String((e as Error)?.message ?? e) }; }
   }
-  async function checar() { "use server"; return await statusWpp(); }
-  async function desconectar() { "use server"; if (!URL_UAZ || !TOKEN) return; try { await fetch(`${URL_UAZ}/instance/disconnect`, { method: "POST", headers: { token: TOKEN } }); } catch {} }
+
+  async function checar() {
+    "use server";
+    const dbC = await lerTodasConfigs();
+    const u   = process.env.UAZAPI_URL   || dbC["UAZAPI_URL"]   || "";
+    const t   = process.env.UAZAPI_TOKEN || dbC["UAZAPI_TOKEN"] || "";
+    return statusWpp(u || null, t || null);
+  }
+
+  async function desconectar() {
+    "use server";
+    const dbC = await lerTodasConfigs();
+    const u   = process.env.UAZAPI_URL   || dbC["UAZAPI_URL"]   || "";
+    const t   = process.env.UAZAPI_TOKEN || dbC["UAZAPI_TOKEN"] || "";
+    if (!u || !t) return;
+    try { await fetch(`${u}/instance/disconnect`, { method: "POST", headers: { token: t } }); } catch {}
+  }
 
   async function criarInstancia(_prev: { token?: string; nome?: string; erro?: string } | null, formData: FormData) {
     "use server";
-    const admin = process.env.UAZAPI_ADMIN_TOKEN;
-    if (!URL_UAZ || !admin) return { erro: "Para criar instâncias, defina UAZAPI_URL e UAZAPI_ADMIN_TOKEN (do seu servidor pago) no Vercel." };
+    const dbC  = await lerTodasConfigs();
+    const u     = process.env.UAZAPI_URL         || dbC["UAZAPI_URL"]         || "";
+    const admin = process.env.UAZAPI_ADMIN_TOKEN || dbC["UAZAPI_ADMIN_TOKEN"] || "";
+    if (!u || !admin) return { erro: "Configure a URL e o Admin Token do WhatsApp." };
     const nome = String(formData.get("nome") ?? "").trim() || "expand";
     try {
-      const res = await fetch(`${URL_UAZ}/instance/init`, { method: "POST", headers: { "Content-Type": "application/json", admintoken: admin }, body: JSON.stringify({ name: nome }) });
-      const j = await res.json();
+      const res = await fetch(`${u}/instance/init`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", admintoken: admin },
+        body: JSON.stringify({ name: nome }),
+      });
+      const j    = await res.json();
       const inst = (j.instance ?? j) as Record<string, unknown>;
       const token = (inst.token ?? inst.instanceToken ?? inst.apikey ?? inst.hash) as string | undefined;
-      if (!token) return { erro: String(j.error ?? j.message ?? "O servidor não retornou um token. No servidor de demonstração (free.uazapi.com) criar instância é bloqueado — use seu servidor pago.") };
+      if (!token) return { erro: String(j.error ?? j.message ?? "O servidor não retornou um token.") };
       return { token, nome };
     } catch (e) { return { erro: String((e as Error)?.message ?? e) }; }
   }
 
-  const renderCard = (i: Integ) => (
-    <div key={i.nome} className="hx-glass" style={{ borderRadius: 14, padding: "15px 16px", borderLeft: `3px solid ${i.ok ? "var(--green)" : i.quem === "eu" ? "var(--accent-2)" : "var(--warn)"}` }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-        <div style={{ width: 34, height: 34, borderRadius: 9, display: "grid", placeItems: "center", background: `color-mix(in srgb, ${i.cor} 18%, transparent)`, color: i.cor, fontSize: 13, fontWeight: 800 }}>{i.ini}</div>
-        <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: 13.5, fontWeight: 700 }}>{i.nome}</div></div>
-        <span style={{ fontSize: 9.5, fontWeight: 700, padding: "2px 7px", borderRadius: 20, background: i.quem === "eu" ? "color-mix(in srgb, var(--accent-2) 16%, transparent)" : "var(--panel-2)", color: i.quem === "eu" ? "var(--accent-2)" : "var(--dim)" }}>{i.quem === "eu" ? "eu opero" : "você configura"}</span>
-      </div>
-      <div style={{ fontSize: 12, color: "var(--mut)", lineHeight: 1.5, marginBottom: 10 }}>{i.para}</div>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-        <span className="ex-pill" style={{ background: `color-mix(in srgb, ${i.ok ? "var(--green)" : "var(--warn)"} 16%, transparent)`, color: i.ok ? "var(--green)" : "var(--warn)" }}><i className="ex-dot" />{i.ok ? "Configurada" : i.quem === "eu" ? "Disponível por aqui" : "Falta chave"}</span>
-        {i.vars.map((v) => <code key={v} style={cd}>{v}</code>)}
-      </div>
-    </div>
-  );
+  // ── Helpers de status ────────────────────────────────────────────────────
+  const ok = (key: string) => !!(process.env[key] || dbConfigs[key]);
+  const fonte = (key: string): "env" | "bd" | "nenhum" =>
+    process.env[key] ? "env" : dbConfigs[key] ? "bd" : "nenhum";
+
+  const INPUT: React.CSSProperties = {
+    background: "var(--bg)", border: "1px solid var(--line-2)", borderRadius: 8,
+    color: "var(--txt)", padding: "7px 10px", fontSize: 12.5, width: "100%", outline: "none",
+    fontFamily: "monospace",
+  };
 
   return (
     <>
       <p className="hx-eyebrow">Configurações · conexões</p>
       <h1 className="ex-h1"><span className="hx-accent-text">Integrações</span></h1>
-      <p className="ex-sub">O lugar único de chaves, tokens e acessos. Por segurança, os <b>segredos ficam no Vercel</b> (o servidor lê sem expor a ninguém) — aqui você vê o <b>status de cada um</b> e o <b>nome exato da variável</b> para inserir ou trocar. Onde dá, a conexão é feita direto por aqui (ex.: WhatsApp por QR).</p>
+      <p className="ex-sub">
+        Configure chaves e tokens diretamente por aqui. Os valores ficam salvos no banco (criptografia via RLS) e podem ser sobrescritos por variáveis de ambiente no Vercel.
+      </p>
 
-      <div className="ex-kpis" style={{ marginBottom: 18 }}>
-        <div className="ex-kpi hx-glass"><div className="lab">Conectadas</div><div className="val hx-accent-text">{integs.filter((i) => i.ok).length}/{integs.length}</div><div className="foot">Chaves presentes</div></div>
-        <div className="ex-kpi hx-glass"><div className="lab">WhatsApp</div><div className="val" style={{ fontSize: 15, color: wpp.status === "connected" ? "var(--green)" : "var(--warn)" }}>{wpp.status === "connected" ? "Conectado" : wpp.status === "nao_config" ? "Sem chave" : "Desconectado"}</div><div className="foot">{("number" in wpp && wpp.number) ? wpp.number : "escaneie o QR"}</div></div>
-        <div className="ex-kpi hx-glass"><div className="lab">IA dos agentes</div><div className="val" style={{ fontSize: 15, color: process.env.ANTHROPIC_API_KEY ? "var(--green)" : "var(--warn)" }}>{process.env.ANTHROPIC_API_KEY ? "Ativa" : "Falta chave"}</div><div className="foot">Anthropic</div></div>
-        <div className="ex-kpi hx-glass"><div className="lab">Onde inserir</div><div className="val" style={{ fontSize: 15 }}>Vercel</div><div className="foot">Settings · Env Vars</div></div>
+      {/* KPIs */}
+      <div className="ex-kpis" style={{ marginBottom: 22 }}>
+        {(() => {
+          const total   = GRUPOS.flatMap(g => g.chaves).length;
+          const prontas = GRUPOS.flatMap(g => g.chaves).filter(c => ok(c.key)).length;
+          return (
+            <>
+              <div className="ex-kpi hx-glass"><div className="lab">Configuradas</div><div className="val hx-accent-text">{prontas}/{total}</div><div className="foot">Chaves presentes</div></div>
+              <div className="ex-kpi hx-glass"><div className="lab">WhatsApp</div><div className="val" style={{ fontSize: 15, color: wpp.status === "connected" ? "var(--green)" : "var(--warn)" }}>{wpp.status === "connected" ? "Conectado" : wpp.status === "nao_config" ? "Sem chave" : "Desconectado"}</div><div className="foot">{"number" in wpp && wpp.number ? wpp.number : "escaneie o QR"}</div></div>
+              <div className="ex-kpi hx-glass"><div className="lab">IA dos agentes</div><div className="val" style={{ fontSize: 15, color: ok("ANTHROPIC_API_KEY") ? "var(--green)" : "var(--warn)" }}>{ok("ANTHROPIC_API_KEY") ? "Ativa" : "Falta chave"}</div><div className="foot">Anthropic</div></div>
+              <div className="ex-kpi hx-glass"><div className="lab">Fonte</div><div className="val" style={{ fontSize: 13 }}>BD + Env</div><div className="foot">Env tem prioridade</div></div>
+            </>
+          );
+        })()}
       </div>
 
-      {/* WhatsApp — conectar por aqui */}
-      <div className="ex-grph"><span className="gt">WhatsApp (uazapi)</span><span className="gc">{wpp.status === "connected" ? "on" : "off"}</span><span className="gl" /></div>
-      <div className="ex-panel hx-glass" style={{ padding: 18, marginBottom: 20 }}>
+      {/* WhatsApp — conectar por QR */}
+      <div className="ex-grph"><span className="gt">WhatsApp — conectar</span><span className="gc">{wpp.status === "connected" ? "conectado" : "offline"}</span><span className="gl" /></div>
+      <div className="ex-panel hx-glass" style={{ padding: 18, marginBottom: 8 }}>
         {wpp.status === "nao_config" ? (
           <p style={{ fontSize: 13, color: "var(--mut)", lineHeight: 1.6 }}>
-            Adicione no Vercel as variáveis <code style={cd}>UAZAPI_URL</code> = <code style={cd}>https://free.uazapi.com</code> e <code style={cd}>UAZAPI_TOKEN</code> = <code style={cd}>(seu Instance Token)</code>, faça o <b>Redeploy</b> e recarregue aqui — aí aparece o botão de conectar por QR.
+            Configure <b>UAZAPI_URL</b> e <b>UAZAPI_TOKEN</b> no formulário abaixo e salve. Após salvar, recarregue esta página e o botão de conectar aparece.
           </p>
         ) : (
           <WhatsAppConnect inicial={wpp} conectar={conectar} checar={checar} desconectar={desconectar} />
         )}
       </div>
 
-      {/* Criar nova instância (precisa do Admin Token de um servidor pago) */}
-      <details className="hx-glass" style={{ borderRadius: 12, marginBottom: 20, borderLeft: "3px solid var(--accent-2)" }}>
-        <summary style={{ listStyle: "none", cursor: "pointer", padding: "12px 16px", fontWeight: 700, fontSize: 13 }}>＋ Criar nova instância <span style={{ fontWeight: 400, fontSize: 11.5, color: "var(--dim)" }}>· gera um novo número/token no seu servidor uazapi</span></summary>
-        <div style={{ padding: "0 16px 16px", borderTop: "1px solid var(--line)", paddingTop: 12 }}>
-          <p style={{ fontSize: 12, color: "var(--mut)", lineHeight: 1.55, margin: "0 0 12px" }}>Usa o <code style={cd}>UAZAPI_ADMIN_TOKEN</code>. No servidor de demonstração <code style={cd}>free.uazapi.com</code> isso é <b style={{ color: "var(--warn)" }}>bloqueado</b> — funciona no seu servidor pago. O token gerado você cola em <code style={cd}>UAZAPI_TOKEN</code> e conecta por QR acima.</p>
+      {/* Criar instância */}
+      <details className="hx-glass" style={{ borderRadius: 12, marginBottom: 24, borderLeft: "3px solid var(--accent-2)" }}>
+        <summary style={{ listStyle: "none", cursor: "pointer", padding: "12px 16px", fontWeight: 700, fontSize: 13 }}>
+          ＋ Criar nova instância <span style={{ fontWeight: 400, fontSize: 11.5, color: "var(--dim)" }}>· gera um novo número/token no seu servidor uazapi</span>
+        </summary>
+        <div style={{ padding: "12px 16px 16px", borderTop: "1px solid var(--line)" }}>
+          <p style={{ fontSize: 12, color: "var(--mut)", lineHeight: 1.55, margin: "0 0 12px" }}>
+            Usa o <code style={CD}>UAZAPI_ADMIN_TOKEN</code>. No servidor de demonstração <code style={CD}>free.uazapi.com</code> isso é <b style={{ color: "var(--warn)" }}>bloqueado</b> — funciona no seu servidor pago.
+          </p>
           <CriarInstancia criar={criarInstancia} />
         </div>
       </details>
 
-      {/* Mapa de chaves */}
-      <div className="ex-grph"><span className="gt">Chaves & tokens</span><span className="gc">{integs.length}</span><span className="gl" /></div>
-      <p style={{ fontSize: 12, color: "var(--mut)", margin: "0 0 10px", lineHeight: 1.55 }}>Selo <b style={{ color: "var(--dim)" }}>você configura</b> = a chave/saldo é sua (Vercel). Selo <b style={{ color: "var(--accent-2)" }}>eu opero</b> = já faço por aqui (não precisa de chave no app agora).</p>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(320px,1fr))", gap: 12 }}>
-        {integs.map(renderCard)}
-      </div>
+      {/* Formulário principal de chaves */}
+      <div className="ex-grph"><span className="gt">Configurar chaves & tokens</span><span className="gl" /></div>
+      <p style={{ fontSize: 12, color: "var(--mut)", marginBottom: 14, lineHeight: 1.55 }}>
+        Preencha apenas o que quiser alterar. Campos em branco são ignorados. Chaves de ambiente no Vercel (<code style={CD}>Settings → Environment Variables</code>) têm prioridade sobre os valores aqui salvos.
+      </p>
 
-      {/* Ferramentas de IA de design (a plugar) */}
-      <div className="ex-grph" style={{ marginTop: 22 }}><span className="gt">IA de design (a plugar)</span><span className="gc">{designTools.length}</span><span className="gl" /></div>
-      <p style={{ fontSize: 12, color: "var(--mut)", margin: "0 0 10px", lineHeight: 1.55 }}>O Design Master escolhe a ferramenta pelo custo. Para o sistema gerar arte sozinho, cada uma precisa da sua chave/saldo. Enquanto não pluga, os agentes geram sob demanda por mim.</p>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(320px,1fr))", gap: 12 }}>
-        {designTools.map(renderCard)}
-      </div>
+      <form action={salvar}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {GRUPOS.map(g => (
+            <div key={g.nome} className="hx-glass" style={{ borderRadius: 14, padding: "18px 20px", borderLeft: `3px solid ${g.cor}` }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+                <span style={{ fontSize: 13.5, fontWeight: 800 }}>{g.nome}</span>
+              </div>
+              <p style={{ fontSize: 12, color: "var(--mut)", marginBottom: 14, lineHeight: 1.5 }}>{g.descricao}</p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {g.chaves.map(c => {
+                  const f      = fonte(c.key);
+                  const temVal = ok(c.key);
+                  return (
+                    <div key={c.key}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                        <label style={{ fontSize: 11.5, fontWeight: 700, color: "var(--txt)" }}>{c.label}</label>
+                        {temVal && (
+                          <span style={{ fontSize: 9.5, fontWeight: 700, padding: "1px 6px", borderRadius: 5, background: f === "env" ? "color-mix(in srgb, var(--dim) 15%, transparent)" : "color-mix(in srgb, var(--green) 15%, transparent)", color: f === "env" ? "var(--dim)" : "var(--green)" }}>
+                            {f === "env" ? "via Vercel" : "✓ salvo no BD"}
+                          </span>
+                        )}
+                        {!temVal && (
+                          <span style={{ fontSize: 9.5, fontWeight: 700, padding: "1px 6px", borderRadius: 5, background: "color-mix(in srgb, var(--warn) 15%, transparent)", color: "var(--warn)" }}>
+                            não configurado
+                          </span>
+                        )}
+                        {c.link && (
+                          <a href={c.link} target="_blank" rel="noreferrer" style={{ fontSize: 10.5, color: "var(--accent)", marginLeft: "auto", textDecoration: "none" }}>
+                            Obter chave →
+                          </a>
+                        )}
+                      </div>
+                      <input
+                        name={c.key}
+                        type={c.secret ? "password" : "text"}
+                        autoComplete="off"
+                        placeholder={temVal ? (c.secret ? "••••••••••••• (já configurado — cole nova para trocar)" : dbConfigs[c.key] || process.env[c.key] || "") : c.hint}
+                        style={INPUT}
+                      />
+                      <p style={{ fontSize: 10.5, color: "var(--dim)", marginTop: 3 }}>{c.hint}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
 
-      <div className="hx-glass" style={{ borderRadius: 12, padding: "13px 16px", marginTop: 16, borderLeft: "3px solid var(--accent)" }}>
-        <p style={{ fontSize: 12.5, color: "var(--mut)", lineHeight: 1.6, margin: 0 }}>
-          <b style={{ color: "var(--txt)" }}>Como inserir/trocar uma chave:</b> Vercel → projeto <b>expand</b> → <b>Settings → Environment Variables</b> → adicione/edite pelo <b>nome exato</b> acima → <b>Save</b> → <b>Redeploy</b>. Os valores nunca aparecem aqui (segurança); esta tela só mostra se estão presentes e conectados.
+        <div style={{ marginTop: 20, display: "flex", gap: 12, alignItems: "center" }}>
+          <button className="hx-btn hx-btn-primary" type="submit" style={{ fontSize: 13, padding: "9px 22px" }}>
+            Salvar configurações
+          </button>
+          <p style={{ fontSize: 11.5, color: "var(--dim)", margin: 0 }}>
+            Os valores ficam no banco e entram em vigor imediatamente. Para persistir após redeploy sem o banco, adicione também no Vercel.
+          </p>
+        </div>
+      </form>
+
+      {/* Aviso de migration */}
+      <div className="hx-glass" style={{ borderRadius: 12, padding: "13px 16px", marginTop: 20, borderLeft: "3px solid var(--warn)" }}>
+        <p style={{ fontSize: 12, color: "var(--mut)", lineHeight: 1.6, margin: 0 }}>
+          <b style={{ color: "var(--warn)" }}>Primeira vez?</b> Execute a migration <code style={CD}>supabase/migrations/20260820_system_config.sql</code> no painel do Supabase (<b>SQL Editor</b>) para habilitar o armazenamento de chaves no banco. Até lá, configure via Vercel → Settings → Environment Variables.
         </p>
       </div>
     </>
   );
 }
 
-const cd: React.CSSProperties = { fontFamily: "monospace", fontSize: 11, background: "var(--panel-2)", border: "1px solid var(--line)", borderRadius: 6, padding: "2px 7px", color: "var(--accent)" };
+const CD: React.CSSProperties = {
+  fontFamily: "monospace", fontSize: 11, background: "var(--panel-2)",
+  border: "1px solid var(--line)", borderRadius: 6, padding: "2px 7px", color: "var(--accent)",
+};

@@ -55,13 +55,24 @@ const FASES: Fase[] = [
     prazo: "Concluído",
   },
   {
-    n: "7", titulo: "SaaS, dados e publicação", origem: "Expand", status: "andamento", prog: 40,
+    n: "7", titulo: "SaaS, dados e publicação", origem: "Expand", status: "andamento", prog: 55,
     entregas: [
       "Build de produção validado + repositório e guia de deploy prontos (Vercel + GitHub) — falta só conectar a conta e subir",
       "Contas reais de cliente + níveis de acesso completos (RLS do portal já entregue)",
+      "Onboarding guiado (tour animado com 6 passos + boas-vindas) e cadastro liberado para a equipe",
       "Falta: chat de IA do Henrique (RAG), Financeiro (/admin/financas) + agente financeiro, domínio próprio e billing/LGPD",
     ],
     prazo: "Deploy nesta semana · restante ~2 semanas",
+  },
+  {
+    n: "8", titulo: "Automações e relatórios WhatsApp", origem: "Expand", status: "afazer", prog: 10,
+    entregas: [
+      "Página de configuração de grupos pronta (/expand/config/relatorios): quais grupos, qual conteúdo, horário de envio",
+      "Relatório diário às 17:30 por setor: atrasadas / andamento / concluídas — gerado dinamicamente das etapas do banco",
+      "Relatório semanal consolidado (sexta-feira): para líderes, clientes e diário de bordo interno",
+      "Integração com uazapi para envio automático (trigger agendado via rotinas da plataforma)",
+    ],
+    prazo: "~2–3 semanas após o deploy",
   },
 ];
 
@@ -71,7 +82,8 @@ const MELHORIAS: { t: string; d: string }[] = [
   { t: "Prazo/SLA real por etapa", d: "Um prazo numérico por etapa deixa o semáforo de atraso exato. Hoje o atraso é estimado do SLA em texto (best-effort: dias/horas)." },
   { t: "Upload de foto nos perfis", d: "Subir a foto da equipe direto pela plataforma (Storage). Hoje a foto entra por URL." },
   { t: "Processo próprio dos demais produtos", d: "Clonar a estrutura de fases/etapas do PIDE como ponto de partida editável para os outros produtos (leads, GBP, thumbnails). O motor já lê o processo do produto." },
-  { t: "Notificações e automações", d: "Avisar o responsável quando a etapa vira dele ou quando o SLA está estourando; disparos no WhatsApp/e-mail." },
+  { t: "Notificações in-app", d: "Avisar o responsável quando a etapa vira dele ou quando o SLA está estourando. Disparos WhatsApp planejados na Fase 8." },
+  { t: "Diagnósticos no onboarding", d: "Prompt para preencher DISC / Arquétipo / Temperamentos logo no primeiro login. O fluxo já existe em /equipe/[id]/diagnostico — falta ser guiado pelo boas-vindas." },
 ];
 
 // ── Vista Startup — as 5 fases estratégicas (pensar o projeto como uma startup).

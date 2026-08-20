@@ -30,6 +30,10 @@ async function salvar(formData: FormData) {
     ranking: t("ranking"), nota: nota ? Number(nota) : null,
     prompt: t("prompt"), memoria: t("memoria"),
     superior: t("superior"), chapeus: arr("chapeus"),
+    departamento: t("departamento"),
+    google_cal_ics: t("google_cal_ics"),
+    whatsapp_grupo: t("whatsapp_grupo"),
+    whatsapp_grupo_link: t("whatsapp_grupo_link"),
   }).eq("id", id);
   revalidatePath(`/expand/equipe/${id}`);
   revalidatePath("/expand/equipe");
@@ -100,6 +104,19 @@ export default async function Editar({ params }: { params: Promise<{ id: string 
               </select>
             </label>
             <A n="chapeus" l="Chapéus / papéis" v={(p.chapeus ?? []).join("\n")} hint="um por linha" />
+            <F n="departamento" l="Departamento" v={p.departamento} />
+          </div>
+        </div>
+
+        <div className="ex-panel hx-glass" style={{ marginBottom: 16 }}>
+          <div className="ph"><span className="pt">Agenda & grupos de trabalho</span></div>
+          <div className="pb" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 4 }}>
+            <F n="google_cal_ics" l="Google Agenda (URL .ics pessoal)" v={p.google_cal_ics} />
+            <F n="whatsapp_grupo" l="Grupo de trabalho (nome)" v={p.whatsapp_grupo} />
+            <F n="whatsapp_grupo_link" l="Link do grupo WhatsApp" v={p.whatsapp_grupo_link} />
+          </div>
+          <div className="pb" style={{ paddingTop: 0, fontSize: 12, color: "var(--dim)" }}>
+            Para obter a URL .ics do Google Agenda: abra agenda.google.com → Configurações da agenda → Endereço URL do iCal (privado).
           </div>
         </div>
 

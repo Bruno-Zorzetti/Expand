@@ -15,7 +15,7 @@ const AREAS = [
   { n: "Comercial", c: "#CE6A5F" }, { n: "PM", c: "#C89B5E" }, { n: "CS", c: "#E6D0A8" },
   { n: "Audiovisual", c: "#6FBF92" }, { n: "Social", c: "#86C0A6" }, { n: "Tráfego", c: "#CE7F4C" },
 ];
-const ICONES = ["user", "users", "target", "chart", "share", "pen", "bolt", "compass", "star", "check", "checkCircle", "briefcase"];
+const ICONES = ["user", "users", "target", "chart", "share", "pen", "bolt", "compass", "star", "check", "checkCircle", "briefcase", "building", "calendar", "whatsapp", "link", "wave", "flame", "activity", "settings"];
 const GLOW = [{ i: "target", c: "#E0BC85" }, { i: "compass", c: "#6FBF92" }, { i: "bolt", c: "#C89B5E" }, { i: "star", c: "#E6D0A8" }, { i: "share", c: "#86C0A6" }];
 
 function Donut() {
@@ -148,6 +148,25 @@ export default function EstiloExpand() {
               <div className="ex-mini"><span className="ml">Outra linha</span><span className="mv" style={{ color: "var(--green)" }}>ok</span></div>
             </div>
           </div>
+        </div>
+      </Bloco>
+
+      <Bloco titulo="Logos & Marca">
+        <div className="hx-glass" style={{ padding: 24, display: "flex", flexWrap: "wrap", gap: 24, alignItems: "center" }}>
+          {[
+            { src: "/midia/expand-logo-horizontal-cream.png", label: "Horizontal — Cream" },
+            { src: "/midia/expand-logo-horizontal-gold.png", label: "Horizontal — Gold" },
+            { src: "/midia/expand-icone-cream.png", label: "Ícone — Cream" },
+            { src: "/midia/expand-icone-gold.png", label: "Ícone — Gold" },
+          ].map((logo) => (
+            <div key={logo.src} style={{ textAlign: "center" }}>
+              <div style={{ background: "var(--panel-2)", borderRadius: 10, padding: 20, marginBottom: 8 }}>
+                <img src={logo.src} alt={logo.label} style={{ height: 56, maxWidth: 220, objectFit: "contain" }} />
+              </div>
+              <p style={{ fontSize: 11, color: "var(--dim)" }}>{logo.label}</p>
+              <p style={{ fontFamily: "monospace", fontSize: 10, color: "var(--line-2)" }}>{logo.src}</p>
+            </div>
+          ))}
         </div>
       </Bloco>
 

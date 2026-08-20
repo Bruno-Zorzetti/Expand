@@ -22,7 +22,7 @@ export type Et = {
 };
 export type Cli = { id: string; nome: string };
 export type Membro = { id: string; nome: string; papel: string; ini: string };
-export type Vista = "dia" | "semana" | "mes";
+export type Vista = "dia" | "semana" | "mes" | "timeline";
 
 type PanelState =
   | { kind: "task"; et: Et }
@@ -304,12 +304,15 @@ function NewTaskForm({
   date, clientes, membroNome, onClose, onCreate,
 }: {
   date: string; clientes: Cli[]; membroNome: string;
-  onClose: () => void; onCreate: (tipo: string, titulo: string, clienteId: string, date: string) => void;
+  onClose: () => void;
+  onCreate: (tipo: string, titulo: string, clienteId: string, date: string, horarioInicio: string, horarioFim: string) => void;
 }) {
   const [tipo, setTipo] = useState("reuniao");
   const [titulo, setTitulo] = useState("");
   const [clienteId, setClienteId] = useState(clientes[0]?.id ?? "");
   const [dateVal, setDateVal] = useState(date);
+  const [horarioInicio, setHorarioInicio] = useState("09:00");
+  const [horarioFim, setHorarioFim] = useState("10:00");
   const cor = TIPO_COR[tipo] ?? "var(--accent)";
 
   const inpSt: React.CSSProperties = {
@@ -317,6 +320,12 @@ function NewTaskForm({
     borderRadius: 8, color: "var(--txt)", padding: "8px 11px", fontSize: 13,
     outline: "none", boxSizing: "border-box", colorScheme: "dark",
   };
+  const inpTimeSt: React.CSSProperties = {
+    ...inpSt, width: "auto", flex: 1,
+  };
+
+  // tipos que têm hora relevante
+  const TIPOS_COM_HORA = new Set(["reuniao", "gravacao", "ligacao"]);
 
   return (
     <div>
@@ -353,7 +362,7 @@ function NewTaskForm({
 
       {/* Titulo */}
       <div style={{ marginBottom: 12 }}>
-        <div style={{ fontSize: 10.5, fontWeight: 700, color: "var(--dim)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 6 }}>Titulo</div>
+        <div style={{ fontSize: 10.5, fontWeight: 700, color: "var(--dim)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 6 }}>Título</div>
         <input
           type="text" value={titulo} onChange={(e) => setTitulo(e.target.value)}
           placeholder={`Descreva a ${TIPOS.find(t => t.value === tipo)?.label?.toLowerCase() ?? "tarefa"}...`}
@@ -373,10 +382,31 @@ function NewTaskForm({
       </div>
 
       {/* Data */}
-      <div style={{ marginBottom: 20 }}>
+      <div style={{ marginBottom: 12 }}>
         <div style={{ fontSize: 10.5, fontWeight: 700, color: "var(--dim)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 6 }}>Data</div>
         <input type="date" value={dateVal} onChange={(e) => setDateVal(e.target.value)} style={inpSt} />
       </div>
+
+      {/* Horário — só para tipos com hora relevante */}
+      {TIPOS_COM_HORA.has(tipo) && (
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 10.5, fontWeight: 700, color: "var(--dim)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 6 }}>Horário</div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <input
+              type="time" value={horarioInicio}
+              onChange={(e) => setHorarioInicio(e.target.value)}
+              style={inpTimeSt}
+            />
+            <span style={{ color: "var(--dim)", fontSize: 12, flexShrink: 0 }}>até</span>
+            <input
+              type="time" value={horarioFim}
+              onChange={(e) => setHorarioFim(e.target.value)}
+              style={inpTimeSt}
+            />
+          </div>
+        </div>
+      )}
+      {!TIPOS_COM_HORA.has(tipo) && <div style={{ marginBottom: 20 }} />}
 
       {/* Actions */}
       <div style={{ display: "flex", gap: 8 }}>
@@ -387,13 +417,233 @@ function NewTaskForm({
         <button
           onClick={() => {
             if (!titulo.trim() || !clienteId) return;
-            onCreate(tipo, titulo.trim(), clienteId, dateVal);
+            onCreate(tipo, titulo.trim(), clienteId, dateVal, horarioInicio, horarioFim);
           }}
           style={{ flex: 2, background: cor, color: "#fff", border: "none", borderRadius: 10, padding: "10px", fontSize: 13, fontWeight: 800, cursor: "pointer" }}
         >
           Criar {TIPOS.find(t => t.value === tipo)?.label}
         </button>
       </div>
+    </div>
+  );
+}
+
+// ── Status metadata ──────────────────────────────────────────────────────────
+const STATUS_META: Record<string, { l: string; c: string }> = {
+  run:  { l: "Em execução", c: "#6FBF92" },
+  late: { l: "Atrasada",    c: "#CE6A5F" },
+  wait: { l: "Aguardando",  c: "#D9A94E" },
+  idle: { l: "Na fila",     c: "#7C8C7F" },
+  done: { l: "Concluída",   c: "#3B82F6" },
+};
+
+// ── SLA → days (for timeline bar width) ──────────────────────────────────────
+function slaParaDias(sla: string | null): number {
+  if (!sla) return 1;
+  const md = sla.toLowerCase().match(/(\d+)\s*dia/); if (md) return Number(md[1]);
+  const mh = sla.toLowerCase().match(/(\d+)\s*h/); if (mh) return Math.max(1, Math.ceil(Number(mh[1]) / 8));
+  return 1;
+}
+
+// ── Timeline View ─────────────────────────────────────────────────────────────
+function TimelineView({
+  etapas, nomeCli, anchor, hojeS, onTaskClick,
+}: {
+  etapas: Et[]; nomeCli: Record<string, string>;
+  anchor: Date; hojeS: string;
+  onTaskClick: (e: Et) => void;
+}) {
+  const DAYS = 28;
+  const start = monday(anchor);
+  const cols = Array.from({ length: DAYS }, (_, i) => addDays(start, i));
+  const startMs = start.getTime();
+  const endMs   = addDays(start, DAYS).getTime();
+
+  // Group tasks with a date in window + tasks without date
+  const inWindow = etapas.filter((e) => {
+    if (!e.data_prevista) return false;
+    const d = new Date(e.data_prevista + "T00:00:00").getTime();
+    return d >= startMs && d < endMs;
+  });
+  const noDate = etapas.filter((e) => !e.data_prevista);
+
+  // Group by client
+  const byClient: Map<string, Et[]> = new Map();
+  for (const e of inWindow) {
+    const arr = byClient.get(e.cliente_id) ?? [];
+    arr.push(e);
+    byClient.set(e.cliente_id, arr);
+  }
+
+  const HEADER_H = 36;
+  const ROW_H    = 36;
+  const BAR_H    = 24;
+  const BAR_TOP  = (ROW_H - BAR_H) / 2;
+  const DAY_W    = 32;
+  const LABEL_W  = 140;
+  const totalW   = LABEL_W + DAYS * DAY_W;
+
+  const months: { label: string; start: number; span: number }[] = [];
+  let curMo = -1, curSpan = 0, curStart = 0;
+  cols.forEach((d, i) => {
+    const mo = d.getMonth();
+    if (mo !== curMo) {
+      if (curMo >= 0) months.push({ label: `${MESES_ABR[curMo]} ${cols[curStart].getFullYear()}`, start: curStart, span: curSpan });
+      curMo = mo; curStart = i; curSpan = 1;
+    } else { curSpan++; }
+  });
+  if (curMo >= 0) months.push({ label: `${MESES_ABR[curMo]} ${cols[curStart].getFullYear()}`, start: curStart, span: curSpan });
+
+  const todayIdx = cols.findIndex((d) => ymd(d) === hojeS);
+
+  const clientRows = Array.from(byClient.entries()).map(([cliId, tasks]) => ({
+    cliId, cliNome: nomeCli[cliId] ?? "?", tasks,
+  }));
+
+  return (
+    <div style={{ overflowX: "auto", position: "relative" }}>
+      <svg
+        width={totalW}
+        height={HEADER_H * 2 + clientRows.reduce((acc, r) => acc + r.tasks.length * ROW_H, 0) + (noDate.length > 0 ? 32 : 0) + 20}
+        style={{ display: "block", fontFamily: "var(--font-sans, inherit)" }}
+      >
+        {/* Month headers */}
+        {months.map((m) => (
+          <g key={m.label}>
+            <rect x={LABEL_W + m.start * DAY_W} y={0} width={m.span * DAY_W} height={HEADER_H}
+              fill="var(--panel-2, #0c1629)" />
+            <text x={LABEL_W + m.start * DAY_W + 6} y={HEADER_H / 2 + 4}
+              fill="var(--txt, #eee)" fontSize="11" fontWeight="700">{m.label}</text>
+          </g>
+        ))}
+
+        {/* Day column headers */}
+        {cols.map((d, i) => {
+          const isToday = ymd(d) === hojeS;
+          const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+          const x = LABEL_W + i * DAY_W;
+          return (
+            <g key={i}>
+              <rect x={x} y={HEADER_H} width={DAY_W} height={HEADER_H}
+                fill={isToday ? "color-mix(in srgb,var(--accent) 18%,var(--panel-2,#0c1629))" : isWeekend ? "color-mix(in srgb,var(--line) 30%,var(--panel-2,#0c1629))" : "var(--panel-2,#0c1629)"} />
+              <text x={x + DAY_W / 2} y={HEADER_H + HEADER_H / 2 + 4}
+                fill={isToday ? "var(--accent,#C89B5E)" : isWeekend ? "var(--dim,#64748b)" : "var(--dim,#64748b)"}
+                fontSize="10" textAnchor="middle" fontWeight={isToday ? "800" : "500"}>
+                {d.getDate()}
+              </text>
+            </g>
+          );
+        })}
+
+        {/* Frozen label header */}
+        <rect x={0} y={0} width={LABEL_W} height={HEADER_H * 2} fill="var(--bg,#08110E)" />
+        <text x={10} y={HEADER_H + HEADER_H / 2 + 4} fill="var(--dim)" fontSize="10" fontWeight="700">CLIENTE / TAREFA</text>
+
+        {/* Task rows */}
+        {clientRows.map(({ cliNome, tasks }, gi) => {
+          const groupY = HEADER_H * 2 + clientRows.slice(0, gi).reduce((a, r) => a + r.tasks.length * ROW_H, 0);
+          const groupH = tasks.length * ROW_H;
+          return (
+            <g key={gi}>
+              {/* Client label band */}
+              <rect x={0} y={groupY} width={LABEL_W} height={groupH} fill="var(--panel,#08110E)" />
+              <text x={8} y={groupY + groupH / 2 + 4} fill="var(--txt)" fontSize="10.5" fontWeight="700"
+                clipPath={`url(#clip-lbl-${gi})`}>{cliNome}</text>
+              <clipPath id={`clip-lbl-${gi}`}>
+                <rect x={0} y={groupY} width={LABEL_W - 4} height={groupH} />
+              </clipPath>
+
+              {tasks.map((e, ri) => {
+                const rowY = groupY + ri * ROW_H;
+                const cor = areaCor(e.area, e.marco);
+                const running = e.status === "run";
+                const d0 = new Date(e.data_prevista! + "T00:00:00");
+                const dayOff = Math.round((d0.getTime() - startMs) / 86400000);
+                const durDays = Math.max(1, slaParaDias(e.sla));
+                const barX = LABEL_W + dayOff * DAY_W;
+                const barW = Math.min(durDays * DAY_W - 4, totalW - barX - 2);
+
+                return (
+                  <g key={e.id} style={{ cursor: "pointer" }}
+                    onClick={() => onTaskClick(e)}>
+                    {/* Hover background */}
+                    <rect x={LABEL_W} y={rowY} width={DAYS * DAY_W} height={ROW_H}
+                      fill="transparent" />
+                    {/* Column lines */}
+                    {cols.map((_, ci) => (
+                      <line key={ci} x1={LABEL_W + ci * DAY_W} y1={rowY} x2={LABEL_W + ci * DAY_W} y2={rowY + ROW_H}
+                        stroke="var(--line,#1e3a5f)" strokeWidth="0.4" />
+                    ))}
+                    {/* Task bar */}
+                    <rect x={barX + 2} y={rowY + BAR_TOP} width={Math.max(barW, 4)} height={BAR_H}
+                      rx={5} fill={`color-mix(in srgb,${cor} 25%,var(--panel-2,#0c1629))`}
+                      stroke={cor} strokeWidth={running ? "1.8" : "1"} />
+                    {running && (
+                      <rect x={barX + 2} y={rowY + BAR_TOP} width={4} height={BAR_H}
+                        rx={5} fill={cor}>
+                        <animate attributeName="opacity" values="1;0.3;1" dur="1.8s" repeatCount="indefinite" />
+                      </rect>
+                    )}
+                    {/* Task title */}
+                    <text x={barX + 8} y={rowY + ROW_H / 2 + 4}
+                      fill={cor} fontSize="10" fontWeight="600"
+                      clipPath={`url(#clip-bar-${e.id})`}>
+                      {e.marco ? "◆ " : ""}{e.titulo}
+                    </text>
+                    <clipPath id={`clip-bar-${e.id}`}>
+                      <rect x={barX + 4} y={rowY} width={Math.max(barW - 4, 0)} height={ROW_H} />
+                    </clipPath>
+                  </g>
+                );
+              })}
+
+              {/* Separator line */}
+              <line x1={0} y1={groupY + groupH} x2={totalW} y2={groupY + groupH}
+                stroke="var(--line)" strokeWidth="0.8" />
+            </g>
+          );
+        })}
+
+        {/* Today line */}
+        {todayIdx >= 0 && (
+          <line
+            x1={LABEL_W + todayIdx * DAY_W + DAY_W / 2}
+            y1={HEADER_H}
+            x2={LABEL_W + todayIdx * DAY_W + DAY_W / 2}
+            y2={HEADER_H * 2 + clientRows.reduce((a, r) => a + r.tasks.length * ROW_H, 0)}
+            stroke="var(--accent)" strokeWidth="1.5" strokeDasharray="4 3" />
+        )}
+
+        {/* Top border */}
+        <rect x={0} y={0} width={totalW} height={1} fill="var(--line)" />
+        <rect x={0} y={HEADER_H} width={totalW} height={1} fill="var(--line)" />
+        <rect x={0} y={HEADER_H * 2} width={totalW} height={1} fill="var(--line)" />
+        <rect x={LABEL_W} y={0} width={1} height={HEADER_H * 2 + clientRows.reduce((a, r) => a + r.tasks.length * ROW_H, 0)} fill="var(--line)" />
+      </svg>
+
+      {/* Tasks without date */}
+      {noDate.length > 0 && (
+        <div style={{ marginTop: 16, padding: "10px 14px", background: "var(--panel-2)", border: "1px solid var(--line)", borderRadius: 10 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", color: "var(--warn)", marginBottom: 8 }}>
+            Sem data ({noDate.length})
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {noDate.map((e) => {
+              const cor = areaCor(e.area, e.marco);
+              return (
+                <button key={e.id} onClick={() => onTaskClick(e)} style={{
+                  background: `color-mix(in srgb,${cor} 12%,var(--panel-2))`,
+                  border: `1px solid ${cor}`, borderRadius: 8, padding: "4px 10px",
+                  fontSize: 11.5, color: cor, cursor: "pointer", fontFamily: "inherit",
+                }}>
+                  {e.marco ? "◆ " : ""}{e.titulo}
+                  <span style={{ fontSize: 10, color: "var(--dim)", marginLeft: 6 }}>{nomeCli[e.cliente_id] ?? "?"}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -478,6 +728,8 @@ export function CalendarV2({
   const [view, setView] = useState<Vista>(initialView);
   const [anchor, setAnchor] = useState(() => parseDate(initialDate));
   const [filtroCliente, setFiltroCliente] = useState(initialFiltroCli);
+  const [filtroStatus, setFiltroStatus] = useState("");
+  const [filtroArea, setFiltroArea] = useState("");
   const [panel, setPanel] = useState<PanelState>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropDate, setDropDate] = useState<string | null>(null);
@@ -489,7 +741,13 @@ export function CalendarV2({
   );
 
   const hojeS = ymd(new Date());
-  const etapas = filtroCliente ? optimisticEtapas.filter((e) => e.cliente_id === filtroCliente) : optimisticEtapas;
+  const etapas = optimisticEtapas
+    .filter((e) => !filtroCliente || e.cliente_id === filtroCliente)
+    .filter((e) => !filtroStatus || e.status === filtroStatus)
+    .filter((e) => !filtroArea || e.area === filtroArea);
+
+  // Unique areas from all etapas for the filter
+  const areasUnicas = Array.from(new Set(optimisticEtapas.map((e) => e.area).filter(Boolean) as string[])).sort();
 
   let ini: Date, gridDias: Date[];
   if (view === "dia") {
@@ -497,6 +755,9 @@ export function CalendarV2({
   } else if (view === "semana") {
     ini = monday(anchor);
     gridDias = Array.from({ length: 7 }, (_, i) => addDays(ini, i));
+  } else if (view === "timeline") {
+    ini = monday(anchor);
+    gridDias = Array.from({ length: 28 }, (_, i) => addDays(ini, i));
   } else {
     ini = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
     const g0 = monday(ini);
@@ -511,12 +772,15 @@ export function CalendarV2({
       ? anchor.toLocaleDateString("pt-BR", { day: "2-digit", month: "long", weekday: "long" })
       : view === "semana"
       ? `${ini.getDate()}–${addDays(ini, 6).getDate()} ${MESES_ABR[addDays(ini, 6).getMonth()]} ${addDays(ini, 6).getFullYear()}`
+      : view === "timeline"
+      ? `${monday(anchor).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })} — ${addDays(monday(anchor), 27).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" })}`
       : `${MESES[anchor.getMonth()]} ${anchor.getFullYear()}`;
 
   const navigate = (dir: number) => {
     setAnchor(
       view === "dia" ? addDays(anchor, dir)
       : view === "semana" ? addDays(anchor, dir * 7)
+      : view === "timeline" ? addDays(anchor, dir * 28)
       : new Date(anchor.getFullYear(), anchor.getMonth() + dir, 1)
     );
   };
@@ -524,7 +788,7 @@ export function CalendarV2({
   const switchMembro = (id: string) => {
     const p = new URLSearchParams();
     if (id !== equipe[0]?.id) p.set("m", id);
-    if (view !== "mes") p.set("v", view);
+    if (view !== "mes" && view !== "timeline") p.set("v", view);
     const s = p.toString();
     router.push(`/expand/planejamento${s ? `?${s}` : ""}`);
   };
@@ -539,12 +803,14 @@ export function CalendarV2({
     });
   };
 
-  const createTask = (tipo: string, titulo: string, clienteId: string, date: string) => {
+  const createTask = (tipo: string, titulo: string, clienteId: string, date: string, horarioInicio: string, horarioFim: string) => {
     startTransition(async () => {
       const fd = new FormData();
       fd.set("tipo", tipo); fd.set("titulo", titulo);
       fd.set("clienteId", clienteId); fd.set("date", date);
       fd.set("membroNome", membroNome);
+      if (horarioInicio) fd.set("horario_inicio", horarioInicio);
+      if (horarioFim)    fd.set("horario_fim",    horarioFim);
       await criarEtapaCal(fd);
       router.refresh();
       setPanel(null);
@@ -709,46 +975,99 @@ export function CalendarV2({
         <div style={{ flex: 1, minWidth: 0 }}>
 
           {/* Top controls */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
-            {/* View tabs */}
-            <div style={{ display: "flex", background: "var(--panel-2)", border: "1px solid var(--line)", borderRadius: 9, padding: 2, gap: 1 }}>
-              {(["dia", "semana", "mes"] as Vista[]).map((v, i) => (
-                <button key={v} onClick={() => setView(v)}
-                  style={{ fontSize: 12, fontWeight: 600, padding: "5px 14px", borderRadius: 7, border: "none", cursor: "pointer", background: view === v ? "var(--accent)" : "transparent", color: view === v ? "#fff" : "var(--dim)", transition: "all .15s" }}>
-                  {["Dia", "Semana", "Mês"][i]}
-                </button>
-              ))}
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              {/* View tabs */}
+              <div style={{ display: "flex", background: "var(--panel-2)", border: "1px solid var(--line)", borderRadius: 9, padding: 2, gap: 1 }}>
+                {(["dia", "semana", "mes", "timeline"] as Vista[]).map((v, i) => (
+                  <button key={v} onClick={() => setView(v)}
+                    style={{ fontSize: 12, fontWeight: 600, padding: "5px 12px", borderRadius: 7, border: "none", cursor: "pointer", background: view === v ? "var(--accent)" : "transparent", color: view === v ? "#fff" : "var(--dim)", transition: "all .15s" }}>
+                    {["Dia", "Semana", "Mês", "Timeline"][i]}
+                  </button>
+                ))}
+              </div>
+
+              <button onClick={() => navigate(-1)} style={btnNav}>‹</button>
+              <span style={{ fontSize: 13.5, fontWeight: 700, minWidth: 160, textAlign: "center", textTransform: "capitalize" }}>{label}</span>
+              <button onClick={() => navigate(1)} style={btnNav}>›</button>
+              <button
+                onClick={() => setAnchor(new Date())}
+                style={{ ...btnNav, fontSize: 11.5, color: "var(--accent)", border: "1px solid var(--accent)", fontWeight: 700 }}
+              >
+                Hoje
+              </button>
+
+              {/* Client filter */}
+              <select
+                value={filtroCliente}
+                onChange={(e) => setFiltroCliente(e.target.value)}
+                style={{ marginLeft: "auto", background: "var(--panel-2)", border: "1px solid var(--line)", borderRadius: 8, color: "var(--txt)", padding: "5px 10px", fontSize: 12, cursor: "pointer", outline: "none" }}
+              >
+                <option value="">Todos os clientes</option>
+                {clientes.map((c) => (
+                  <option key={c.id} value={c.id}>{c.nome}</option>
+                ))}
+              </select>
+
+              {/* Nova tarefa */}
+              <button
+                onClick={() => setPanel({ kind: "new", date: hojeS })}
+                style={{ background: "var(--accent)", color: "#fff", border: "none", borderRadius: 8, padding: "5px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+              >
+                + Nova
+              </button>
             </div>
 
-            <button onClick={() => navigate(-1)} style={btnNav}>‹</button>
-            <span style={{ fontSize: 13.5, fontWeight: 700, minWidth: 160, textAlign: "center", textTransform: "capitalize" }}>{label}</span>
-            <button onClick={() => navigate(1)} style={btnNav}>›</button>
-            <button
-              onClick={() => setAnchor(new Date())}
-              style={{ ...btnNav, fontSize: 11.5, color: "var(--accent)", border: "1px solid var(--accent)", fontWeight: 700 }}
-            >
-              Hoje
-            </button>
+            {/* Filter chips: status + area */}
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+              <span style={{ fontSize: 10.5, color: "var(--dim)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".05em", marginRight: 2 }}>Status</span>
+              {["", ...Object.keys(STATUS_META)].map((s) => {
+                const meta = s ? STATUS_META[s] : null;
+                const active = filtroStatus === s;
+                return (
+                  <button key={s || "all"} onClick={() => setFiltroStatus(s)}
+                    style={{
+                      fontSize: 11, padding: "3px 10px", borderRadius: 20,
+                      border: `1px solid ${active ? (meta?.c ?? "var(--accent)") : "var(--line)"}`,
+                      background: active ? `color-mix(in srgb,${meta?.c ?? "var(--accent)"} 15%,transparent)` : "transparent",
+                      color: active ? (meta?.c ?? "var(--accent)") : "var(--dim)",
+                      cursor: "pointer", fontFamily: "inherit", transition: "all .12s",
+                    }}>
+                    {s ? meta!.l : "Todos"}
+                  </button>
+                );
+              })}
 
-            {/* Client filter — select */}
-            <select
-              value={filtroCliente}
-              onChange={(e) => setFiltroCliente(e.target.value)}
-              style={{ marginLeft: "auto", background: "var(--panel-2)", border: "1px solid var(--line)", borderRadius: 8, color: "var(--txt)", padding: "5px 10px", fontSize: 12, cursor: "pointer", outline: "none" }}
-            >
-              <option value="">Todos os clientes</option>
-              {clientes.map((c) => (
-                <option key={c.id} value={c.id}>{c.nome}</option>
-              ))}
-            </select>
+              {areasUnicas.length > 0 && (
+                <>
+                  <span style={{ fontSize: 10.5, color: "var(--dim)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".05em", marginLeft: 8, marginRight: 2 }}>Área</span>
+                  {["", ...areasUnicas].map((a) => {
+                    const cor = a ? areaCor(a, false) : "var(--accent)";
+                    const active = filtroArea === a;
+                    const label = a ? (AREAS[a]?.n ?? TIPOS.find(t => t.value === a)?.label ?? a) : "Todas";
+                    return (
+                      <button key={a || "all-area"} onClick={() => setFiltroArea(a)}
+                        style={{
+                          fontSize: 11, padding: "3px 10px", borderRadius: 20,
+                          border: `1px solid ${active ? cor : "var(--line)"}`,
+                          background: active ? `color-mix(in srgb,${cor} 15%,transparent)` : "transparent",
+                          color: active ? cor : "var(--dim)",
+                          cursor: "pointer", fontFamily: "inherit", transition: "all .12s",
+                        }}>
+                        {label}
+                      </button>
+                    );
+                  })}
+                </>
+              )}
 
-            {/* Nova tarefa */}
-            <button
-              onClick={() => setPanel({ kind: "new", date: hojeS })}
-              style={{ background: "var(--accent)", color: "#fff", border: "none", borderRadius: 8, padding: "5px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
-            >
-              + Nova
-            </button>
+              {(filtroStatus || filtroArea) && (
+                <button onClick={() => { setFiltroStatus(""); setFiltroArea(""); }}
+                  style={{ fontSize: 11, color: "var(--dim)", background: "none", border: "none", cursor: "pointer", marginLeft: 4, textDecoration: "underline", fontFamily: "inherit" }}>
+                  Limpar filtros
+                </button>
+              )}
+            </div>
           </div>
 
           {/* ── SEMANA — lista ──────────────────────────────────────── */}
@@ -825,6 +1144,17 @@ export function CalendarV2({
                 })}
               </div>
             </div>
+          )}
+
+          {/* ── TIMELINE ────────────────────────────────────────── */}
+          {view === "timeline" && (
+            <TimelineView
+              etapas={etapas}
+              nomeCli={nomeCli}
+              anchor={anchor}
+              hojeS={hojeS}
+              onTaskClick={(e) => setPanel({ kind: "task", et: e })}
+            />
           )}
 
           {/* ── DIA ─────────────────────────────────────────────── */}

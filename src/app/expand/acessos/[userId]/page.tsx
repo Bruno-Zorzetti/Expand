@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { exigirAdmin } from "@/lib/expand-acesso";
 
 export const dynamic = "force-dynamic";
@@ -125,8 +126,9 @@ async function salvar(formData: FormData) {
     p_access_end:        accessEnd,
   });
 
-  // persiste os módulos RBAC em expand_modulos (coluna separada em profiles)
-  await sb.from("profiles").update({ expand_modulos: modulos }).eq("id", userId);
+  // persiste os módulos RBAC em expand_modulos via admin client (bypassa RLS)
+  const adminSb = createAdminClient();
+  if (adminSb) await adminSb.from("profiles").update({ expand_modulos: modulos }).eq("id", userId);
 
   revalidatePath("/expand/acessos");
   redirect("/expand/acessos");

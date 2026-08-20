@@ -5,6 +5,9 @@ import { getPessoa } from "@/lib/expand-user";
 import { getAcesso } from "@/lib/expand-acesso";
 import { iniciarEtapa, concluirEtapa } from "@/app/expand/actions";
 import { criarEtapav2 } from "./actions";
+import { MKpiCard, MTaskCard, MClientHero, MEmptyState, MSidebarRight, MHeatmapHours, MProgressBar, MAgentAvatar } from "@/components/monay";
+import MonayFoco from "@/components/monay/MonayFoco";
+import { TaskQuickView, type QVEtapa, type QVArquivo, type QVLog } from "@/components/expand/TaskQuickView";
 
 export const dynamic = "force-dynamic";
 
@@ -66,10 +69,10 @@ function elapsedMin(iso: string | null): number | null {
 // ── Page ─────────────────────────────────────────────────────────────────────
 export default async function V2({ searchParams }: { searchParams: Promise<Record<string, string>> }) {
   const sp = await searchParams;
-  const view   = (sp.v  as string) || "lista";
+  const view   = (sp.v  as string) || "monay";
   const grupo  = (sp.g  as string) || "cliente";
 
-  const { pessoa }  = await getPessoa();
+  const { pessoa, equipe }  = await getPessoa();
   const { isAdmin } = await getAcesso();
 
   // Default scope: admin → all, equipe → mine
@@ -81,6 +84,7 @@ export default async function V2({ searchParams }: { searchParams: Promise<Recor
   const filtroArea = (sp.a  as string) || "";
   const filtroResp = (sp.r  as string) || "";
   const showNova   = sp.novo === "1";
+  const qvId       = (sp.qv as string) || "";
 
   const supabase = await createClient();
 
@@ -120,7 +124,31 @@ export default async function V2({ searchParams }: { searchParams: Promise<Recor
   const clientes = (cliData ?? []) as { id: string; nome: string }[];
   const cliMap   = new Map(clientes.map(c => [c.id, c.nome]));
 
+  // UUID → name guard (resolves auth UUIDs stored as responsavel)
+  const { data: profData } = await supabase.from("profiles").select("id,expand_membro").limit(200);
+  const uuidToName = new Map<string, string>();
+  (profData ?? []).forEach((p: { id: string; expand_membro: string | null }) => {
+    const mem = equipe.find(e => e.id === (p.expand_membro ?? ""));
+    if (mem) uuidToName.set(p.id, mem.nome);
+  });
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const resolveResp = (v: string | null | undefined): string | null => {
+    if (!v) return null;
+    if (UUID_RE.test(v)) return uuidToName.get(v) ?? v.slice(0, 8) + "…";
+    return v;
+  };
+
   const hojeISO  = new Intl.DateTimeFormat("sv", { timeZone: "America/Sao_Paulo" }).format(new Date());
+
+  // Focus sessions for heatmap (last 7 days)
+  const sessFrom = new Date(Date.now() - 7 * 864e5).toISOString();
+  const { data: sessData } = await supabase.from("expand_sessoes_foco")
+    .select("iniciada_em,duracao_min").gte("iniciada_em", sessFrom).order("iniciada_em").limit(200);
+  const focusSessions = (sessData ?? []).map((s: { iniciada_em: string | null; duracao_min: number | null }) => ({
+    date: (s.iniciada_em ?? hojeISO).slice(0, 10),
+    hour: new Date(s.iniciada_em ?? hojeISO).getHours(),
+    minutes: s.duracao_min ?? 45,
+  }));
   const hojeDate = new Date(hojeISO + "T00:00:00");
 
   // ── Computed status ──────────────────────────────────────────────────────
@@ -348,6 +376,47 @@ export default async function V2({ searchParams }: { searchParams: Promise<Recor
   const modeLabel = isAdmin ? "Gestão" : "Colaborador";
   const modeColor = isAdmin ? "var(--warn)" : "var(--accent)";
 
+  // ── Quick-view modal data ────────────────────────────────────────────────
+  let qvEtapa: QVEtapa | null = null;
+  let qvArquivos: QVArquivo[] = [];
+  let qvLogs: QVLog[] = [];
+  let qvCliente: { id: string; nome: string } | null = null;
+  const qvSignedUrls = new Map<string, string>();
+
+  if (qvId) {
+    const [etRow, arRow, lgRow] = await Promise.all([
+      supabase.from("expand_etapas")
+        .select("id,titulo,criterio,area,agente,responsavel,responsavel_atual,status,sla,marco,data_prevista,iniciada_em,concluida_em,duracao_min,bloqueado,bloqueio_motivo,chamado,chamado_msg,fase,cliente_id")
+        .eq("id", qvId).single(),
+      supabase.from("expand_arquivos")
+        .select("id,nome,tipo,status,url,path,enviado_por,enviado_em,obs")
+        .eq("etapa_id", qvId).order("enviado_em", { ascending: false }),
+      supabase.from("expand_log")
+        .select("id,tipo,autor,detalhe,criado_em")
+        .eq("etapa_id", qvId).order("criado_em", { ascending: false }).limit(30),
+    ]);
+
+    if (etRow.data) {
+      qvEtapa = etRow.data as QVEtapa;
+      const cliId = (etRow.data as { cliente_id: string }).cliente_id;
+      const { data: cliRow } = await supabase.from("expand_clientes").select("id,nome").eq("id", cliId).single();
+      qvCliente = cliRow as { id: string; nome: string } | null;
+    }
+
+    qvArquivos = (arRow.data ?? []) as QVArquivo[];
+    qvLogs     = (lgRow.data ?? []) as QVLog[];
+
+    // Generate signed URLs for file-type arquivos
+    const filePaths = qvArquivos.filter((a) => a.tipo !== "link" && a.path).map((a) => a.path!);
+    if (filePaths.length) {
+      const { data: signed } = await supabase.storage.from("expand-entregaveis").createSignedUrls(filePaths, 3600);
+      (signed ?? []).forEach((s) => {
+        const arq = qvArquivos.find((a) => a.path === s.path);
+        if (arq && s.signedUrl) qvSignedUrls.set(arq.id, s.signedUrl);
+      });
+    }
+  }
+
   // ════════════════════════════════════════════════════════════════════════
   return (
     <>
@@ -364,6 +433,7 @@ export default async function V2({ searchParams }: { searchParams: Promise<Recor
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 14 }}>
         <div style={{ display: "flex", background: "var(--panel-2)", borderRadius: 10, padding: 3, gap: 2 }}>
           {([
+            ["monay",     "✦ Hoje"],
             ["lista",     "📋 Lista"],
             ["board",     "🗂 Board"],
             ["gantt",     "📊 Gantt"],
@@ -494,6 +564,189 @@ export default async function V2({ searchParams }: { searchParams: Promise<Recor
       )}
 
       {/* ════════════════════════════════════════════════════════════
+          MONAY — Hub prioritário do dia
+      ═══════════════════════════════════════════════════════════════ */}
+      {view === "monay" && (() => {
+        const uOrder: Record<string, number> = { urgente: 0, alta: 1, normal: 2, baixa: 3 };
+        const allOpen = etapas.filter(e => eff(e) !== "done");
+        const queue   = allOpen
+          .sort((a, b) => uOrder[urgencia(a)] - uOrder[urgencia(b)])
+          .slice(0, 6);
+        const heroTask = queue[0] ?? null;
+
+        const hojeCount = etapas.filter(e => e.data_prevista === hojeISO).length;
+        const hojeDone  = etapas.filter(e => e.data_prevista === hojeISO && eff(e) === "done").length;
+        const urgentes  = allOpen.filter(e => urgencia(e) === "urgente").length;
+        const emExec    = etapas.filter(e => eff(e) === "run").length;
+
+        // Area breakdown
+        const areaMap = new Map<string, { total: number; done: number }>();
+        etapas.forEach(e => {
+          const a = e.area ?? "Geral";
+          const cur = areaMap.get(a) ?? { total: 0, done: 0 };
+          cur.total++;
+          if (eff(e) === "done") cur.done++;
+          areaMap.set(a, cur);
+        });
+        const topAreas = [...areaMap.entries()]
+          .sort((a, b) => b[1].total - a[1].total)
+          .slice(0, 4);
+
+        // Agent roster: group open tasks by agent/responsavel
+        const agMap = new Map<string, { open: number; run: number; isAi: boolean }>();
+        allOpen.forEach(e => {
+          const key = e.agente ?? resolveResp(e.responsavel_atual ?? e.responsavel) ?? "";
+          if (!key) return;
+          const cur = agMap.get(key) ?? { open: 0, run: 0, isAi: !!e.agente };
+          cur.open++;
+          if (eff(e) === "run") cur.run++;
+          agMap.set(key, cur);
+        });
+        const roster = [...agMap.entries()]
+          .sort((a, b) => b[1].run - a[1].run)
+          .slice(0, 5);
+
+        return (
+          <div style={{ display: "flex", gap: 20, alignItems: "flex-start", flexWrap: "wrap" }}>
+            {/* ── Main column ── */}
+            <div style={{ flex: 1, minWidth: 280, display: "flex", flexDirection: "column", gap: 14 }}>
+              {/* KPI strip */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(140px,1fr))", gap: 10 }}>
+                <MKpiCard label="Hoje" value={`${hojeDone}/${hojeCount}`} sub="do dia concluídas" color="var(--accent)" />
+                <MKpiCard label="Urgentes" value={urgentes} sub="precisam atenção" color="var(--red)" trend={urgentes > 0 ? "down" : "flat"} />
+                <MKpiCard label="Execução" value={emExec} sub="tarefas ativas" color="var(--warn)" />
+                <MKpiCard label="Progresso" value={`${pct}%`} sub="total entregue" color="var(--green)" progress={pct} />
+              </div>
+
+              {/* Area breakdown strip */}
+              {topAreas.length > 0 && (
+                <div className="hx-glass" style={{ borderRadius: 12, padding: "12px 14px" }}>
+                  <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".1em", color: "var(--dim)", fontWeight: 700, marginBottom: 10 }}>
+                    Por área
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {topAreas.map(([area, s]) => (
+                      <div key={area}>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+                          <span style={{ fontSize: 12, color: "var(--txt)", fontWeight: 600 }}>{area}</span>
+                          <span style={{ fontSize: 11, color: "var(--dim)" }}>
+                            {s.done}/{s.total}
+                          </span>
+                        </div>
+                        <MProgressBar
+                          value={s.total ? Math.round(s.done / s.total * 100) : 0}
+                          height={4}
+                          color="var(--accent)"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Client Hero — tarefa mais urgente */}
+              {heroTask && (
+                <Link href={`/expand/etapa/${heroTask.id}`} style={{ textDecoration: "none", display: "block" }}>
+                  <MClientHero
+                    clienteName={cliMap.get(heroTask.cliente_id) ?? "—"}
+                    taskTitle={heroTask.titulo}
+                    datePrevista={heroTask.data_prevista}
+                  />
+                </Link>
+              )}
+
+              {/* Priority queue */}
+              <div>
+                <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".1em", color: "var(--dim)", fontWeight: 700, marginBottom: 10 }}>
+                  Fila de prioridade
+                </div>
+                {queue.length === 0 ? (
+                  <div className="hx-glass" style={{ borderRadius: 12 }}>
+                    <MEmptyState icon="✅" title="Nada urgente" description="Todas as tarefas estão em dia!" />
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {queue.map(e => (
+                      <Link key={e.id} href={qs({ qv: e.id })} style={{ textDecoration: "none" }}>
+                        <MTaskCard
+                          title={e.titulo}
+                          status={eff(e)}
+                          priority={urgencia(e)}
+                          clienteName={cliMap.get(e.cliente_id) ?? "—"}
+                          datePrevista={e.data_prevista}
+                          sla={e.sla}
+                          responsaveis={resolveResp(e.responsavel) ? [{ name: resolveResp(e.responsavel)!, type: e.agente ? "ai" : "human" }] : []}
+                          agent={e.agente}
+                        />
+                      </Link>
+                    ))}
+                    <Link href={qs({ v: "lista" })} style={{ fontSize: 12, color: "var(--dim)", padding: "8px 4px", display: "block", textDecoration: "none" }}>
+                      Ver todas as tarefas →
+                    </Link>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* ── Sidebar ── */}
+            <MSidebarRight width={276}>
+              {/* Focus timer + playlist */}
+              <MonayFoco />
+
+              {/* Separator */}
+              <div style={{ height: 1, background: "var(--line)", margin: "18px 0" }} />
+
+              {/* Heatmap 7 dias */}
+              <div>
+                <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".1em", color: "var(--dim)", fontWeight: 700, marginBottom: 8 }}>
+                  Foco — últimos 7 dias
+                </div>
+                {focusSessions.length > 0 ? (
+                  <MHeatmapHours data={focusSessions} />
+                ) : (
+                  <p style={{ fontSize: 11, color: "var(--dim)", margin: 0, lineHeight: 1.5 }}>Sem sessões registradas ainda. O heatmap aparece quando sessões de foco forem gravadas.</p>
+                )}
+              </div>
+
+              {/* Agent roster */}
+              {roster.length > 0 && (
+                <>
+                  <div style={{ height: 1, background: "var(--line)", margin: "18px 0" }} />
+                  <div>
+                    <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".1em", color: "var(--dim)", fontWeight: 700, marginBottom: 10 }}>
+                      Agentes ativos
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                      {roster.map(([name, s]) => (
+                        <div key={name} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <MAgentAvatar name={name} type={s.isAi ? "ai" : "human"} size={28} />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--txt)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {name}
+                            </div>
+                            <div style={{ fontSize: 10, color: "var(--dim)" }}>
+                              {s.run > 0 ? `${s.run} em execução` : `${s.open} pendente${s.open !== 1 ? "s" : ""}`}
+                            </div>
+                          </div>
+                          {s.run > 0 && (
+                            <div style={{
+                              width: 7, height: 7, borderRadius: "50%",
+                              background: "var(--green)",
+                              boxShadow: "0 0 6px var(--green)",
+                            }} />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+            </MSidebarRight>
+          </div>
+        );
+      })()}
+
+      {/* ════════════════════════════════════════════════════════════
           LISTA — Monday-style grouped table
       ═══════════════════════════════════════════════════════════════ */}
       {view === "lista" && (() => {
@@ -541,7 +794,7 @@ export default async function V2({ searchParams }: { searchParams: Promise<Recor
                       <div key={e.id} style={{ display: "grid", gridTemplateColumns: "14px 1fr 110px 80px 120px 70px 80px", padding: "9px 16px", borderBottom: i < grp.items.length - 1 ? "1px solid var(--line)" : "none", alignItems: "center" }}>
                         <div style={{ width: 9, height: 9, borderRadius: "50%", background: st.c }} />
                         <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-                          <Link href={`/expand/etapa/${e.id}`} style={{ fontSize: 12.5, fontWeight: 600, color: "var(--txt)", textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          <Link href={qs({ qv: e.id })} style={{ fontSize: 12.5, fontWeight: 600, color: "var(--txt)", textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                             {e.marco && <span style={{ color: "var(--accent)", marginRight: 4 }}>◆</span>}{e.titulo}
                           </Link>
                           {e.agente && <span style={{ fontSize: 10, color: "var(--dim)", flexShrink: 0 }}>⚡ {AG_NOME[e.agente] ?? e.agente}</span>}
@@ -971,6 +1224,18 @@ export default async function V2({ searchParams }: { searchParams: Promise<Recor
           </div>
         );
       })()}
+
+      {/* ── Task Quick View Overlay ────────────────────────────── */}
+      {qvEtapa && (
+        <TaskQuickView
+          etapa={qvEtapa}
+          arquivos={qvArquivos}
+          logs={qvLogs}
+          cliente={qvCliente}
+          signedUrls={qvSignedUrls}
+          isAdmin={isAdmin}
+        />
+      )}
     </>
   );
 }
