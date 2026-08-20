@@ -141,10 +141,14 @@ export default async function Acessos({
 
   // Dados extras de expand_perfis (cargo, foto) para os cards
   const membroSlugs = ativos.map(p => p.expand_membro).filter(Boolean) as string[];
-  const { data: epData } = membroSlugs.length
-    ? await supabase.from("expand_perfis").select("id, cargo, foto_url").in("id", membroSlugs)
-    : { data: [] };
-  const epMap = Object.fromEntries((epData ?? []).map((e: { id: string; cargo: string | null; foto_url: string | null }) => [e.id, e]));
+  const { data: epData } = await supabase.from("expand_perfis")
+    .select("id, nome, cargo, area, foto_url").eq("tipo", "humano");
+  const epMap = Object.fromEntries((epData ?? []).map((e: { id: string; nome: string | null; cargo: string | null; area: string | null; foto_url: string | null }) => [e.id, e]));
+
+  // Membros da equipe em expand_perfis ainda sem conta auth
+  const semConta = (epData ?? []).filter(
+    (e: { id: string }) => !membroSlugs.includes(e.id)
+  ) as { id: string; nome: string | null; cargo: string | null; area: string | null; foto_url: string | null }[];
 
   const totais = {
     admin:   ativos.filter(p => p.role === "admin").length,
@@ -246,6 +250,39 @@ export default async function Acessos({
               );
             })}
           </div>
+
+          {semConta.length > 0 && (
+            <div style={{ marginTop: 24 }}>
+              <div className="ex-grph"><span className="gt" style={{ color: "var(--warn)" }}>Membros da equipe sem conta</span><span className="gc">{semConta.length}</span><span className="gl" /></div>
+              <p style={{ fontSize: 12, color: "var(--mut)", marginBottom: 12, lineHeight: 1.6 }}>
+                Estes membros existem no sistema mas ainda não receberam convite de acesso. Invite usando o formulário abaixo.
+              </p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {semConta.map(m => {
+                  const ini = ((m.nome ?? "?")[0] ?? "?").toUpperCase();
+                  return (
+                    <div key={m.id} className="hx-glass" style={{ borderRadius: 12, borderLeft: "3px solid var(--warn)", padding: "12px 18px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                        <div style={{ width: 36, height: 36, borderRadius: "50%", background: "color-mix(in srgb, var(--warn) 18%, var(--panel-2))", border: "1.5px solid color-mix(in srgb, var(--warn) 40%, transparent)", display: "grid", placeItems: "center", fontWeight: 800, fontSize: 14, color: "var(--warn)", flexShrink: 0, overflow: "hidden" }}>
+                          {m.foto_url
+                            ? <img src={m.foto_url} alt={ini} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                            : ini}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 140 }}>
+                          <div style={{ fontWeight: 700, fontSize: 14 }}>{m.nome ?? "—"}</div>
+                          {m.cargo && <div style={{ fontSize: 11, color: "var(--accent)", marginTop: 1 }}>{m.cargo}</div>}
+                          <div style={{ fontSize: 10.5, color: "var(--dim)", marginTop: 2, textTransform: "capitalize" }}>{m.area ?? ""}</div>
+                        </div>
+                        <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, background: "color-mix(in srgb, var(--warn) 15%, transparent)", color: "var(--warn)", fontWeight: 600 }}>
+                          Sem conta
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           <div className="hx-glass" style={{ marginTop: 24, borderRadius: 12, padding: "20px 22px" }}>
             <p style={{ fontWeight: 700, fontSize: 14, marginBottom: 14, color: "var(--accent)" }}>Convidar por e-mail</p>

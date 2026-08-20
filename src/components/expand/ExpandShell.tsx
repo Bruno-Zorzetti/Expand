@@ -73,18 +73,6 @@ const NAV: NavSec[] = [
     ],
   },
   {
-    id: "financeiro",
-    sec: "Financeiro",
-    items: [
-      { href: "/expand/financas",           label: "Dashboard", icon: "bars",     eyebrow: "DRE & valuation",             gate: "financeiro.dashboard" },
-      { href: "/expand/financas/dre",       label: "DRE",       icon: "activity", eyebrow: "Demonstrativo de resultados", gate: "financeiro.dre" },
-      { href: "/expand/financas/metas",     label: "Metas",     icon: "target",   eyebrow: "Metas financeiras",           gate: "financeiro.metas" },
-      { href: "/expand/financas/realizado", label: "Realizado", icon: "list",     eyebrow: "Resultados realizados",       gate: "financeiro.realizado" },
-      { href: "/expand/financas/pagar",     label: "A Pagar",   icon: "coin",     eyebrow: "Contas a pagar",              gate: "financeiro.pagar" },
-      { href: "/expand/financas/receber",   label: "A Receber", icon: "zap",      eyebrow: "Contas a receber",            gate: "financeiro.receber" },
-    ],
-  },
-  {
     id: "config",
     sec: "Configurações",
     items: [

@@ -37,7 +37,7 @@ type Tipo = "equipe" | "cliente" | null;
 
 function LoginInner() {
   const params = useSearchParams();
-  const destino = params.get("next") || "/cliente";
+  const destino = params.get("next") || "/expand/v2";
   const supabase = createClient();
 
   const [tab, setTab] = useState<Tab>("login");

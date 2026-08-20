@@ -40,7 +40,7 @@ export default async function Planejamento({
     .select(
       "id, titulo, area, responsavel, responsavel_atual, sla, status, marco, data_prevista, cliente_id, iniciada_em"
     )
-    .in("status", ["run", "idle"])
+    .in("status", ["run", "idle", "wait"])
     .or(
       `responsavel_atual.ilike.%${membroAtivo.nome}%,responsavel.ilike.%${membroAtivo.nome}%`
     );
