@@ -99,6 +99,7 @@ export default async function ClienteHub({ params, searchParams }: { params: Pro
     reunioes = (rns ?? []) as Reuniao[];
   }
 
+  const isArchived = cli.ativo === false;
   const extras = etapas.filter((e) => e.origem && e.origem !== "processo");
   const cor = MAT_COR[cli.maturidade ?? ""] ?? "var(--accent)";
   const stCor = d.risco === "ok" ? "var(--green)" : d.risco === "churn" ? "var(--red)" : "var(--warn)";
@@ -174,6 +175,15 @@ export default async function ClienteHub({ params, searchParams }: { params: Pro
       {aba === "geral" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
+          {/* Archived banner */}
+          {isArchived && (
+            <div style={{ padding: "10px 16px", background: "color-mix(in srgb,var(--dim) 8%,transparent)", border: "1px solid var(--line-2)", borderRadius: 10, fontSize: 12.5, color: "var(--dim)", display: "flex", gap: 10, alignItems: "center" }}>
+              <span>📦</span>
+              <span>Cliente arquivado — histórico, diagnósticos e drive ainda estão acessíveis.</span>
+            </div>
+          )}
+
+          {!isArchived && <>
           {/* KPIs */}
           <div className="ex-kpis">
             <div className="ex-kpi hx-glass"><div className="lab">Em execução</div><div className="val" style={{ color: "var(--accent)" }}>{emRun}</div><div className="foot">Tarefas ativas</div></div>
@@ -241,6 +251,7 @@ export default async function ClienteHub({ params, searchParams }: { params: Pro
               ) : <span style={{ fontSize: 12, color: "var(--dim)" }}>Sem eventos ainda.</span>}
             </div>
           </div>
+          </>}
         </div>
       )}
 

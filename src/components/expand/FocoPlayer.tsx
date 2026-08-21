@@ -3,17 +3,20 @@ import { useState, useEffect } from "react";
 
 type Playlist = { id: string; name: string; url: string };
 
-function parseEmbed(rawUrl: string): string | null {
+function parseEmbed(rawUrl: string): { src: string; isYT: boolean } | null {
   try {
     const u = new URL(rawUrl);
     if (u.hostname.includes("youtube.com") || u.hostname === "youtu.be") {
       const list = u.searchParams.get("list");
       const v = u.searchParams.get("v") ?? (u.hostname === "youtu.be" ? u.pathname.slice(1) : null);
-      if (list) return `https://www.youtube.com/embed/videoseries?list=${list}&autoplay=1`;
-      if (v) return `https://www.youtube.com/embed/${v}?autoplay=1`;
+      if (list) return { src: `https://www.youtube.com/embed/videoseries?list=${list}&autoplay=1`, isYT: true };
+      if (v)    return { src: `https://www.youtube.com/embed/${v}?autoplay=1`, isYT: true };
     }
     if (u.hostname.includes("soundcloud.com")) {
-      return `https://w.soundcloud.com/player/?url=${encodeURIComponent(rawUrl)}&color=%23D4A02A&auto_play=true&buying=false&liking=false&download=false&sharing=false&show_artwork=true&show_comments=false&show_playcount=false&show_user=false`;
+      return {
+        src: `https://w.soundcloud.com/player/?url=${encodeURIComponent(rawUrl)}&color=%23D4A02A&auto_play=true&buying=false&liking=false&download=false&sharing=false&show_artwork=true&show_comments=false&show_playcount=false&show_user=false`,
+        isYT: false,
+      };
     }
     return null;
   } catch { return null; }
@@ -51,8 +54,8 @@ export default function FocoPlayer() {
     if (playing === id) setPlaying(null);
   }
 
-  const current   = playlists.find(p => p.id === playing);
-  const embedUrl  = current ? parseEmbed(current.url) : null;
+  const current  = playlists.find(p => p.id === playing);
+  const embed    = current ? parseEmbed(current.url) : null;
 
   const fld: React.CSSProperties = {
     background: "var(--bg)", border: "1px solid var(--line-2)", borderRadius: 7,
@@ -87,17 +90,54 @@ export default function FocoPlayer() {
         </div>
       )}
 
-      {embedUrl && (
-        <div style={{ marginBottom: 10, borderRadius: 10, overflow: "hidden", border: "1px solid var(--line-2)" }}>
-          <iframe
-            src={embedUrl}
-            width="100%"
-            height={embedUrl.includes("soundcloud") ? 130 : 160}
-            frameBorder="0"
-            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-            title={current?.name ?? "Player"}
-            style={{ display: "block" }}
-          />
+      {/* Player area */}
+      {embed && (
+        <div style={{ marginBottom: 10 }}>
+          {embed.isYT ? (
+            /* YouTube — audio only: iframe hidden visually, "Now Playing" card shown */
+            <div style={{ position: "relative" }}>
+              {/* Hidden iframe keeps audio playing */}
+              <div style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0,0,0,0)", whiteSpace: "nowrap", pointerEvents: "none" }}>
+                <iframe
+                  src={embed.src}
+                  width="1" height="1"
+                  frameBorder="0"
+                  allow="autoplay; clipboard-write; encrypted-media"
+                  title="audio"
+                />
+              </div>
+              {/* Now Playing card */}
+              <div style={{
+                borderRadius: 10, border: "1px solid var(--accent)",
+                background: "color-mix(in srgb,var(--accent) 8%,transparent)",
+                padding: "10px 14px", display: "flex", alignItems: "center", gap: 10,
+              }}>
+                <span style={{ fontSize: 20 }}>🎵</span>
+                <div style={{ flex: 1, overflow: "hidden" }}>
+                  <div style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".06em", color: "var(--accent)", marginBottom: 2 }}>
+                    Tocando agora
+                  </div>
+                  <div style={{ fontSize: 12.5, fontWeight: 600, color: "var(--txt)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {current?.name}
+                  </div>
+                </div>
+                <span style={{ fontSize: 18, opacity: 0.7 }}>♪</span>
+              </div>
+            </div>
+          ) : (
+            /* SoundCloud — show player normally */
+            <div style={{ borderRadius: 10, overflow: "hidden", border: "1px solid var(--line-2)" }}>
+              <iframe
+                src={embed.src}
+                width="100%"
+                height={130}
+                frameBorder="0"
+                allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                title={current?.name ?? "Player"}
+                style={{ display: "block" }}
+              />
+            </div>
+          )}
         </div>
       )}
 
