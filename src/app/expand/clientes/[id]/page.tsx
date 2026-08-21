@@ -23,8 +23,8 @@ type Cli = ClienteRow & {
   whatsapp_grupo?: string | null; whatsapp_grupo_nome?: string | null;
   whatsapp_grupo_link?: string | null; drive_folder_url?: string | null;
   drive_folder_id?: string | null; drive_estrutura_criada?: boolean | null;
-  agente_id?: string | null; status?: string | null; produto_slug?: string | null;
-  meta_receita?: number | null; logo_url?: string | null;
+  agente_id?: string | null; produto_slug?: string | null;
+  meta_receita?: number | null; imagem_url?: string | null;
 };
 type Etapa = { id: string; titulo: string; area: string | null; sla: string | null; status: string | null; origem: string | null; visivel_cliente: boolean; criado_em: string; data_prevista: string | null };
 type Log = { id: string; tipo: string | null; detalhe: string | null; autor: string | null; criado_em: string };
@@ -119,8 +119,8 @@ export default async function ClienteHub({ params, searchParams }: { params: Pro
         <div aria-hidden style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, ${cor}, transparent 70%)` }} />
         <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
           {/* Logo ou inicial */}
-          {cli.logo_url ? (
-            <img src={cli.logo_url} alt={cli.nome} style={{ width: 56, height: 56, borderRadius: 13, objectFit: "contain", background: "var(--panel-2)", padding: 4, flexShrink: 0 }} />
+          {cli.imagem_url ? (
+            <img src={cli.imagem_url} alt={cli.nome} style={{ width: 56, height: 56, borderRadius: 13, objectFit: "contain", background: "var(--panel-2)", padding: 4, flexShrink: 0 }} />
           ) : (
             <div style={{ width: 56, height: 56, borderRadius: 15, display: "grid", placeItems: "center", background: `color-mix(in srgb, ${cor} 20%, transparent)`, color: cor, fontWeight: 800, fontSize: 22, fontFamily: "var(--font-cinzel), serif", flexShrink: 0 }}>{ini}</div>
           )}
@@ -674,7 +674,7 @@ export default async function ClienteHub({ params, searchParams }: { params: Pro
               {/* Logo */}
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 <label style={{ fontSize: 11, color: "var(--dim)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em" }}>Logo</label>
-                <LogoUpload clienteId={id} logoAtual={cli.logo_url ?? null} />
+                <LogoUpload clienteId={id} logoAtual={cli.imagem_url ?? null} />
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
@@ -693,10 +693,10 @@ export default async function ClienteHub({ params, searchParams }: { params: Pro
                   </select>
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  <label style={{ fontSize: 11, color: "var(--dim)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em" }}>Status</label>
-                  <select name="status" defaultValue={(cli.status as string | null) ?? ""} style={fld}>
-                    <option value="">—</option>
-                    {["ativo", "pausado", "cancelado", "churned"].map(s => <option key={s} value={s}>{s}</option>)}
+                  <label style={{ fontSize: 11, color: "var(--dim)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em" }}>Ativo</label>
+                  <select name="ativo_str" defaultValue={cli.ativo === false ? "false" : "true"} style={fld}>
+                    <option value="true">Sim</option>
+                    <option value="false">Não</option>
                   </select>
                 </div>
               </div>

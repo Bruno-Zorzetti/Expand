@@ -1052,7 +1052,9 @@ export async function atualizarCliente(formData: FormData) {
   const up: Record<string, unknown> = {};
   const s = (k: string) => { const v = String(formData.get(k) ?? "").trim(); if (v) up[k] = v; };
   const n = (k: string) => { const v = String(formData.get(k) ?? "").trim(); up[k] = v || null; };
-  s("nome"); n("segmento"); n("maturidade"); n("contrato_tipo"); n("produto_slug"); n("status"); n("logo_url");
+  s("nome"); n("segmento"); n("maturidade"); n("contrato_tipo"); n("produto_slug");
+  const ativoStr = String(formData.get("ativo_str") ?? "").trim();
+  if (ativoStr === "true" || ativoStr === "false") up["ativo"] = ativoStr === "true";
   const meta = String(formData.get("meta_receita") ?? "").trim();
   if (meta) up["meta_receita"] = Number(meta) || null;
   await supabase.from("expand_clientes").update(up).eq("id", id);
@@ -1070,7 +1072,7 @@ export async function arquivarCliente(formData: FormData) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   const texto = `Arquivamento — ${motivo}${detalhe ? `: ${detalhe}` : ""}`;
-  await supabase.from("expand_clientes").update({ status: "churned" }).eq("id", id);
+  await supabase.from("expand_clientes").update({ ativo: false }).eq("id", id);
   await supabase.from("expand_log").insert({ cliente_id: id, tipo: "arquivamento", detalhe: texto, autor: user?.email ?? "admin" });
   revalidatePath(`/expand/clientes/${id}`);
   revalidatePath("/expand/carteira");
@@ -1109,6 +1111,7 @@ export async function confirmarEncerramento(formData: FormData) {
   await exigirAdmin();
   const id = String(formData.get("id") ?? "").trim();
   const nomeCli = String(formData.get("nomeCli") ?? "").trim();
+  const modo = String(formData.get("modo") ?? "so_arquivar");
   if (!id) return;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -1118,8 +1121,8 @@ export async function confirmarEncerramento(formData: FormData) {
   const { data: fb } = await supabase.from("expand_log").select("detalhe").eq("cliente_id", id).eq("tipo", "enc_feedback").order("criado_em", { ascending: false }).limit(1).maybeSingle();
   const feedbackTxt = fb?.detalhe ? (() => { try { const p = JSON.parse(String(fb.detalhe)); return `Motivo: ${p.motivo}. ${p.detalhe ?? ""}`.trim(); } catch { return String(fb.detalhe); } })() : "Sem feedback registrado.";
 
-  // Muda status
-  await supabase.from("expand_clientes").update({ status: "churned" }).eq("id", id);
+  // Oculta do painel
+  await supabase.from("expand_clientes").update({ ativo: false }).eq("id", id);
 
   // Memória PMO — encerramento do roadmap
   await supabase.from("expand_log").insert({ cliente_id: id, tipo: "memoria_pmo", detalhe: `[ENCERRAMENTO] ${nomeCli} — ${feedbackTxt}`, autor });
@@ -1129,6 +1132,23 @@ export async function confirmarEncerramento(formData: FormData) {
 
   // Log final
   await supabase.from("expand_log").insert({ cliente_id: id, tipo: "arquivamento", detalhe: `Conta encerrada. ${feedbackTxt}`, autor });
+
+  // Criar tarefas de encerramento no kanban se solicitado
+  if (modo === "com_tarefas") {
+    const tarefas = formData.getAll("tarefa").map(String).filter(Boolean);
+    if (tarefas.length > 0) {
+      await supabase.from("expand_etapas").insert(
+        tarefas.map(titulo => ({
+          cliente_id: id,
+          titulo,
+          area: "Encerramento",
+          status: "idle",
+          visivel_cliente: false,
+          fase: 99,
+        }))
+      );
+    }
+  }
 
   revalidatePath(`/expand/clientes/${id}`);
   revalidatePath("/expand/carteira");
