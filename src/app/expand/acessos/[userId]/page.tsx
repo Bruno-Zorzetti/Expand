@@ -1,3 +1,4 @@
+import type { CSSProperties, ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
@@ -183,12 +184,12 @@ export default async function ConfigurarUsuario({ params }: { params: Promise<{ 
   const accessDays  = (perfil.access_days   as string[] | null) ?? ["seg","ter","qua","qui","sex"];
 
   // helpers de estilo
-  const fld: React.CSSProperties = {
+  const fld: CSSProperties = {
     background: "var(--bg)", border: "1px solid var(--line-2)", borderRadius: 8,
     color: "var(--txt)", padding: "7px 10px", fontSize: 13, outline: "none",
     fontFamily: "inherit", width: "100%",
   };
-  const sec = (title: string, subtitle: string | null, children: React.ReactNode) => (
+  const sec = (title: string, subtitle: string | null, children: ReactNode) => (
     <div style={{ marginBottom: 28 }}>
       <div style={{ marginBottom: subtitle ? 2 : 12, paddingBottom: subtitle ? 0 : 6, borderBottom: subtitle ? "none" : "1px solid var(--line-2)" }}>
         <div style={{ fontSize: 10.5, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".08em", color: "var(--dim)" }}>{title}</div>
@@ -197,10 +198,10 @@ export default async function ConfigurarUsuario({ params }: { params: Promise<{ 
       {children}
     </div>
   );
-  const row = (...children: React.ReactNode[]) => (
+  const row = (...children: ReactNode[]) => (
     <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 10 }}>{children}</div>
   );
-  const col = (label: string, children: React.ReactNode, hint?: string) => (
+  const col = (label: string, children: ReactNode, hint?: string) => (
     <label style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1, minWidth: 160 }}>
       <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".05em", color: "var(--dim)" }}>{label}</span>
       {children}
