@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { derive, contasDe, type ClienteRow } from "@/lib/expand";
 import { getPessoa } from "@/lib/expand-user";
@@ -122,6 +123,7 @@ export default async function MeuDia({ searchParams }: { searchParams: Promise<{
   const pinDate = sp.d ?? "";
   const { pessoa } = await getPessoa();
   const acesso = await getAcesso();
+  if (!acesso.isAdmin) redirect("/expand/v2");
   const supabase = await createClient();
 
   const { data } = await supabase.from("expand_clientes").select("*").eq("ativo", true);
