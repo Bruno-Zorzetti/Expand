@@ -1,11 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import AgenteChat from "@/components/expand/AgenteChat";
 
 export default function AssistentesDock({ pessoaId, pessoaNome }: { pessoaId: string; pessoaNome: string }) {
   const [menu, setMenu] = useState(false);
   const [ativo, setAtivo] = useState<{ id: string; nome: string; cor: string } | null>(null);
+
+  useEffect(() => {
+    function onOpenChat(e: Event) {
+      const { id, nome, cor } = (e as CustomEvent).detail as { id: string; nome: string; cor: string };
+      setAtivo({ id, nome, cor });
+      setMenu(false);
+    }
+    window.addEventListener("expand:chat", onOpenChat);
+    return () => window.removeEventListener("expand:chat", onOpenChat);
+  }, []);
 
   const AGS = [
     { id: pessoaId, nome: `Meu assistente`, cor: "var(--accent)", desc: `copiloto de ${pessoaNome}` },

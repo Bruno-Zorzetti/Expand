@@ -6,10 +6,11 @@ import { getPessoa } from "@/lib/expand-user";
 import { getAcesso } from "@/lib/expand-acesso";
 import { iniciarEtapa, concluirEtapa } from "@/app/expand/actions";
 import { criarEtapav2 } from "./actions";
-import { MKpiCard, MTaskCard, MClientHero, MEmptyState, MSidebarRight, MHeatmapHours, MProgressBar, MAgentAvatar } from "@/components/monay";
+import { MKpiCard, MTaskCard, MClientHero, MEmptyState, MSidebarRight, MHeatmapHours, MProgressBar } from "@/components/monay";
 import MonayFoco from "@/components/monay/MonayFoco";
 import { TaskQuickView, type QVEtapa, type QVArquivo, type QVLog } from "@/components/expand/TaskQuickView";
 import { QuickCapture } from "@/components/expand/QuickCapture";
+import RosterCard from "@/components/expand/RosterCard";
 
 export const dynamic = "force-dynamic";
 
@@ -719,26 +720,9 @@ export default async function V2({ searchParams }: { searchParams: Promise<Recor
                     <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".1em", color: "var(--dim)", fontWeight: 700, marginBottom: 10 }}>
                       Agentes ativos
                     </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                       {roster.map(([name, s]) => (
-                        <div key={name} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <MAgentAvatar name={name} type={s.isAi ? "ai" : "human"} size={28} />
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--txt)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                              {name}
-                            </div>
-                            <div style={{ fontSize: 10, color: "var(--dim)" }}>
-                              {s.run > 0 ? `${s.run} em execução` : `${s.open} pendente${s.open !== 1 ? "s" : ""}`}
-                            </div>
-                          </div>
-                          {s.run > 0 && (
-                            <div style={{
-                              width: 7, height: 7, borderRadius: "50%",
-                              background: "var(--green)",
-                              boxShadow: "0 0 6px var(--green)",
-                            }} />
-                          )}
-                        </div>
+                        <RosterCard key={name} id={name} nome={name} tipo={s.isAi ? "agente" : "humano"} run={s.run} open={s.open} isAi={s.isAi} />
                       ))}
                     </div>
                   </div>
