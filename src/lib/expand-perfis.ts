@@ -13,8 +13,10 @@ export type Perfil = {
   metodologia: string | null; processos: { t: string; passos: string[] }[] | null;
   superior: string | null; chapeus: string[] | null;
   disc: Record<string, number> | null; temperamentos: Record<string, number> | null; comportamental_em: string | null;
-  disc_segmento: string | null; temp_segmento: string | null;
+  disc_segmento: string | null; disc_blenda: string | null; temp_segmento: string | null;
   arquetipo: Record<string, number> | null; arquetipo_dominante: string | null;
+  temperamento: Record<string, number> | null;
+  temperamento_dominante: string | null; temperamento_apoio: string | null;
   ics_token: string | null;
   instagram: string | null; linkedin: string | null;
   google_cal_ics: string | null;
