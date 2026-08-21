@@ -990,14 +990,30 @@ export async function atualizarCliente(formData: FormData) {
   const supabase = await createClient();
   const up: Record<string, unknown> = {};
   const s = (k: string) => { const v = String(formData.get(k) ?? "").trim(); if (v) up[k] = v; };
-  const n = (k: string) => { const v = String(formData.get(k) ?? "").trim(); if (v) up[k] = v || null; };
-  s("nome"); n("segmento"); n("maturidade"); n("contrato_tipo"); n("produto_slug"); n("status");
+  const n = (k: string) => { const v = String(formData.get(k) ?? "").trim(); up[k] = v || null; };
+  s("nome"); n("segmento"); n("maturidade"); n("contrato_tipo"); n("produto_slug"); n("status"); n("logo_url");
   const meta = String(formData.get("meta_receita") ?? "").trim();
   if (meta) up["meta_receita"] = Number(meta) || null;
   await supabase.from("expand_clientes").update(up).eq("id", id);
   revalidatePath(`/expand/clientes/${id}`);
   revalidatePath("/expand/carteira");
   redirect(`/expand/clientes/${id}?t=editar&ok=1` as string);
+}
+
+export async function arquivarCliente(formData: FormData) {
+  await exigirAdmin();
+  const id = String(formData.get("id") ?? "").trim();
+  const motivo = String(formData.get("motivo") ?? "").trim();
+  const detalhe = String(formData.get("detalhe") ?? "").trim();
+  if (!id) return;
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const texto = `Arquivamento — ${motivo}${detalhe ? `: ${detalhe}` : ""}`;
+  await supabase.from("expand_clientes").update({ status: "churned" }).eq("id", id);
+  await supabase.from("expand_log").insert({ cliente_id: id, tipo: "arquivamento", detalhe: texto, autor: user?.email ?? "admin" });
+  revalidatePath(`/expand/clientes/${id}`);
+  revalidatePath("/expand/carteira");
+  redirect("/expand/carteira?arquivado=1");
 }
 
 export async function excluirCliente(formData: FormData) {
