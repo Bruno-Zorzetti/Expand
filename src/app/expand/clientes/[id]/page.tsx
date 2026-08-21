@@ -9,14 +9,20 @@ import {
   salvarLinkDrive, salvarGrupoCliente, testarGrupoCliente, rodarResumoAgora,
   adotarDemanda, salvarLinkGrupo, adicionarDiagnostico, gerarConvitePortal,
   atualizarCliente, excluirCliente, arquivarCliente,
+  enviarMensagemPadrao, adicionarNotaHistorico, enviarEmailCliente,
 } from "@/app/expand/actions";
 import { siteUrl } from "@/lib/site";
+import LogoUpload from "@/components/expand/LogoUpload";
+import DriveEstruturaBtn from "@/components/expand/DriveEstruturaBtn";
+import GrupoSelector from "@/components/expand/GrupoSelector";
+import AgendarReuniao from "@/components/expand/AgendarReuniao";
 
 export const dynamic = "force-dynamic";
 
 type Cli = ClienteRow & {
   whatsapp_grupo?: string | null; whatsapp_grupo_nome?: string | null;
   whatsapp_grupo_link?: string | null; drive_folder_url?: string | null;
+  drive_folder_id?: string | null; drive_estrutura_criada?: boolean | null;
   agente_id?: string | null; status?: string | null; produto_slug?: string | null;
   meta_receita?: number | null; logo_url?: string | null;
 };
@@ -45,30 +51,52 @@ export default async function ClienteHub({ params, searchParams }: { params: Pro
   const supabase = await createClient();
   const { isAdmin } = await getAcesso();
 
-  const { data: cData } = await supabase.from("expand_clientes").select("*").eq("id", id).maybeSingle();
+  // Queries paralelas: cliente + etapas + logs em simultâneo
+  const [{ data: cData }, { data: etData }, { data: lgData }] = await Promise.all([
+    supabase.from("expand_clientes").select("*").eq("id", id).maybeSingle(),
+    supabase.from("expand_etapas").select("id, titulo, area, sla, status, origem, visivel_cliente, criado_em, data_prevista").eq("cliente_id", id).order("criado_em", { ascending: false }),
+    supabase.from("expand_log").select("id, tipo, detalhe, autor, criado_em").eq("cliente_id", id).order("criado_em", { ascending: false }).limit(60),
+  ]);
   if (!cData) notFound();
   const cli = cData as Cli;
   const d = derive(cli);
-
-  const { data: etData } = await supabase.from("expand_etapas").select("id, titulo, area, sla, status, origem, visivel_cliente, criado_em, data_prevista").eq("cliente_id", id).order("criado_em", { ascending: false });
   const etapas = (etData ?? []) as Etapa[];
-  const { data: lgData } = await supabase.from("expand_log").select("id, tipo, detalhe, autor, criado_em").eq("cliente_id", id).order("criado_em", { ascending: false }).limit(60);
   const logs = (lgData ?? []) as Log[];
 
-  const grupos = isAdmin && aba === "grupo" ? await listarGrupos() : [];
-  type Resumo = { dia: string; resumo: string | null; atividades: string[]; demandas: { titulo: string; urgencia: string; importancia: string; citacao: string }[]; msgs_lidas: number; tokens_in: number; tokens_out: number; custo: number; modelo: string | null };
-  let resumo: Resumo | null = null;
+  // Queries condicionais por aba (paralelas entre si quando aplicável)
+  type Perspectivas = { pmo?: string; cs?: string; comercial?: string };
+  type Resumo = { dia: string; resumo: string | null; atividades: string[]; demandas: { titulo: string; urgencia: string; importancia: string; citacao: string }[]; perspectivas: Perspectivas | null; msgs_lidas: number; tokens_in: number; tokens_out: number; custo: number; modelo: string | null };
+  let resumos: Resumo[] = [];
   let pessoas: { id: string; nome: string }[] = [];
+  let grupos: Awaited<ReturnType<typeof listarGrupos>> = [];
   if (aba === "grupo") {
-    const { data: rz } = await supabase.from("expand_cliente_resumo").select("dia, resumo, atividades, demandas, msgs_lidas, tokens_in, tokens_out, custo, modelo").eq("cliente_id", id).order("dia", { ascending: false }).limit(1).maybeSingle();
-    resumo = (rz as Resumo) ?? null;
-    if (isAdmin) { const { data: ps } = await supabase.from("expand_perfis").select("id, nome").eq("tipo", "humano").order("nome"); pessoas = (ps ?? []) as { id: string; nome: string }[]; }
+    const [rzRes, psRes, grRes] = await Promise.all([
+      supabase.from("expand_cliente_resumo").select("dia, resumo, atividades, demandas, perspectivas, msgs_lidas, tokens_in, tokens_out, custo, modelo").eq("cliente_id", id).order("dia", { ascending: false }).limit(30),
+      isAdmin ? supabase.from("expand_perfis").select("id, nome").eq("tipo", "humano").order("nome") : Promise.resolve({ data: null }),
+      isAdmin ? listarGrupos() : Promise.resolve([]),
+    ]);
+    resumos = (rzRes.data ?? []) as Resumo[];
+    pessoas = ((psRes as { data: unknown }).data ?? []) as { id: string; nome: string }[];
+    grupos = grRes as Awaited<ReturnType<typeof listarGrupos>>;
   }
+  const resumo = resumos[0] ?? null; // mais recente
   type Diag = { id: string; detalhe: string | null; autor: string | null; criado_em: string };
+  type DiagCliente = { id: string; tipo: string; pessoa_nome: string; pessoa_papel: string | null; dominante: string; apoio: string | null; rotulo: string | null; scores: Record<string, number>; segundos: number | null; criado_em: string };
+  type Reuniao = { id: string; titulo: string; data_hora: string; duracao_min: number; meet_link: string | null; google_event_id: string | null; enviado_grupo: boolean; transcricao: string | null; criado_em: string };
   let diagnosticos: Diag[] = [];
+  let diagCliente: DiagCliente[] = [];
+  let reunioes: Reuniao[] = [];
   if (aba === "diagnosticos") {
-    const { data: dg } = await supabase.from("expand_log").select("id, detalhe, autor, criado_em").eq("cliente_id", id).eq("tipo", "diagnostico").order("criado_em", { ascending: false });
+    const [{ data: dg }, { data: dc }] = await Promise.all([
+      supabase.from("expand_log").select("id, detalhe, autor, criado_em").eq("cliente_id", id).eq("tipo", "diagnostico").order("criado_em", { ascending: false }),
+      supabase.from("expand_diag_cliente").select("id, tipo, pessoa_nome, pessoa_papel, dominante, apoio, rotulo, scores, segundos, criado_em").eq("cliente_id", id).order("criado_em", { ascending: false }),
+    ]);
     diagnosticos = (dg ?? []) as Diag[];
+    diagCliente = (dc ?? []) as DiagCliente[];
+  }
+  if (aba === "grupo") {
+    const { data: rns } = await supabase.from("expand_reunioes").select("id, titulo, data_hora, duracao_min, meet_link, google_event_id, enviado_grupo, transcricao, criado_em").eq("cliente_id", id).order("data_hora", { ascending: false }).limit(10);
+    reunioes = (rns ?? []) as Reuniao[];
   }
 
   const extras = etapas.filter((e) => e.origem && e.origem !== "processo");
@@ -78,6 +106,7 @@ export default async function ClienteHub({ params, searchParams }: { params: Pro
   const dt = (s: string) => new Date(s).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
   const feitas = etapas.filter((e) => e.status === "done").length;
   const emRun = etapas.filter((e) => e.status === "run").length;
+  // portUrl aponta para o portal do CLIENTE (rota /portal), não o hub admin
   const portUrl = `${siteUrl()}/portal/${id}`;
   const ini = cli.nome.split(" ").slice(0, 2).map(w => w[0]).join("").toUpperCase();
 
@@ -238,6 +267,12 @@ export default async function ClienteHub({ params, searchParams }: { params: Pro
                 <button className="hx-btn hx-btn-primary" type="submit" style={{ padding: "9px 15px", fontSize: 12.5 }}>Salvar</button>
               </form>
             )}
+            {isAdmin && (
+              <div style={{ marginTop: 8 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".08em", color: "var(--dim)", marginBottom: 10 }}>Estrutura de pastas padrão</div>
+                <DriveEstruturaBtn clienteId={id} jaExiste={!!cli.drive_estrutura_criada} />
+              </div>
+            )}
           </div>
           <div className="hx-glass" style={{ borderRadius: 14, padding: "14px 16px", opacity: .7 }}>
             <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Estrutura padrão de pastas</div>
@@ -263,24 +298,50 @@ export default async function ClienteHub({ params, searchParams }: { params: Pro
             </div>
             {isAdmin && (
               <>
-                <form action={salvarGrupoCliente} style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 10 }}>
+                {/* Seletor com busca */}
+                <form action={salvarGrupoCliente} style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 10 }}>
                   <input type="hidden" name="clienteId" value={id} />
                   {grupos.length ? (
-                    <select name="jid" defaultValue={cli.whatsapp_grupo ?? ""} style={fld}>
-                      <option value="">— sem grupo —</option>
-                      {grupos.map((g) => <option key={g.jid} value={g.jid}>{g.nome}</option>)}
-                    </select>
+                    <GrupoSelector grupos={grupos} clienteId={id} jidAtual={cli.whatsapp_grupo ?? null} linkAtual={cli.whatsapp_grupo_link ?? null} />
                   ) : (
                     <input name="jid" defaultValue={cli.whatsapp_grupo ?? ""} placeholder="JID do grupo (…@g.us)" style={fld} />
                   )}
                   <button className="hx-btn hx-btn-primary" type="submit" style={{ padding: "9px 15px", fontSize: 12.5 }}>Salvar grupo</button>
                 </form>
+
+                {/* Ações básicas */}
                 {cli.whatsapp_grupo && (
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
                     <form action={testarGrupoCliente}><input type="hidden" name="clienteId" value={id} /><button className="hx-btn hx-btn-ghost" type="submit" style={{ padding: "8px 14px", fontSize: 12.5 }}>📨 Enviar teste</button></form>
                     <form action={rodarResumoAgora}><input type="hidden" name="clienteId" value={id} /><button className="hx-btn hx-btn-primary" type="submit" style={{ padding: "8px 14px", fontSize: 12.5 }}>🧠 Rodar resumo agora</button></form>
                   </div>
                 )}
+
+                {/* Mensagens rápidas */}
+                {cli.whatsapp_grupo && (
+                  <div style={{ borderTop: "1px solid var(--line)", paddingTop: 14, marginBottom: 12 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", color: "var(--dim)", marginBottom: 10 }}>Mensagens rápidas</div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px,1fr))", gap: 8 }}>
+                      {[
+                        { tipo: "boas_vindas", emoji: "👋", label: "Boas-vindas ao grupo" },
+                        { tipo: "onboarding", emoji: "🚀", label: "Início do projeto" },
+                        { tipo: "followup_reuniao", emoji: "📅", label: "Follow-up de reunião (1h)" },
+                        { tipo: "relatorio", emoji: "📊", label: "Entrega de relatório" },
+                      ].map(({ tipo, emoji, label }) => (
+                        <form key={tipo} action={enviarMensagemPadrao}>
+                          <input type="hidden" name="clienteId" value={id} />
+                          <input type="hidden" name="tipo" value={tipo} />
+                          <button className="hx-btn hx-btn-ghost" type="submit" style={{ width: "100%", textAlign: "left", padding: "10px 12px", fontSize: 12, borderRadius: 10, display: "flex", flexDirection: "column", gap: 3, height: "auto" }}>
+                            <span style={{ fontSize: 18 }}>{emoji}</span>
+                            <span style={{ fontWeight: 600, lineHeight: 1.3 }}>{label}</span>
+                          </button>
+                        </form>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Link de convite */}
                 {cli.whatsapp_grupo && (
                   <div style={{ borderTop: "1px solid var(--line)", paddingTop: 12 }}>
                     <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Link de convite (botão no portal)</div>
@@ -296,76 +357,113 @@ export default async function ClienteHub({ params, searchParams }: { params: Pro
             )}
           </div>
 
-          {/* Resumo do dia */}
-          {resumo ? (
-            <div className="hx-glass" style={{ borderRadius: 14, padding: 18 }}>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
-                <span style={{ fontSize: 13, fontWeight: 700 }}>Resumo do dia</span>
-                <span style={{ fontSize: 11, color: "var(--dim)" }}>
-                  {new Date(resumo.dia + "T12:00").toLocaleDateString("pt-BR")} · {resumo.msgs_lidas} msgs · {resumo.tokens_in + resumo.tokens_out} tokens · ~US$ {Number(resumo.custo).toFixed(4)}
-                </span>
-              </div>
-              <p style={{ fontSize: 13, color: "var(--txt)", lineHeight: 1.6, margin: "0 0 12px" }}>{resumo.resumo || "—"}</p>
+          {/* Reuniões */}
+          <AgendarReuniao
+            clienteId={id}
+            temGrupo={!!cli.whatsapp_grupo}
+            reunioes={reunioes}
+          />
 
-              {/* Temas / combinados */}
-              {resumo.atividades?.length ? (
-                <div style={{ marginBottom: 14 }}>
-                  <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".04em", color: "var(--dim)", fontWeight: 700, marginBottom: 6 }}>Principais temas e combinados</div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                    {resumo.atividades.map((a, i) => (
-                      <div key={i} style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 12.5, color: "var(--mut)" }}>
-                        <span style={{ width: 5, height: 5, borderRadius: "50%", background: "var(--accent)", flexShrink: 0, marginTop: 6 }} />
-                        <span>{a}</span>
-                      </div>
-                    ))}
+          {/* Chamados diários — timeline */}
+          {resumos.length > 0 ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {resumos.map((rz, idx) => (
+                <div key={rz.dia} className="hx-glass" style={{ borderRadius: 14, padding: 18 }}>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
+                    <span style={{ fontSize: 13, fontWeight: 700 }}>
+                      {idx === 0 ? "Chamado de hoje" : `Chamado de ${new Date(rz.dia + "T12:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "long" })}`}
+                    </span>
+                    <span style={{ fontSize: 11, color: "var(--dim)" }}>
+                      {rz.msgs_lidas} msgs · {rz.tokens_in + rz.tokens_out} tokens · ~US$ {Number(rz.custo).toFixed(4)}
+                    </span>
                   </div>
-                </div>
-              ) : null}
+                  <p style={{ fontSize: 13, color: "var(--txt)", lineHeight: 1.6, margin: "0 0 12px" }}>{rz.resumo || "—"}</p>
 
-              {/* Demandas → tarefas */}
-              {resumo.demandas?.length ? (
-                <div>
-                  <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".04em", color: "var(--warn)", fontWeight: 700, marginBottom: 8 }}>
-                    Demandas detectadas — {resumo.demandas.length} (o PMO decide quais viram tarefas)
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    {resumo.demandas.map((dm, i) => (
-                      <div key={i} className="hx-glass" style={{ borderRadius: 10, padding: "10px 12px", borderLeft: `3px solid ${dm.urgencia === "alta" ? "var(--red)" : dm.urgencia === "media" ? "var(--warn)" : "var(--dim)"}` }}>
-                        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                          <span style={{ fontSize: 13, fontWeight: 600, flex: 1 }}>{dm.titulo}</span>
-                          <span style={{ fontSize: 10, color: "var(--dim)", background: "var(--panel-2)", padding: "2px 7px", borderRadius: 6 }}>urg. {dm.urgencia} · imp. {dm.importancia}</span>
+                  {/* Perspectivas por perfil */}
+                  {rz.perspectivas && (rz.perspectivas.pmo || rz.perspectivas.cs || rz.perspectivas.comercial) ? (
+                    <div style={{ marginBottom: 14, display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px,1fr))", gap: 8 }}>
+                      {rz.perspectivas.pmo && (
+                        <div style={{ padding: "10px 12px", borderRadius: 10, background: "color-mix(in srgb, var(--accent) 8%, transparent)", borderLeft: "3px solid var(--accent)" }}>
+                          <div style={{ fontSize: 9.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", color: "var(--accent)", marginBottom: 5 }}>PMO</div>
+                          <p style={{ fontSize: 12, color: "var(--mut)", margin: 0, lineHeight: 1.6 }}>{rz.perspectivas.pmo}</p>
                         </div>
-                        {dm.citacao && <p style={{ fontSize: 11.5, color: "var(--mut)", margin: "5px 0 0", fontStyle: "italic" }}>"{dm.citacao}"</p>}
-                        {isAdmin && (
-                          <details style={{ marginTop: 8 }}>
-                            <summary style={{ listStyle: "none", cursor: "pointer", fontSize: 11.5, color: "var(--accent)", fontWeight: 600 }}>↳ Criar tarefa a partir desta demanda</summary>
-                            <form action={adotarDemanda} style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "flex-end", marginTop: 8, paddingTop: 8, borderTop: "1px solid var(--line)" }}>
-                              <input type="hidden" name="clienteId" value={id} />
-                              <input type="hidden" name="titulo" value={dm.titulo} />
-                              <label style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                                <span style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: ".05em", color: "var(--dim)", fontWeight: 700 }}>Escopo</span>
-                                <select name="escopo" defaultValue="cliente" style={{ ...fld, minWidth: 190, flex: "none" }}>
-                                  <option value="cliente">Só este cliente</option>
-                                  <option value="todos">Todos os clientes ativos</option>
-                                  <option value="padrao">Incluir no processo padrão</option>
-                                </select>
-                              </label>
-                              <label style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                                <span style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: ".05em", color: "var(--dim)", fontWeight: 700 }}>Responsável</span>
-                                <select name="responsavel" defaultValue="ia" style={{ ...fld, minWidth: 170, flex: "none" }}>
-                                  <option value="ia">PMO IA</option>
-                                  {pessoas.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
-                                </select>
-                              </label>
-                              <button className="hx-btn hx-btn-primary" type="submit" style={{ padding: "8px 14px", fontSize: 12 }}>Criar tarefa</button>
-                            </form>
-                          </details>
-                        )}
+                      )}
+                      {rz.perspectivas.cs && (
+                        <div style={{ padding: "10px 12px", borderRadius: 10, background: "color-mix(in srgb, var(--green) 8%, transparent)", borderLeft: "3px solid var(--green)" }}>
+                          <div style={{ fontSize: 9.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", color: "var(--green)", marginBottom: 5 }}>CS</div>
+                          <p style={{ fontSize: 12, color: "var(--mut)", margin: 0, lineHeight: 1.6 }}>{rz.perspectivas.cs}</p>
+                        </div>
+                      )}
+                      {rz.perspectivas.comercial && (
+                        <div style={{ padding: "10px 12px", borderRadius: 10, background: "color-mix(in srgb, #D4A02A 8%, transparent)", borderLeft: "3px solid #D4A02A" }}>
+                          <div style={{ fontSize: 9.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", color: "#D4A02A", marginBottom: 5 }}>Comercial</div>
+                          <p style={{ fontSize: 12, color: "var(--mut)", margin: 0, lineHeight: 1.6 }}>{rz.perspectivas.comercial}</p>
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
+
+                  {/* Temas / combinados */}
+                  {rz.atividades?.length ? (
+                    <div style={{ marginBottom: 14 }}>
+                      <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".04em", color: "var(--dim)", fontWeight: 700, marginBottom: 6 }}>Principais temas e combinados</div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                        {rz.atividades.map((a, i) => (
+                          <div key={i} style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 12.5, color: "var(--mut)" }}>
+                            <span style={{ width: 5, height: 5, borderRadius: "50%", background: "var(--accent)", flexShrink: 0, marginTop: 6 }} />
+                            <span>{a}</span>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  ) : null}
+
+                  {/* Demandas → tarefas */}
+                  {rz.demandas?.length ? (
+                    <div>
+                      <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".04em", color: "var(--warn)", fontWeight: 700, marginBottom: 8 }}>
+                        Demandas detectadas — {rz.demandas.length}
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                        {rz.demandas.map((dm, i) => (
+                          <div key={i} className="hx-glass" style={{ borderRadius: 10, padding: "10px 12px", borderLeft: `3px solid ${dm.urgencia === "alta" ? "var(--red)" : dm.urgencia === "media" ? "var(--warn)" : "var(--dim)"}` }}>
+                            <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                              <span style={{ fontSize: 13, fontWeight: 600, flex: 1 }}>{dm.titulo}</span>
+                              <span style={{ fontSize: 10, color: "var(--dim)", background: "var(--panel-2)", padding: "2px 7px", borderRadius: 6 }}>urg. {dm.urgencia} · imp. {dm.importancia}</span>
+                            </div>
+                            {dm.citacao && <p style={{ fontSize: 11.5, color: "var(--mut)", margin: "5px 0 0", fontStyle: "italic" }}>"{dm.citacao}"</p>}
+                            {isAdmin && idx === 0 && (
+                              <details style={{ marginTop: 8 }}>
+                                <summary style={{ listStyle: "none", cursor: "pointer", fontSize: 11.5, color: "var(--accent)", fontWeight: 600 }}>↳ Criar tarefa a partir desta demanda</summary>
+                                <form action={adotarDemanda} style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "flex-end", marginTop: 8, paddingTop: 8, borderTop: "1px solid var(--line)" }}>
+                                  <input type="hidden" name="clienteId" value={id} />
+                                  <input type="hidden" name="titulo" value={dm.titulo} />
+                                  <label style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                                    <span style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: ".05em", color: "var(--dim)", fontWeight: 700 }}>Escopo</span>
+                                    <select name="escopo" defaultValue="cliente" style={{ ...fld, minWidth: 190, flex: "none" }}>
+                                      <option value="cliente">Só este cliente</option>
+                                      <option value="todos">Todos os clientes ativos</option>
+                                      <option value="padrao">Incluir no processo padrão</option>
+                                    </select>
+                                  </label>
+                                  <label style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                                    <span style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: ".05em", color: "var(--dim)", fontWeight: 700 }}>Responsável</span>
+                                    <select name="responsavel" defaultValue="ia" style={{ ...fld, minWidth: 170, flex: "none" }}>
+                                      <option value="ia">PMO IA</option>
+                                      {pessoas.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
+                                    </select>
+                                  </label>
+                                  <button className="hx-btn hx-btn-primary" type="submit" style={{ padding: "8px 14px", fontSize: 12 }}>Criar tarefa</button>
+                                </form>
+                              </details>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : <p style={{ fontSize: 12, color: "var(--dim)" }}>Nenhuma demanda nova detectada.</p>}
                 </div>
-              ) : <p style={{ fontSize: 12, color: "var(--dim)" }}>Nenhuma demanda nova detectada hoje.</p>}
+              ))}
             </div>
           ) : isAdmin ? (
             <div className="hx-glass" style={{ borderRadius: 14, padding: 18, textAlign: "center", color: "var(--dim)", fontSize: 13 }}>
@@ -378,6 +476,16 @@ export default async function ClienteHub({ params, searchParams }: { params: Pro
       {/* ══════════ HISTÓRICO ══════════ */}
       {aba === "historico" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {/* Adicionar anotação */}
+          {isAdmin && (
+            <div className="hx-glass" style={{ borderRadius: 12, padding: "14px 16px", marginBottom: 4 }}>
+              <form action={adicionarNotaHistorico} style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
+                <input type="hidden" name="clienteId" value={id} />
+                <input name="nota" placeholder="Adicionar anotação ao histórico…" required style={{ ...fld, flex: 1, minWidth: 200 }} />
+                <button className="hx-btn hx-btn-primary" type="submit" style={{ padding: "9px 15px", fontSize: 12.5 }}>Adicionar nota</button>
+              </form>
+            </div>
+          )}
           {extras.length > 0 && (
             <div style={{ marginBottom: 8 }}>
               <div style={{ ...SEC, marginBottom: 6 }}>Solicitações & Extras ({extras.length})</div>
@@ -408,9 +516,100 @@ export default async function ClienteHub({ params, searchParams }: { params: Pro
       {/* ══════════ DIAGNÓSTICOS ══════════ */}
       {aba === "diagnosticos" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          {diagnosticos.length > 0 ? (
+
+          {/* Resultados reais de expand_diag_cliente */}
+          {diagCliente.length > 0 ? (
             <div>
-              <div style={SEC}>Diagnósticos registrados ({diagnosticos.length})</div>
+              {/* Temperamento */}
+              {diagCliente.filter(d => d.tipo === "temperamento").length > 0 && (
+                <div style={{ marginBottom: 16 }}>
+                  <div style={SEC}>Temperamento ({diagCliente.filter(d => d.tipo === "temperamento").length} resultado{diagCliente.filter(d => d.tipo === "temperamento").length > 1 ? "s" : ""})</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {diagCliente.filter(d => d.tipo === "temperamento").map(dc => (
+                      <div key={dc.id} className="hx-glass" style={{ borderRadius: 12, padding: "14px 16px", borderLeft: `3px solid ${cor}` }}>
+                        <div style={{ display: "flex", gap: 10, alignItems: "baseline", flexWrap: "wrap", marginBottom: 8 }}>
+                          <span style={{ fontSize: 13, fontWeight: 700, flex: 1 }}>{dc.pessoa_nome}{dc.pessoa_papel ? ` · ${dc.pessoa_papel}` : ""}</span>
+                          <span style={{ fontSize: 10, background: `color-mix(in srgb, ${cor} 15%, transparent)`, color: cor, padding: "2px 8px", borderRadius: 20, fontWeight: 700 }}>{dc.dominante}{dc.apoio ? ` / ${dc.apoio}` : ""}</span>
+                          <span style={{ fontSize: 10.5, color: "var(--dim)" }}>{dt(dc.criado_em)}</span>
+                        </div>
+                        {dc.rotulo && <div style={{ fontSize: 12, color: "var(--mut)", marginBottom: 8, fontStyle: "italic" }}>{dc.rotulo}</div>}
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                          {Object.entries(dc.scores ?? {}).sort(([, a], [, b]) => (b as number) - (a as number)).map(([k, v]) => (
+                            <div key={k} style={{ fontSize: 11, display: "flex", flexDirection: "column", gap: 2, minWidth: 60, alignItems: "center" }}>
+                              <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".05em", color: "var(--dim)" }}>{k}</div>
+                              <div style={{ width: 50, height: 4, borderRadius: 2, background: "var(--line-2)", overflow: "hidden" }}>
+                                <div style={{ width: `${Math.min(100, ((v as number) / 40) * 100)}%`, height: "100%", background: cor }} />
+                              </div>
+                              <div style={{ fontWeight: 700, color: "var(--txt)" }}>{v as number}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Arquétipo de Marca */}
+              {diagCliente.filter(d => d.tipo === "arquetipo_marca").length > 0 && (
+                <div>
+                  <div style={SEC}>Arquétipo de Marca ({diagCliente.filter(d => d.tipo === "arquetipo_marca").length} resultado{diagCliente.filter(d => d.tipo === "arquetipo_marca").length > 1 ? "s" : ""})</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {diagCliente.filter(d => d.tipo === "arquetipo_marca").map(dc => (
+                      <div key={dc.id} className="hx-glass" style={{ borderRadius: 12, padding: "14px 16px", borderLeft: `3px solid var(--dourado, #c9a227)` }}>
+                        <div style={{ display: "flex", gap: 10, alignItems: "baseline", flexWrap: "wrap", marginBottom: 8 }}>
+                          <span style={{ fontSize: 13, fontWeight: 700, flex: 1 }}>{dc.pessoa_nome}{dc.pessoa_papel ? ` · ${dc.pessoa_papel}` : ""}</span>
+                          <span style={{ fontSize: 10, background: "color-mix(in srgb, var(--dourado, #c9a227) 15%, transparent)", color: "var(--dourado, #c9a227)", padding: "2px 8px", borderRadius: 20, fontWeight: 700 }}>{dc.dominante}</span>
+                          <span style={{ fontSize: 10.5, color: "var(--dim)" }}>{dt(dc.criado_em)}</span>
+                        </div>
+                        {dc.rotulo && <div style={{ fontSize: 12.5, fontWeight: 600, color: "var(--txt)", marginBottom: 4 }}>{dc.rotulo}</div>}
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                          {Object.entries(dc.scores ?? {}).sort(([, a], [, b]) => (b as number) - (a as number)).slice(0, 6).map(([k, v]) => (
+                            <div key={k} style={{ fontSize: 11, display: "flex", flexDirection: "column", gap: 2, minWidth: 60, alignItems: "center" }}>
+                              <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".05em", color: "var(--dim)" }}>{k.substring(0, 8)}</div>
+                              <div style={{ width: 50, height: 4, borderRadius: 2, background: "var(--line-2)", overflow: "hidden" }}>
+                                <div style={{ width: `${Math.min(100, ((v as number) / 36) * 100)}%`, height: "100%", background: "var(--dourado, #c9a227)" }} />
+                              </div>
+                              <div style={{ fontWeight: 700, color: "var(--txt)" }}>{v as number}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="hx-glass" style={{ borderRadius: 12, padding: "14px 16px", color: "var(--dim)", fontSize: 13 }}>
+              Nenhum diagnóstico preenchido pelo cliente ainda.
+            </div>
+          )}
+
+          {/* Links para o cliente preencher */}
+          <div className="hx-glass" style={{ borderRadius: 14, padding: 18 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>Links de diagnóstico para o cliente</div>
+            <div style={{ fontSize: 12, color: "var(--mut)", marginBottom: 10 }}>
+              Envie os links abaixo para o cliente preencher pelo portal.
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                <span style={{ fontSize: 12, fontWeight: 600, minWidth: 130 }}>Temperamento</span>
+                <input readOnly value={`${portUrl}/diagnosticos?novo=temperamento`} style={{ ...fld, fontFamily: "monospace", fontSize: 11, flex: 1 }} />
+                <a href={`${portUrl}/diagnosticos?novo=temperamento`} target="_blank" rel="noreferrer" className="hx-btn hx-btn-ghost" style={{ padding: "8px 13px", fontSize: 12 }}>↗</a>
+              </div>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                <span style={{ fontSize: 12, fontWeight: 600, minWidth: 130 }}>Arquétipo de Marca</span>
+                <input readOnly value={`${portUrl}/diagnosticos?novo=arquetipo`} style={{ ...fld, fontFamily: "monospace", fontSize: 11, flex: 1 }} />
+                <a href={`${portUrl}/diagnosticos?novo=arquetipo`} target="_blank" rel="noreferrer" className="hx-btn hx-btn-ghost" style={{ padding: "8px 13px", fontSize: 12 }}>↗</a>
+              </div>
+            </div>
+          </div>
+
+          {/* Devolutivas (ex "Registrar diagnóstico") */}
+          {diagnosticos.length > 0 && (
+            <div>
+              <div style={SEC}>Devolutivas registradas ({diagnosticos.length})</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
                 {diagnosticos.map(dg => (
                   <div key={dg.id} className="hx-glass" style={{ borderRadius: 10, padding: "10px 14px", borderLeft: `3px solid ${cor}` }}>
@@ -423,30 +622,23 @@ export default async function ClienteHub({ params, searchParams }: { params: Pro
                 ))}
               </div>
             </div>
-          ) : (
-            <p style={{ fontSize: 12.5, color: "var(--dim)" }}>Nenhum diagnóstico registrado ainda.</p>
           )}
-
-          {/* Link para o cliente responder */}
-          <div className="hx-glass" style={{ borderRadius: 14, padding: 18 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>Link de diagnóstico para o cliente</div>
-            <div style={{ fontSize: 12, color: "var(--mut)", marginBottom: 10 }}>
-              Envie este link para o cliente preencher pelo portal dele.
-            </div>
-            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-              <input readOnly value={`${portUrl}/diagnosticos?novo=temperamento`} style={{ ...fld, fontFamily: "monospace", fontSize: 11.5, flex: 1 }} />
-              <a href={`${portUrl}/diagnosticos`} target="_blank" rel="noreferrer" className="hx-btn hx-btn-ghost" style={{ padding: "9px 14px", fontSize: 12.5 }}>Abrir ↗</a>
-            </div>
-          </div>
 
           {isAdmin && (
             <div className="hx-glass" style={{ borderRadius: 14, padding: 18 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>Registrar diagnóstico</div>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>Registrar devolutiva</div>
               <form action={adicionarDiagnostico} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 <input type="hidden" name="clienteId" value={id} />
-                <input name="titulo" placeholder="Título (ex: Diagnóstico Inicial PIDE)" required style={fld} />
+                <select name="titulo" required style={fld}>
+                  <option value="">Selecione o contexto…</option>
+                  <option value="Reunião de resultado">Reunião de resultado</option>
+                  <option value="Feedback mensal">Feedback mensal</option>
+                  <option value="Diagnóstico inicial">Diagnóstico inicial</option>
+                  <option value="Revisão de estratégia">Revisão de estratégia</option>
+                  <option value="Outro">Outro</option>
+                </select>
                 <textarea name="detalhe" placeholder="Observações, pontos-chave, conclusões…" rows={3} style={{ ...fld, resize: "vertical" }} />
-                <div><button className="hx-btn hx-btn-primary" type="submit" style={{ padding: "9px 16px", fontSize: 12.5 }}>Registrar</button></div>
+                <div><button className="hx-btn hx-btn-primary" type="submit" style={{ padding: "9px 16px", fontSize: 12.5 }}>Salvar devolutiva</button></div>
               </form>
             </div>
           )}
@@ -481,14 +673,8 @@ export default async function ClienteHub({ params, searchParams }: { params: Pro
 
               {/* Logo */}
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                <label style={{ fontSize: 11, color: "var(--dim)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em" }}>Logo (URL da imagem)</label>
-                <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                  {cli.logo_url && (
-                    <img src={cli.logo_url} alt="logo" style={{ width: 44, height: 44, borderRadius: 8, objectFit: "contain", background: "var(--panel-2)", padding: 4, flexShrink: 0 }} />
-                  )}
-                  <input name="logo_url" defaultValue={cli.logo_url ?? ""} style={{ ...fld, flex: 1 }} placeholder="https://…/logo.png ou logo.svg" />
-                </div>
-                <span style={{ fontSize: 10.5, color: "var(--dim)" }}>Aceita URL pública. Para subir um arquivo, arraste para o Drive e copie o link público.</span>
+                <label style={{ fontSize: 11, color: "var(--dim)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em" }}>Logo</label>
+                <LogoUpload clienteId={id} logoAtual={cli.logo_url ?? null} />
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
@@ -553,6 +739,19 @@ export default async function ClienteHub({ params, searchParams }: { params: Pro
                 <input name="email" type="email" placeholder="email@empresa.com.br" required style={fld} />
               </div>
               <button className="hx-btn hx-btn-primary" type="submit" style={{ padding: "9px 16px", fontSize: 12.5 }}>Enviar convite</button>
+            </form>
+          </div>
+
+          {/* Enviar e-mail ao cliente */}
+          <div className="hx-glass" style={{ borderRadius: 14, padding: 18 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>Enviar e-mail</div>
+            <div style={{ fontSize: 12, color: "var(--mut)", marginBottom: 12 }}>Envie uma notificação, relatório ou mensagem diretamente para o cliente via Resend.</div>
+            <form action={enviarEmailCliente} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <input type="hidden" name="clienteId" value={id} />
+              <input name="emailTo" type="email" placeholder="destinatario@empresa.com" required style={fld} />
+              <input name="assunto" placeholder="Assunto do e-mail" required style={fld} />
+              <textarea name="mensagem" placeholder="Mensagem (pode usar quebras de linha)…" rows={4} required style={{ ...fld, resize: "vertical" }} />
+              <div><button className="hx-btn hx-btn-primary" type="submit" style={{ padding: "9px 16px", fontSize: 12.5 }}>Enviar e-mail</button></div>
             </form>
           </div>
 

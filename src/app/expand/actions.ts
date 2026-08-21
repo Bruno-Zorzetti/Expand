@@ -836,11 +836,17 @@ export async function salvarGrupoCliente(formData: FormData) {
   const clienteId = String(formData.get("clienteId") ?? "");
   if (!clienteId) return;
   const jid = String(formData.get("jid") ?? "").trim();
+  const grupoLink = String(formData.get("whatsapp_grupo_link") ?? "").trim() || null;
   let nome: string | null = null;
   if (jid) { const { listarGrupos } = await import("@/lib/whatsapp"); const g = await listarGrupos(); nome = g.find((x) => x.jid === jid)?.nome ?? null; }
   const supabase = await createClient();
-  await supabase.from("expand_clientes").update({ whatsapp_grupo: jid || null, whatsapp_grupo_nome: nome }).eq("id", clienteId);
+  await supabase.from("expand_clientes").update({
+    whatsapp_grupo: jid || null,
+    whatsapp_grupo_nome: nome,
+    ...(grupoLink !== null ? { whatsapp_grupo_link: grupoLink } : {}),
+  }).eq("id", clienteId);
   revalidatePath("/expand/board");
+  revalidatePath(`/expand/clientes/${clienteId}`);
 }
 
 // Salva o link de convite do grupo — cola manual, ou busca no uazapi se já houver grupo.
@@ -871,6 +877,39 @@ export async function testarGrupoCliente(formData: FormData) {
   const { enviarWhatsapp } = await import("@/lib/whatsapp");
   await enviarWhatsapp(jid, `✅ Teste da Expand — este grupo de *${c?.nome ?? "cliente"}* está conectado. A partir de agora, avisos, links e aprovações chegam por aqui.`);
   revalidatePath("/expand/board");
+}
+
+// Envia uma mensagem rápida padronizada para o grupo do cliente.
+export async function enviarMensagemPadrao(formData: FormData) {
+  await exigirAdmin();
+  const clienteId = String(formData.get("clienteId") ?? "");
+  const tipo = String(formData.get("tipo") ?? "").trim();
+  const meetLink = String(formData.get("meet_link") ?? "").trim() || undefined;
+  if (!clienteId || !tipo) return;
+  const supabase = await createClient();
+  const { data: c } = await supabase.from("expand_clientes").select("nome, whatsapp_grupo").eq("id", clienteId).maybeSingle();
+  const jid = c?.whatsapp_grupo as string | null;
+  if (!jid) return;
+  const { buildMensagem, portUrlCliente } = await import("@/lib/whatsapp-templates");
+  const portUrl = portUrlCliente(clienteId);
+  const texto = buildMensagem(tipo as Parameters<typeof buildMensagem>[0], { nome: c?.nome ?? "", portUrl, meetLink });
+  const { enviarWhatsapp } = await import("@/lib/whatsapp");
+  await enviarWhatsapp(jid, texto);
+  const { pessoa } = await getPessoa();
+  await supabase.from("expand_log").insert({ tipo: "msg_rapida", detalhe: tipo, cliente_id: clienteId, autor: pessoa.nome });
+  revalidatePath(`/expand/clientes/${clienteId}`);
+}
+
+// Salva a transcrição de uma reunião.
+export async function salvarTranscricao(formData: FormData) {
+  await exigirAdmin();
+  const reuniaoId = String(formData.get("reuniaoId") ?? "").trim();
+  const transcricao = String(formData.get("transcricao") ?? "").trim();
+  if (!reuniaoId) return;
+  const admin = createAdminClient();
+  if (!admin) return;
+  await admin.from("expand_reunioes").update({ transcricao: transcricao || null }).eq("id", reuniaoId);
+  revalidatePath("/expand/clientes/[id]", "page");
 }
 
 // ── Custo da etapa → Financeiro ───────────────────────────────────────────────
@@ -945,6 +984,28 @@ export async function adicionarDiagnostico(formData: FormData) {
   revalidatePath(`/expand/clientes/${clienteId}`);
 }
 
+// ── Email ao cliente ─────────────────────────────────────────────────────────
+export async function enviarEmailCliente(formData: FormData) {
+  await exigirAdmin();
+  const to       = String(formData.get("emailTo")   ?? "").trim();
+  const assunto  = String(formData.get("assunto")   ?? "").trim();
+  const mensagem = String(formData.get("mensagem")  ?? "").trim();
+  if (!to || !assunto || !mensagem) return;
+  const { enviarEmail, emailNotificacao } = await import("@/lib/email");
+  await enviarEmail({ to, subject: assunto, html: emailNotificacao(assunto, mensagem.replace(/\n/g, "<br>")) });
+}
+
+// ── Anotação manual no histórico ─────────────────────────────────────────────
+export async function adicionarNotaHistorico(formData: FormData) {
+  const clienteId = String(formData.get("clienteId") ?? "");
+  const nota      = String(formData.get("nota")       ?? "").trim();
+  if (!clienteId || !nota) return;
+  const supabase = await createClient();
+  const { pessoa } = await getPessoa();
+  await supabase.from("expand_log").insert({ tipo: "anotacao", detalhe: nota, cliente_id: clienteId, autor: pessoa.nome });
+  revalidatePath(`/expand/clientes/${clienteId}`);
+}
+
 // ── Acesso ao portal do cliente ───────────────────────────────────────────────
 export async function gerarConvitePortal(formData: FormData) {
   const clienteId = String(formData.get("clienteId") ?? "");
@@ -1016,6 +1077,64 @@ export async function arquivarCliente(formData: FormData) {
   redirect("/expand/carteira?arquivado=1");
 }
 
+export async function salvarFeedbackEncerramento(formData: FormData) {
+  await exigirAdmin();
+  const id = String(formData.get("id") ?? "").trim();
+  const motivo = String(formData.get("motivo") ?? "").trim();
+  const detalhe = String(formData.get("detalhe") ?? "").trim();
+  const nps = String(formData.get("nps") ?? "").trim();
+  if (!id || !motivo) return;
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const texto = JSON.stringify({ motivo, detalhe, nps });
+  await supabase.from("expand_log").insert([
+    { cliente_id: id, tipo: "enc_feedback", detalhe: texto, autor: user?.email ?? "admin" },
+  ]);
+  redirect(`/expand/clientes/${id}/arquivar?step=2`);
+}
+
+export async function salvarChecklistEncerramento(formData: FormData) {
+  await exigirAdmin();
+  const id = String(formData.get("id") ?? "").trim();
+  if (!id) return;
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const autor = user?.email ?? "admin";
+  const checked = formData.getAll("item").map(String);
+  await supabase.from("expand_log").insert({ cliente_id: id, tipo: "enc_checklist", detalhe: JSON.stringify(checked), autor });
+  redirect(`/expand/clientes/${id}/arquivar?step=3`);
+}
+
+export async function confirmarEncerramento(formData: FormData) {
+  await exigirAdmin();
+  const id = String(formData.get("id") ?? "").trim();
+  const nomeCli = String(formData.get("nomeCli") ?? "").trim();
+  if (!id) return;
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const autor = user?.email ?? "admin";
+
+  // Busca feedback salvo para compor memória
+  const { data: fb } = await supabase.from("expand_log").select("detalhe").eq("cliente_id", id).eq("tipo", "enc_feedback").order("criado_em", { ascending: false }).limit(1).maybeSingle();
+  const feedbackTxt = fb?.detalhe ? (() => { try { const p = JSON.parse(String(fb.detalhe)); return `Motivo: ${p.motivo}. ${p.detalhe ?? ""}`.trim(); } catch { return String(fb.detalhe); } })() : "Sem feedback registrado.";
+
+  // Muda status
+  await supabase.from("expand_clientes").update({ status: "churned" }).eq("id", id);
+
+  // Memória PMO — encerramento do roadmap
+  await supabase.from("expand_log").insert({ cliente_id: id, tipo: "memoria_pmo", detalhe: `[ENCERRAMENTO] ${nomeCli} — ${feedbackTxt}`, autor });
+
+  // Memória CS — churn para melhoria de retenção
+  await supabase.from("expand_log").insert({ cliente_id: id, tipo: "memoria_cs", detalhe: `[CHURN] ${nomeCli} — ${feedbackTxt}`, autor });
+
+  // Log final
+  await supabase.from("expand_log").insert({ cliente_id: id, tipo: "arquivamento", detalhe: `Conta encerrada. ${feedbackTxt}`, autor });
+
+  revalidatePath(`/expand/clientes/${id}`);
+  revalidatePath("/expand/carteira");
+  redirect("/expand/carteira?arquivado=1");
+}
+
 export async function excluirCliente(formData: FormData) {
   await exigirAdmin();
   const id = String(formData.get("id") ?? "").trim();
@@ -1039,6 +1158,28 @@ export async function salvarPerfil(formData: FormData) {
   s("nome"); s("cargo"); s("area"); s("bio"); s("foto_url"); s("cor");
   // Agents only
   s("prompt"); s("memoria");
+  // Processos — formato texto simples: cada linha "# Título" abre um processo, "- passo" adiciona um passo
+  const procRaw = String(formData.get("processos_txt") ?? "").trim();
+  if (procRaw !== undefined) {
+    if (!procRaw) {
+      up["processos"] = null;
+    } else {
+      const processos: { t: string; passos: string[] }[] = [];
+      let cur: { t: string; passos: string[] } | null = null;
+      for (const linha of procRaw.split("\n")) {
+        const l = linha.trim();
+        if (!l) continue;
+        if (l.startsWith("# ")) {
+          if (cur) processos.push(cur);
+          cur = { t: l.slice(2).trim(), passos: [] };
+        } else if (l.startsWith("- ") && cur) {
+          cur.passos.push(l.slice(2).trim());
+        }
+      }
+      if (cur) processos.push(cur);
+      up["processos"] = processos.length ? processos : null;
+    }
+  }
   // Admin only fields
   if (isAdmin) { s("superior"); s("ordem"); up["ativo"] = formData.get("ativo") === "1"; }
 

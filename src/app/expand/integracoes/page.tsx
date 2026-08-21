@@ -55,13 +55,23 @@ const GRUPOS: { nome: string; cor: string; descricao: string; chaves: ChaveInfo[
     ],
   },
   {
-    nome: "IA de design",
+    nome: "IA de design — API",
     cor: "#7a5cff",
-    descricao: "O Design Master escolhe a ferramenta pelo custo. Plugue as chaves para geração autônoma.",
+    descricao: "Chaves para ferramentas de geração de imagem/vídeo. Higgsfield e Canva estão conectados via MCP — sem chave necessária.",
     chaves: [
-      { key: "GEMINI_API_KEY",     label: "Google Gemini / Nano Banana", hint: "Começa com AIza...",  secret: true, link: "https://aistudio.google.com/apikey" },
-      { key: "OPENAI_API_KEY",     label: "OpenAI (GPT-Image)",          hint: "Começa com sk-...",   secret: true, link: "https://platform.openai.com/api-keys" },
-      { key: "HIGGSFIELD_API_KEY", label: "Higgsfield (arte premium)",    hint: "Chave do painel Higgsfield", secret: true, link: "https://app.higgsfield.ai/settings" },
+      { key: "GEMINI_API_KEY",  label: "Google Gemini (Nano Banana)",   hint: "Começa com AIza... — geração de imagem econômica",       secret: true, link: "https://aistudio.google.com/apikey" },
+      { key: "OPENAI_API_KEY",  label: "OpenAI (GPT-Image / DALL-E)",   hint: "Começa com sk-... — alta qualidade, custo médio",        secret: true, link: "https://platform.openai.com/api-keys" },
+      { key: "REVE_API_KEY",    label: "Reve.com (texto na arte)",      hint: "Melhor para imagens com texto legível — painel reve.com", secret: true, link: "https://reve.art" },
+      { key: "MORFIX_API_KEY",  label: "Morfix (edição de foto/vídeo)",  hint: "Especialista em retoque e transformação realista",        secret: true, link: "https://morfix.ai" },
+    ],
+  },
+  {
+    nome: "E-mail transacional (Resend)",
+    cor: "#FF6154",
+    descricao: "Envio de e-mails para equipe e clientes: notificações, senhas, convites, relatórios.",
+    chaves: [
+      { key: "RESEND_API_KEY",   label: "API Key",          hint: "Começa com re_... — painel Resend → API Keys", secret: true,  link: "https://resend.com/api-keys" },
+      { key: "RESEND_FROM_EMAIL",label: "E-mail remetente", hint: "Ex: noreply@expand.hshs.com.br — domínio verificado no Resend", secret: false, link: "https://resend.com/domains" },
     ],
   },
   {
@@ -152,7 +162,7 @@ export default async function Integracoes({ searchParams }: { searchParams: Prom
     "email",
     "profile",
     "https://www.googleapis.com/auth/drive.file",
-    "https://www.googleapis.com/auth/calendar.readonly",
+    "https://www.googleapis.com/auth/calendar.events",
   ].join(" ");
   const googleOAuthUrl = googleClientId
     ? `https://accounts.google.com/o/oauth2/v2/auth?` +
@@ -275,40 +285,55 @@ export default async function Integracoes({ searchParams }: { searchParams: Prom
         })()}
       </div>
 
-      {/* WhatsApp — conectar por QR */}
-      <div className="ex-grph"><span className="gt">WhatsApp via uazapi</span><span className="gc">{wpp.status === "connected" ? "conectado" : "offline"}</span><span className="gl" /></div>
-      <div className="ex-panel hx-glass" style={{ padding: 18, marginBottom: 8 }}>
-        {wpp.status === "nao_config" ? (
-          <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
-            <span style={{ flexShrink: 0, width: 40, height: 40, borderRadius: 10, background: "color-mix(in srgb, #25D366 15%, transparent)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>💬</span>
-            <div>
-              <p style={{ fontSize: 13.5, fontWeight: 700, color: "var(--txt)", marginBottom: 4 }}>Sem configuração</p>
-              <p style={{ fontSize: 12.5, color: "var(--mut)", lineHeight: 1.6, margin: 0 }}>
-                Configure <b>UAZAPI_URL</b> e <b>UAZAPI_TOKEN</b> no formulário abaixo e salve. Após salvar, recarregue esta página e o botão de conectar aparece.
-              </p>
-            </div>
+      {/* WhatsApp */}
+      <details open={wpp.status !== "connected"} style={{ marginBottom: 28 }}>
+        <summary style={{ listStyle: "none", cursor: "pointer" }}>
+          <div className="ex-grph" style={{ marginBottom: 0 }}>
+            <span style={{ width: 9, height: 9, borderRadius: "50%", flexShrink: 0, display: "inline-block", background: wpp.status === "connected" ? "#22c55e" : wpp.status === "nao_config" ? "#ef4444" : "#f59e0b" }} />
+            <span className="gt">WhatsApp via uazapi</span>
+            <span className="gc">{wpp.status === "connected" ? (("number" in wpp && wpp.number) ? String(wpp.number) : "conectado") : wpp.status === "nao_config" ? "sem chave" : "desconectado"}</span>
+            <span className="gl" />
           </div>
-        ) : (
-          <WhatsAppConnect inicial={wpp} conectar={conectar} checar={checar} desconectar={desconectar} />
-        )}
-      </div>
-
-      {/* Criar instância */}
-      <details className="hx-glass" style={{ borderRadius: 12, marginBottom: 28, borderLeft: "3px solid var(--accent-2)" }}>
-        <summary style={{ listStyle: "none", cursor: "pointer", padding: "12px 16px", fontWeight: 700, fontSize: 13 }}>
-          ＋ Criar nova instância <span style={{ fontWeight: 400, fontSize: 11.5, color: "var(--dim)" }}>· gera um novo número/token no seu servidor uazapi</span>
         </summary>
-        <div style={{ padding: "12px 16px 16px", borderTop: "1px solid var(--line)" }}>
-          <p style={{ fontSize: 12, color: "var(--mut)", lineHeight: 1.55, margin: "0 0 12px" }}>
-            Usa o <code style={CD}>UAZAPI_ADMIN_TOKEN</code>. No servidor de demonstração <code style={CD}>free.uazapi.com</code> isso é <b style={{ color: "var(--warn)" }}>bloqueado</b> — funciona no seu servidor pago.
-          </p>
-          <CriarInstancia criar={criarInstancia} />
+        <div className="ex-panel hx-glass" style={{ padding: 18, marginBottom: 8, marginTop: 8 }}>
+          {wpp.status === "nao_config" ? (
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
+              <span style={{ flexShrink: 0, width: 40, height: 40, borderRadius: 10, background: "color-mix(in srgb, #25D366 15%, transparent)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>💬</span>
+              <div>
+                <p style={{ fontSize: 13.5, fontWeight: 700, color: "var(--txt)", marginBottom: 4 }}>Sem configuração</p>
+                <p style={{ fontSize: 12.5, color: "var(--mut)", lineHeight: 1.6, margin: 0 }}>
+                  Configure <b>UAZAPI_URL</b> e <b>UAZAPI_TOKEN</b> no formulário abaixo e salve. Após salvar, recarregue esta página e o botão de conectar aparece.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <WhatsAppConnect inicial={wpp} conectar={conectar} checar={checar} desconectar={desconectar} />
+          )}
         </div>
+        <details className="hx-glass" style={{ borderRadius: 12, marginBottom: 0, borderLeft: "3px solid var(--accent-2)" }}>
+          <summary style={{ listStyle: "none", cursor: "pointer", padding: "12px 16px", fontWeight: 700, fontSize: 13 }}>
+            ＋ Criar nova instância <span style={{ fontWeight: 400, fontSize: 11.5, color: "var(--dim)" }}>· gera um novo número/token no seu servidor uazapi</span>
+          </summary>
+          <div style={{ padding: "12px 16px 16px", borderTop: "1px solid var(--line)" }}>
+            <p style={{ fontSize: 12, color: "var(--mut)", lineHeight: 1.55, margin: "0 0 12px" }}>
+              Usa o <code style={CD}>UAZAPI_ADMIN_TOKEN</code>. No servidor de demonstração <code style={CD}>free.uazapi.com</code> isso é <b style={{ color: "var(--warn)" }}>bloqueado</b> — funciona no seu servidor pago.
+            </p>
+            <CriarInstancia criar={criarInstancia} />
+          </div>
+        </details>
       </details>
 
       {/* Google — Drive & Calendar */}
-      <div className="ex-grph"><span className="gt">Google Drive &amp; Calendar</span><span className="gc">{googleConnected ? "conectado" : "desconectado"}</span><span className="gl" /></div>
-      <div className="hx-glass" style={{ borderRadius: 14, padding: "20px 22px", marginBottom: 28, borderLeft: "3px solid #4285F4" }}>
+      <details open={!googleConnected} style={{ marginBottom: 28 }}>
+        <summary style={{ listStyle: "none", cursor: "pointer" }}>
+          <div className="ex-grph" style={{ marginBottom: 0 }}>
+            <span style={{ width: 9, height: 9, borderRadius: "50%", flexShrink: 0, display: "inline-block", background: googleConnected ? "#22c55e" : ok("GOOGLE_CLIENT_ID") ? "#f59e0b" : "#ef4444" }} />
+            <span className="gt">Google Drive &amp; Calendar</span>
+            <span className="gc">{googleConnected ? (googleEmail || "conectado") : ok("GOOGLE_CLIENT_ID") ? "chave configurada — OAuth pendente" : "sem chave"}</span>
+            <span className="gl" />
+          </div>
+        </summary>
+        <div className="hx-glass" style={{ borderRadius: 14, padding: "20px 22px", marginTop: 8, borderLeft: "3px solid #4285F4" }}>
         <div style={{ display: "flex", alignItems: "flex-start", gap: 16, flexWrap: "wrap" }}>
           <span style={{ flexShrink: 0, width: 44, height: 44, borderRadius: 12, background: "color-mix(in srgb, #4285F4 15%, transparent)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>
             {googleConnected ? "🟢" : "⚪"}
@@ -368,6 +393,61 @@ export default async function Integracoes({ searchParams }: { searchParams: Prom
           </ol>
         </details>
       </div>
+      </details>
+
+      {/* Todas as conexões MCP — painel de status */}
+      <div className="ex-grph" style={{ marginTop: 4 }}><span className="gt">Conexões via MCP</span><span className="gc">sempre ativas nesta sessão</span><span className="gl" /></div>
+      <p style={{ fontSize: 12, color: "var(--mut)", marginBottom: 14, lineHeight: 1.55 }}>
+        Ferramentas conectadas diretamente ao Claude Code via MCP — disponíveis para todos os agentes sem chave de API. Verde = ativo. Amarelo = conectado mas precisa de chave para uso autônomo. Vermelho = sem conexão.
+      </p>
+      {(() => {
+        const apifyOk = ok("APIFY_KEY") || ok("APIFY_API_KEY");
+        const mcps = [
+          { nome: "Higgsfield AI",      icon: "⚡", cor: "#FF6B35", dot: "#22c55e", cat: "Design", caps: ["Imagem","Vídeo","3D","Voz"] },
+          { nome: "Canva",              icon: "🎨", cor: "#00C4CC", dot: "#22c55e", cat: "Design", caps: ["Templates","Brand Kit","Export"] },
+          { nome: "Luma AI",            icon: "✨", cor: "#8B5CF6", dot: "#22c55e", cat: "Design", caps: ["Imagem","Vídeo","Upscale"] },
+          { nome: "Figma",              icon: "✏️", cor: "#F24E1E", dot: "#22c55e", cat: "Design", caps: ["Leitura","Componentes","Dev Mode"] },
+          { nome: "Meta Ads",           icon: "📣", cor: "#1877F2", dot: "#22c55e", cat: "Tráfego", caps: ["Campanhas","Criativos","Insights"] },
+          { nome: "Make.com",           icon: "⚙️", cor: "#6D00CC", dot: "#22c55e", cat: "Automação", caps: ["Cenários","Webhooks","Integração"] },
+          { nome: "Tarefas Agendadas",  icon: "⏰", cor: "#D4A02A", dot: "#22c55e", cat: "Automação", caps: ["Schedule","Cron","Gatilhos"] },
+          { nome: "Apify",              icon: "🕷", cor: "#D9A94E", dot: apifyOk ? "#22c55e" : "#f59e0b", cat: "Dados", caps: ["Leads","Scraping","Intel"] },
+          { nome: "Supabase",           icon: "🗄", cor: "#3ECF8E", dot: "#22c55e", cat: "Infra", caps: ["SQL","Auth","Storage"] },
+          { nome: "Vercel",             icon: "▲", cor: "#a3a3a3", dot: "#22c55e", cat: "Infra", caps: ["Deploy","Logs","Analytics"] },
+          { nome: "Google Drive MCP",   icon: "📁", cor: "#4285F4", dot: "#22c55e", cat: "Infra", caps: ["Busca","Leitura","Criação"] },
+          { nome: "Google Calendar MCP",icon: "📅", cor: "#0F9D58", dot: "#22c55e", cat: "Infra", caps: ["Agenda","Eventos","Meet"] },
+        ];
+        const cats = ["Design", "Tráfego", "Automação", "Dados", "Infra"];
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14, marginBottom: 28 }}>
+            {cats.map(cat => {
+              const items = mcps.filter(m => m.cat === cat);
+              return (
+                <div key={cat}>
+                  <div style={{ fontSize: 10.5, fontWeight: 700, color: "var(--dim)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 8 }}>{cat}</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 8 }}>
+                    {items.map(t => (
+                      <div key={t.nome} className="hx-glass" style={{ borderRadius: 12, padding: "12px 14px", borderLeft: `3px solid ${t.cor}`, display: "flex", alignItems: "center", gap: 10 }}>
+                        <span style={{ width: 32, height: 32, borderRadius: 8, background: `color-mix(in srgb, ${t.cor} 15%, transparent)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>{t.icon}</span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontWeight: 700, fontSize: 12.5, display: "flex", alignItems: "center", gap: 6 }}>
+                            <span style={{ width: 7, height: 7, borderRadius: "50%", background: t.dot, flexShrink: 0, display: "inline-block" }} />
+                            {t.nome}
+                          </div>
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: 3, marginTop: 4 }}>
+                            {t.caps.map(c => (
+                              <span key={c} style={{ fontSize: 9, padding: "1px 5px", borderRadius: 4, background: `color-mix(in srgb, ${t.cor} 10%, transparent)`, color: t.cor, fontWeight: 600 }}>{c}</span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        );
+      })()}
 
       {/* Formulário principal de chaves */}
       <div className="ex-grph"><span className="gt">Configurar chaves &amp; tokens</span><span className="gl" /></div>

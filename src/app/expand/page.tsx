@@ -123,7 +123,7 @@ export default async function MeuDia({ searchParams }: { searchParams: Promise<{
   const pinDate = sp.d ?? "";
   const { pessoa } = await getPessoa();
   const acesso = await getAcesso();
-  if (!acesso.isAdmin) redirect("/expand/v2");
+  redirect("/expand/v2");
   const supabase = await createClient();
 
   const { data } = await supabase.from("expand_clientes").select("*").eq("ativo", true);
@@ -176,7 +176,7 @@ export default async function MeuDia({ searchParams }: { searchParams: Promise<{
   const { data: cliAll } = await supabase.from("expand_clientes").select("id, nome").eq("ativo", true).order("nome");
   const clientesList = (cliAll ?? []) as { id: string; nome: string }[];
   const site = process.env.NEXT_PUBLIC_SITE_URL || "";
-  const icsUrl = perfMe?.ics_token ? `${site}/api/calendario/${perfMe.ics_token}.ics` : null;
+  const icsUrl = perfMe?.ics_token ? `${site}/api/calendario/${(perfMe as { ics_token: string }).ics_token}.ics` : null;
 
   const marcados = myEtapas.map((e) => { const iso = e.data_prevista ? e.data_prevista + "T00:00:00" : (e.concluida_em ?? e.iniciada_em); return iso ? { dia: new Date(iso).getDate(), marco: e.marco, mes: new Date(iso).getMonth() } : null; })
     .filter((x): x is { dia: number; marco: boolean; mes: number } => !!x && x.mes === mm - 1);
@@ -211,7 +211,7 @@ export default async function MeuDia({ searchParams }: { searchParams: Promise<{
         <div className="ex-kpi hx-glass"><div className="lab">Tarefas ({range === "mes" ? "mês" : range === "semana" ? "semana" : "hoje"})</div><div className="val hx-accent-text">{totalAtivas}</div><div className="foot">Ativas na sua mão</div></div>
         <div className="ex-kpi hx-glass"><div className="lab">Atrasadas / bloqueadas</div><div className="val" style={{ color: atrasadas.length ? "var(--red)" : "var(--green)" }}>{atrasadas.length}</div><div className="foot">Resolver primeiro</div></div>
         <div className="ex-kpi hx-glass"><div className="lab">Aprovações pendentes</div><div className="val" style={{ color: pendentes ? "var(--warn)" : "var(--dim)" }}>{pendentes}</div><div className="foot">Entregáveis aguardando</div></div>
-        <div className="ex-kpi hx-glass"><div className="lab">Tempo médio</div><div className="val" style={{ fontSize: 17 }}>{tempoMedio != null ? (tempoMedio < 60 ? `${tempoMedio}min` : `${Math.round(tempoMedio / 60)}h`) : "—"}</div><div className="foot">Execução por tarefa</div></div>
+        <div className="ex-kpi hx-glass"><div className="lab">Tempo médio</div><div className="val" style={{ fontSize: 17 }}>{tempoMedio != null ? (tempoMedio! < 60 ? `${tempoMedio!}min` : `${Math.round(tempoMedio! / 60)}h`) : "—"}</div><div className="foot">Execução por tarefa</div></div>
       </div>
 
       <div className="ex-dash">

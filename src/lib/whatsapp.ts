@@ -44,10 +44,11 @@ export async function linkConviteGrupo(jid: string): Promise<string | null> {
 }
 
 // Lê as mensagens recentes de um chat/grupo (POST {UAZAPI_URL}/message/find).
+// Retorna null quando a API está indisponível/erro (diferente de [] que significa grupo vazio de fato).
 export type MsgGrupo = { autor: string; texto: string; ts: number; nos: boolean };
-export async function lerMensagensGrupo(jid: string, horas = 24, limit = 300): Promise<MsgGrupo[]> {
+export async function lerMensagensGrupo(jid: string, horas = 24, limit = 300): Promise<MsgGrupo[] | null> {
   const url = process.env.UAZAPI_URL, token = process.env.UAZAPI_TOKEN;
-  if (!url || !token || !jid) return [];
+  if (!url || !token || !jid) return null;
   try {
     const res = await fetch(`${url.replace(/\/$/, "")}/message/find`, {
       method: "POST",
@@ -55,7 +56,7 @@ export async function lerMensagensGrupo(jid: string, horas = 24, limit = 300): P
       body: JSON.stringify({ chatid: jid, limit }),
       cache: "no-store",
     });
-    if (!res.ok) return [];
+    if (!res.ok) return null; // API error — não é "vazio", é falha
     const j = (await res.json()) as Record<string, unknown>;
     const arr = (Array.isArray(j.messages) ? j.messages : []) as Record<string, unknown>[];
     const corte = Date.now() - horas * 3600 * 1000;
@@ -71,7 +72,7 @@ export async function lerMensagensGrupo(jid: string, horas = 24, limit = 300): P
       })
       .filter((m) => m.texto.trim() && m.ts >= corte)
       .sort((a, b) => a.ts - b.ts);
-  } catch { return []; }
+  } catch { return null; } // Exceção de rede — também é falha, não "vazio"
 }
 
 // Lista os grupos do número conectado (GET {UAZAPI_URL}/group/list · header token).
