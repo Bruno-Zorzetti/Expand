@@ -4,7 +4,6 @@ import { createClient } from "@/lib/supabase/server";
 import ExpandClienteShell from "@/components/expand/ExpandClienteShell";
 import AcoesCliente from "@/components/expand/AcoesCliente";
 import SinoCliente, { type NotifCli } from "@/components/expand/SinoCliente";
-import { versiculoDoDia } from "@/lib/versiculos";
 import { solicitarDemanda, marcarNotifCliente } from "@/app/expand/actions";
 import type { ReactNode } from "react";
 
@@ -47,12 +46,15 @@ export default async function PortalLayout({ children, params }: { children: Rea
     }
   }
 
+  const qtdPendentes = notas.filter(n => n.tipo === "aprovacao" && !n.lida).length;
+
   return (
-    <div className={`${cinzel.variable} tema-expand`}>
+    <div className={cinzel.variable}>
       <ExpandClienteShell
         clienteId={id}
         clienteNome={cli.nome as string}
-        versiculo={versiculoDoDia()}
+        qtdPendentes={qtdPendentes}
+        grupoLink={grupoLink}
         sino={<SinoCliente notas={notas} marcarLida={marcarNotifCliente} />}
         acoes={<AcoesCliente clienteId={id} grupoLink={grupoLink} solicitar={solicitarDemanda} />}
       >{children}</ExpandClienteShell>
