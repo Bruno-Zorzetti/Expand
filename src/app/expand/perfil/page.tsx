@@ -96,16 +96,6 @@ export default async function MeuPerfil() {
     perfil = data as unknown as ExpandPerfil | null;
   }
 
-  // Clientes atribuídos
-  const { data: clientesData } = await sb
-    .from("expand_user_clientes")
-    .select("cliente_id, funcao_cliente, expand_clientes(id, nome)")
-    .eq("user_id", userId);
-  const clientes = (clientesData ?? []) as unknown as Array<{
-    cliente_id: string; funcao_cliente: string;
-    expand_clientes: { id: string; nome: string } | null;
-  }>;
-
   // Tarefas ativas
   const nomeParaBusca = perfil?.nome ?? profile?.full_name ?? "";
   const { data: tarefasData } = nomeParaBusca
@@ -113,7 +103,7 @@ export default async function MeuPerfil() {
         .from("expand_etapas")
         .select("id, titulo, cliente_id, status, sla, data_prevista, area")
         .or(`responsavel_atual.eq.${nomeParaBusca},responsavel.eq.${nomeParaBusca}`)
-        .in("status", ["pendente", "em_andamento", "iniciada"])
+        .in("status", ["idle", "run", "wait"])
         .order("criado_em", { ascending: false })
         .limit(10)
     : { data: [] };
@@ -121,6 +111,14 @@ export default async function MeuPerfil() {
     id: string; titulo: string; cliente_id: string;
     status: string; sla: string | null; data_prevista: string | null; area: string | null;
   }>;
+
+  // Clientes derivados das tarefas ativas
+  const clienteIds = [...new Set(tarefas.map(t => t.cliente_id))];
+  const { data: clientesData } = clienteIds.length > 0
+    ? await sb.from("expand_clientes").select("id, nome").in("id", clienteIds)
+    : { data: [] };
+  const clientesMap = new Map((clientesData ?? []).map((c: { id: string; nome: string }) => [c.id, c.nome]));
+  const clientes = clienteIds.map(id => ({ id, nome: clientesMap.get(id) ?? id }));
 
   // URL do calendário ICS
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://expand.hshs.com.br";
@@ -226,21 +224,15 @@ export default async function MeuPerfil() {
       {/* Carteira de clientes */}
       {sec("Minha carteira de clientes", (
         clientes.length === 0
-          ? <p style={{ fontSize: 13, color: "var(--mut)", fontStyle: "italic" }}>Sem clientes atribuídos. O admin pode vincular em Acessos → avançado.</p>
+          ? <p style={{ fontSize: 13, color: "var(--mut)", fontStyle: "italic" }}>Nenhum cliente com tarefas ativas no momento.</p>
           : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {clientes.map(c => {
-                const nome = c.expand_clientes?.nome ?? c.cliente_id;
-                return (
-                  <div key={c.cliente_id} className="hx-glass" style={{ borderRadius: 10, padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-                    <div>
-                      <div style={{ fontWeight: 600, fontSize: 14 }}>{nome}</div>
-                      <div style={{ fontSize: 11, color: "var(--dim)", textTransform: "capitalize", marginTop: 2 }}>{c.funcao_cliente}</div>
-                    </div>
-                    <a href={`/expand/carteira/${c.cliente_id}`} style={{ fontSize: 11.5, color: "var(--accent)", textDecoration: "none" }}>Ver dossiê →</a>
-                  </div>
-                );
-              })}
+              {clientes.map(c => (
+                <div key={c.id} className="hx-glass" style={{ borderRadius: 10, padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14 }}>{c.nome}</div>
+                  <a href={`/expand/carteira/${c.id}`} style={{ fontSize: 11.5, color: "var(--accent)", textDecoration: "none" }}>Ver dossiê →</a>
+                </div>
+              ))}
             </div>
           )
       ))}
@@ -253,14 +245,15 @@ export default async function MeuPerfil() {
             <>
               <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
                 {tarefas.map(t => {
-                  const cor = t.status === "em_andamento" ? "var(--accent)" : t.status === "pendente" ? "var(--dim)" : "var(--warn)";
+                  const statusLabel: Record<string, string> = { idle: "Aguardando", run: "Em andamento", wait: "Aguardando retorno" };
+                  const cor = t.status === "run" ? "var(--accent)" : t.status === "wait" ? "var(--warn)" : "var(--dim)";
                   return (
                     <div key={t.id} className="hx-glass" style={{ borderRadius: 10, padding: "10px 14px", borderLeft: `3px solid ${cor}` }}>
                       <div style={{ fontSize: 13, fontWeight: 600 }}>{t.titulo}</div>
                       <div style={{ display: "flex", gap: 10, marginTop: 4, flexWrap: "wrap" }}>
                         {t.area && <span style={{ fontSize: 10.5, color: "var(--dim)" }}>{t.area}</span>}
                         {t.sla  && <span style={{ fontSize: 10.5, color: "var(--dim)" }}>SLA: {t.sla}</span>}
-                        <span style={{ fontSize: 10.5, color: cor, fontWeight: 600, textTransform: "capitalize" }}>{t.status}</span>
+                        <span style={{ fontSize: 10.5, color: cor, fontWeight: 600 }}>{statusLabel[t.status] ?? t.status}</span>
                       </div>
                     </div>
                   );
