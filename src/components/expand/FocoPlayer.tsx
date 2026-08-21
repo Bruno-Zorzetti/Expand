@@ -54,8 +54,15 @@ export default function FocoPlayer() {
     if (playing === id) setPlaying(null);
   }
 
-  const current  = playlists.find(p => p.id === playing);
-  const embed    = current ? parseEmbed(current.url) : null;
+  const currentIdx = playlists.findIndex(p => p.id === playing);
+  const current    = currentIdx >= 0 ? playlists[currentIdx] : undefined;
+  const embed      = current ? parseEmbed(current.url) : null;
+
+  function nextTrack() {
+    if (playlists.length === 0) return;
+    const next = playlists[(currentIdx + 1) % playlists.length];
+    setPlaying(next.id);
+  }
 
   const fld: React.CSSProperties = {
     background: "var(--bg)", border: "1px solid var(--line-2)", borderRadius: 7,
@@ -121,7 +128,24 @@ export default function FocoPlayer() {
                     {current?.name}
                   </div>
                 </div>
-                <span style={{ fontSize: 18, opacity: 0.7 }}>♪</span>
+                <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+                  <button
+                    onClick={() => setPlaying(null)}
+                    title="Pausar"
+                    style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, color: "var(--accent)", padding: "2px 4px", lineHeight: 1 }}
+                  >
+                    ⏸
+                  </button>
+                  {playlists.length > 1 && (
+                    <button
+                      onClick={nextTrack}
+                      title="Próxima"
+                      style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, color: "var(--accent)", padding: "2px 4px", lineHeight: 1 }}
+                    >
+                      ⏭
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           ) : (
