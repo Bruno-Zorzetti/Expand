@@ -33,6 +33,8 @@ export default function AgenteChat({ id, nome, cor, tipo, contexto, memoriaHref 
   const router = useRouter();
   const produto = contexto && typeof contexto.produto === "string" ? (contexto.produto as string) : null;
 
+  const ehAgente = tipo === "agente";
+
   const scroll = () => setTimeout(() => boxRef.current?.scrollTo({ top: boxRef.current.scrollHeight, behavior: "smooth" }), 40);
 
   async function enviar(texto?: string, histOverride?: { role: string; content: string }[]) {
@@ -104,36 +106,46 @@ export default function AgenteChat({ id, nome, cor, tipo, contexto, memoriaHref 
     try {
       const r = await fetch(`/api/agente/${id}/upload`, { method: "POST", body: fd });
       const j = await r.json();
-      setMsgs((s) => s.map((m, k) => k === s.length - 1 ? { ...m, content: j.ok ? `📎 "${j.nome}" salvo na memória — já posso usar no que você perguntar. (Texto puro entra direto; PDF/imagem ficam anexados: descreva o conteúdo no perfil → Conhecimento se quiser que eu aprenda dele.)` : `Não consegui salvar (${j.error ?? "erro"}).` } : m));
+      setMsgs((s) => s.map((m, k) => k === s.length - 1 ? { ...m, content: j.ok ? `📎 "${j.nome}" salvo na memória.` : `Não consegui salvar (${j.error ?? "erro"}).` } : m));
     } catch { setMsgs((s) => [...s, { role: "assistant", content: "Falha ao enviar o arquivo." }]); }
   }
 
-  const ehAgente = tipo === "agente";
-  const titulo = ehAgente ? `Conversar com ${nome}` : `Assistente de ${nome}`;
   const sugestoes = ehAgente
     ? ["Como você faria essa entrega?", "Quais seus critérios de qualidade?", "O que você aprendeu com os últimos trabalhos?"]
-    : [`O que a ${nome} tem em execução?`, "O que está atrasado ou na fila?", "Ajuda a priorizar a semana"];
+    : [`O que está em aberto entre nós?`, "Me passa um status das suas tarefas.", "Tem algum bloqueio que posso ajudar?"];
 
   const perguntaFb = (v: number) => (v <= 3 ? "O que faltou? Diga o que melhorar:" : "Quase lá — o que deixaria melhor?");
 
   return (
-    <div className="ex-panel hx-glass" style={{ padding: 0, display: "flex", flexDirection: "column", minHeight: 360 }}>
-      <div className="ph" style={{ display: "flex", alignItems: "center", gap: 9, flexWrap: "wrap" }}>
-        <span style={{ width: 9, height: 9, borderRadius: "50%", background: cor, boxShadow: `0 0 10px ${cor}` }} />
-        <span className="pt">{titulo}</span>
-        {memoriaHref ? <a href={memoriaHref} style={{ fontSize: 10.5, color: "var(--accent)", textDecoration: "none" }}>ver memória ↗</a> : null}
-        <select value={modelo} onChange={(e) => setModelo(e.target.value)} title="Modelo que vai responder"
-          style={{ marginLeft: "auto", background: "var(--bg)", border: "1px solid var(--line-2)", borderRadius: 8, color: "var(--txt)", padding: "5px 8px", fontSize: 11, outline: "none", fontFamily: "inherit" }}>
-          {MODELOS.map((m) => <option key={m.id} value={m.id}>{m.l}</option>)}
-        </select>
+    <div style={{ display: "flex", flexDirection: "column", flex: 1, height: "100%", overflow: "hidden" }}>
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", gap: 9, flexWrap: "wrap", padding: "11px 16px", borderBottom: "1px solid var(--line)", flexShrink: 0 }}>
+        <span style={{ width: 8, height: 8, borderRadius: "50%", background: cor, boxShadow: `0 0 8px ${cor}` }} />
+        <span style={{ fontSize: 13, fontWeight: 700, color: "var(--txt)" }}>
+          {ehAgente ? nome : nome}
+        </span>
+        {memoriaHref && ehAgente ? <a href={memoriaHref} style={{ fontSize: 10.5, color: "var(--accent)", textDecoration: "none" }}>ver memória ↗</a> : null}
+        {ehAgente && (
+          <select value={modelo} onChange={(e) => setModelo(e.target.value)} title="Modelo"
+            style={{ marginLeft: "auto", background: "var(--bg)", border: "1px solid var(--line-2)", borderRadius: 8, color: "var(--txt)", padding: "5px 8px", fontSize: 11, outline: "none", fontFamily: "inherit" }}>
+            {MODELOS.map((m) => <option key={m.id} value={m.id}>{m.l}</option>)}
+          </select>
+        )}
       </div>
 
-      <div ref={boxRef} style={{ flex: 1, overflowY: "auto", padding: "14px 16px", display: "flex", flexDirection: "column", gap: 14, maxHeight: 480 }}>
+      {/* Messages — fills all available vertical space */}
+      <div ref={boxRef} style={{ flex: 1, overflowY: "auto", padding: "14px 16px", display: "flex", flexDirection: "column", gap: 14 }}>
         {msgs.length === 0 ? (
           <div style={{ margin: "auto 0", textAlign: "center", color: "var(--dim)", fontSize: 12.5 }}>
-            <p style={{ marginBottom: 12 }}>{ehAgente ? `Pergunte algo para ${nome}.` : `Peça ajuda ao assistente de ${nome}.`} Avalie cada resposta com estrelas — é assim que ele aprende mais rápido.</p>
+            <p style={{ marginBottom: 12 }}>
+              {ehAgente
+                ? `Pergunte algo para ${nome}.`
+                : `Inicie uma conversa com ${nome}.`}
+            </p>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 7, justifyContent: "center" }}>
-              {sugestoes.map((s) => <button key={s} onClick={() => enviar(s)} className="ex-arqbtn" style={{ fontWeight: 500 }}>{s}</button>)}
+              {sugestoes.map((s) => (
+                <button key={s} onClick={() => enviar(s)} className="ex-arqbtn" style={{ fontWeight: 500 }}>{s}</button>
+              ))}
             </div>
           </div>
         ) : msgs.map((m, i) => (
@@ -143,7 +155,9 @@ export default function AgenteChat({ id, nome, cor, tipo, contexto, memoriaHref 
               background: m.role === "user" ? "color-mix(in srgb, var(--accent) 16%, transparent)" : "var(--panel-2)",
               border: `1px solid ${m.role === "user" ? "color-mix(in srgb, var(--accent) 30%, transparent)" : "var(--line)"}`, color: "var(--txt)",
             }}>{m.content}</div>
-            {m.role === "assistant" ? (
+
+            {/* Per-message actions — agents only */}
+            {m.role === "assistant" && ehAgente ? (
               <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 6 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                   <div style={{ display: "flex", gap: 2 }}>
@@ -181,12 +195,22 @@ export default function AgenteChat({ id, nome, cor, tipo, contexto, memoriaHref 
         {loading ? <div style={{ fontSize: 12, color: "var(--dim)" }}>{nome} está pensando…</div> : null}
       </div>
 
-      <form onSubmit={(e) => { e.preventDefault(); enviar(); }} style={{ display: "flex", gap: 8, padding: "12px 14px", borderTop: "1px solid var(--line)", alignItems: "center" }}>
-        <label title="Anexar material à memória" style={{ cursor: "pointer", color: "var(--dim)", fontSize: 18, padding: "0 2px" }}>📎
-          <input type="file" onChange={anexar} style={{ display: "none" }} />
-        </label>
-        <input value={input} onChange={(e) => setInput(e.target.value)} placeholder={`Falar com ${nome}…`}
-          style={{ flex: 1, background: "var(--bg)", border: "1px solid var(--line-2)", borderRadius: 10, color: "var(--txt)", padding: "9px 12px", fontSize: 13, outline: "none", fontFamily: "inherit" }} />
+      {/* Input — fixed at bottom */}
+      <form
+        onSubmit={(e) => { e.preventDefault(); enviar(); }}
+        style={{ display: "flex", gap: 8, padding: "12px 14px", borderTop: "1px solid var(--line)", alignItems: "center", flexShrink: 0, background: "var(--bg)" }}
+      >
+        {ehAgente && (
+          <label title="Anexar material à memória" style={{ cursor: "pointer", color: "var(--dim)", fontSize: 18, padding: "0 2px" }}>📎
+            <input type="file" onChange={anexar} style={{ display: "none" }} />
+          </label>
+        )}
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder={ehAgente ? `Falar com ${nome}…` : `Mensagem para ${nome}…`}
+          style={{ flex: 1, background: "var(--bg)", border: "1px solid var(--line-2)", borderRadius: 10, color: "var(--txt)", padding: "9px 12px", fontSize: 13, outline: "none", fontFamily: "inherit" }}
+        />
         <button className="hx-btn hx-btn-primary" type="submit" disabled={loading || !input.trim()} style={{ padding: "0 16px" }}>Enviar</button>
       </form>
     </div>

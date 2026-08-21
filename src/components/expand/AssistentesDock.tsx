@@ -5,12 +5,12 @@ import AgenteChat from "@/components/expand/AgenteChat";
 
 export default function AssistentesDock({ pessoaId, pessoaNome }: { pessoaId: string; pessoaNome: string }) {
   const [menu, setMenu] = useState(false);
-  const [ativo, setAtivo] = useState<{ id: string; nome: string; cor: string } | null>(null);
+  const [ativo, setAtivo] = useState<{ id: string; nome: string; cor: string; tipo: "agente" | "humano" } | null>(null);
 
   useEffect(() => {
     function onOpenChat(e: Event) {
-      const { id, nome, cor } = (e as CustomEvent).detail as { id: string; nome: string; cor: string };
-      setAtivo({ id, nome, cor });
+      const { id, nome, cor, tipo } = (e as CustomEvent).detail as { id: string; nome: string; cor: string; tipo?: "agente" | "humano" };
+      setAtivo({ id, nome, cor, tipo: tipo ?? "agente" });
       setMenu(false);
     }
     window.addEventListener("expand:chat", onOpenChat);
@@ -35,7 +35,7 @@ export default function AssistentesDock({ pessoaId, pessoaNome }: { pessoaId: st
         <div style={{ position: "fixed", right: 24, bottom: 86, zIndex: 60, width: 260, background: "var(--panel)", border: "1px solid var(--line-2)", borderRadius: 14, boxShadow: "0 12px 40px rgba(0,0,0,.4)", overflow: "hidden" }}>
           <div style={{ padding: "11px 14px", fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".06em", color: "var(--dim)", borderBottom: "1px solid var(--line)" }}>Falar com um assistente</div>
           {AGS.map((a) => (
-            <button key={a.id} onClick={() => { setAtivo(a); setMenu(false); }} style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "none", border: "none", borderBottom: "1px solid var(--line)", cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}>
+            <button key={a.id} onClick={() => { setAtivo({ ...a, tipo: "agente" }); setMenu(false); }} style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "none", border: "none", borderBottom: "1px solid var(--line)", cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}>
               <span style={{ width: 9, height: 9, borderRadius: "50%", background: a.cor, flexShrink: 0 }} />
               <span style={{ minWidth: 0 }}><span style={{ display: "block", fontSize: 13, fontWeight: 700, color: "var(--txt)" }}>{a.nome}</span><span style={{ display: "block", fontSize: 10.5, color: "var(--mut)" }}>{a.desc}</span></span>
             </button>
@@ -50,8 +50,8 @@ export default function AssistentesDock({ pessoaId, pessoaNome }: { pessoaId: st
             <b style={{ fontSize: 14 }}>{ativo.nome}</b>
             <button onClick={() => setAtivo(null)} style={{ marginLeft: "auto", background: "none", border: "none", color: "var(--mut)", fontSize: 20, cursor: "pointer", lineHeight: 1 }}>✕</button>
           </div>
-          <div style={{ flex: 1, overflow: "auto", padding: 12 }}>
-            <AgenteChat key={ativo.id} id={ativo.id} nome={ativo.nome} cor={ativo.cor} tipo="agente" memoriaHref={`/expand/equipe/${ativo.id}/conhecimento`} />
+          <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+            <AgenteChat key={ativo.id} id={ativo.id} nome={ativo.nome} cor={ativo.cor} tipo={ativo.tipo} memoriaHref={ativo.tipo === "agente" ? `/expand/equipe/${ativo.id}/conhecimento` : undefined} />
           </div>
         </div>
       ) : null}
