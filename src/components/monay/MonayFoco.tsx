@@ -1,6 +1,6 @@
 'use client';
 import MPomodoroTimer from './MPomodoroTimer';
-import MPlaylistPlayer from './MPlaylistPlayer';
+import FocoPlayer from '@/components/expand/FocoPlayer';
 
 export default function MonayFoco() {
   return (
@@ -15,13 +15,7 @@ export default function MonayFoco() {
         <MPomodoroTimer defaultMinutes={45} />
       </div>
       <div style={{ marginTop: 16 }}>
-        <div style={{
-          fontSize: 10, textTransform: 'uppercase', letterSpacing: '.1em',
-          color: 'var(--dim)', fontWeight: 700, marginBottom: 8,
-        }}>
-          Ambiente
-        </div>
-        <MPlaylistPlayer />
+        <FocoPlayer />
       </div>
     </>
   );

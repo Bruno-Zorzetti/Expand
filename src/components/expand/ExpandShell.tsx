@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useRef, type ReactNode } from "react";
 import AssistentesDock from "@/components/expand/AssistentesDock";
-import SoundCloudPlayer from "@/components/expand/SoundCloudPlayer";
 import Notificacoes, { type Notif } from "@/components/expand/Notificacoes";
 import OnboardingTour from "@/components/expand/OnboardingTour";
 import { createClient } from "@/lib/supabase/client";
@@ -184,7 +183,6 @@ export default function ExpandShell({
   notif = [],
   marcarLida,
   marcarTodas,
-  soundcloudUrl,
   children,
 }: {
   pessoa: Pessoa;
@@ -195,7 +193,6 @@ export default function ExpandShell({
   notif?: Notif[];
   marcarLida?: (fd: FormData) => Promise<void>;
   marcarTodas?: () => Promise<void>;
-  soundcloudUrl?: string;
   children: ReactNode;
 }) {
   const path = usePathname();
@@ -218,6 +215,17 @@ export default function ExpandShell({
   const menuSideRef = useRef<HTMLDivElement>(null);
   const [showTopMenu, setShowTopMenu] = useState(false);
   const [showSideMenu, setShowSideMenu] = useState(false);
+
+  // "View as" — admin simula nível de acesso de outro papel para navegar como eles veriam
+  const [viewAs, setViewAs] = useState<"equipe" | "cliente" | null>(null);
+
+  function setViewAsPersist(v: "equipe" | "cliente" | null) {
+    setViewAs(v);
+    try {
+      if (v) localStorage.setItem("ex_view_as", v);
+      else localStorage.removeItem("ex_view_as");
+    } catch { /* noop */ }
+  }
 
   async function sair() {
     const supabase = createClient();
@@ -247,8 +255,10 @@ export default function ExpandShell({
     try {
       const c = JSON.parse(localStorage.getItem("ex-nav-collapsed") ?? "{}");
       const o = JSON.parse(localStorage.getItem("ex-nav-order") ?? "{}");
+      const va = localStorage.getItem("ex_view_as") as "equipe" | "cliente" | null;
       setCollapsed(c);
       setOrder(o);
+      if (va) setViewAs(va);
     } catch { /* noop */ }
   }, []);
 
@@ -258,6 +268,8 @@ export default function ExpandShell({
   }
 
   function podeVer(it: NavItem) {
+    if (viewAs === "equipe") return !it.gate; // equipe sem módulos — só itens sem gate
+    if (viewAs === "cliente") return false;   // cliente não acessa o painel Expand
     return !it.gate || (it.gate === "admin" ? isAdmin : isAdmin || acessos.includes(it.gate));
   }
 
@@ -517,6 +529,24 @@ export default function ExpandShell({
                 {equipe.map((p) => <option key={p.id} value={p.id}>Ver como {p.nome}</option>)}
               </select>
             ) : null}
+            {isAdmin && (
+              <select
+                value={viewAs ?? ""}
+                onChange={e => setViewAsPersist((e.target.value as "equipe" | "cliente") || null)}
+                title="Navegar como outro nível de acesso"
+                style={{
+                  background: viewAs ? "color-mix(in srgb, var(--warn) 15%, var(--panel-2))" : "var(--panel-2)",
+                  border: `1px solid ${viewAs ? "var(--warn)" : "var(--line-2)"}`,
+                  color: viewAs ? "var(--warn)" : "var(--dim)",
+                  borderRadius: 7, fontSize: 11.5, padding: "4px 8px",
+                  cursor: "pointer", fontFamily: "inherit", outline: "none",
+                }}
+              >
+                <option value="">Navegar como: Admin</option>
+                <option value="equipe">Navegar como: Equipe</option>
+                <option value="cliente">Navegar como: Cliente</option>
+              </select>
+            )}
             <button className="ex-iconbtn" onClick={toggleTema} title="Tema claro/escuro"><Ic name="moon" /></button>
             {marcarLida && marcarTodas
               ? <Notificacoes notas={notif} marcarLida={marcarLida} marcarTodas={marcarTodas} />
@@ -545,6 +575,25 @@ export default function ExpandShell({
           </div>
         </div>
 
+        {viewAs && (
+          <div style={{
+            padding: "8px 24px", fontSize: 12.5, fontWeight: 600,
+            background: "color-mix(in srgb, var(--warn) 12%, var(--panel-2))",
+            borderBottom: "1px solid color-mix(in srgb, var(--warn) 30%, transparent)",
+            color: "var(--warn)", display: "flex", alignItems: "center", gap: 12,
+          }}>
+            <span>
+              Modo visitante — visualizando como <b>{viewAs === "equipe" ? "Equipe (sem módulos)" : "Cliente"}</b>.
+              {viewAs === "cliente" && " Clientes acessam o portal em /cliente — o painel Expand não exibe conteúdo para eles."}
+            </span>
+            <button
+              onClick={() => setViewAsPersist(null)}
+              style={{ background: "var(--warn)", color: "#000", border: "none", borderRadius: 6, padding: "3px 10px", fontSize: 11.5, cursor: "pointer", fontWeight: 700, flexShrink: 0 }}
+            >
+              Sair do modo
+            </button>
+          </div>
+        )}
         <main className="ex-main">{children}</main>
 
         <footer className="ex-foot">
@@ -555,7 +604,6 @@ export default function ExpandShell({
 
       <AssistentesDock pessoaId={pessoa.id} pessoaNome={pessoa.nome} />
       <OnboardingTour pessoaId={pessoa.id} pessoaNome={pessoa.nome} />
-      {soundcloudUrl && <SoundCloudPlayer url={soundcloudUrl} />}
     </div>
   );
 }

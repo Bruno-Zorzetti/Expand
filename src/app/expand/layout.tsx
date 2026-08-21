@@ -7,7 +7,6 @@ import ExpandTemaInit from "@/components/expand/ExpandTemaInit";
 import { marcarNotificacaoLida, marcarTodasNotificacoes } from "@/app/expand/actions";
 import type { Notif } from "@/components/expand/Notificacoes";
 import type { ReactNode } from "react";
-import { lerConfig } from "@/lib/system-config";
 
 const cinzel = Cinzel({ variable: "--font-cinzel", subsets: ["latin"], weight: ["500", "600", "700"] });
 
@@ -27,8 +26,6 @@ export default async function ExpandLayout({ children }: { children: ReactNode }
   const modulos = (me?.expand_modulos as string[] | null) ?? [];
   const acessos = [...new Set([...acessosBase, ...modulos])];
 
-  const soundcloudUrl = (await lerConfig("soundcloud_playlist_url")) ?? "";
-
   const { data: nData } = await supabase.from("expand_notificacoes")
     .select("id, tipo, texto, link, lida, criado_em").eq("membro_id", pessoa.id)
     .order("criado_em", { ascending: false }).limit(30);
@@ -39,7 +36,7 @@ export default async function ExpandLayout({ children }: { children: ReactNode }
       <ExpandTemaInit />
       <ExpandShell pessoa={pessoa} equipe={equipe} podeTrocar={isAdmin} isAdmin={isAdmin} acessos={acessos}
         notif={notif} marcarLida={marcarNotificacaoLida} marcarTodas={marcarTodasNotificacoes}
-        soundcloudUrl={soundcloudUrl}>{children}</ExpandShell>
+        >{children}</ExpandShell>
     </div>
   );
 }
