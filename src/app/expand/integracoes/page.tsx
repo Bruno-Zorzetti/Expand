@@ -54,6 +54,14 @@ const GRUPOS: { nome: string; cor: string; descricao: string; chaves: ChaveInfo[
     ],
   },
   {
+    nome: "Ambiente de trabalho",
+    cor: "#D4A02A",
+    descricao: "Personalização do hub de trabalho da equipe.",
+    chaves: [
+      { key: "soundcloud_playlist_url", label: "SoundCloud — URL da playlist", hint: "Cole a URL de uma playlist pública do SoundCloud. Ex: https://soundcloud.com/user/sets/playlist-name", secret: false, link: "https://soundcloud.com" },
+    ],
+  },
+  {
     nome: "Infraestrutura",
     cor: "#86C0A6",
     descricao: "Banco, rotinas automáticas e domínio público.",

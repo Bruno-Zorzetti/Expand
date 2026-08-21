@@ -1,13 +1,14 @@
 "use server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 
 // Lê uma chave: primeiro env var, depois system_config no banco.
 export async function lerConfig(key: string): Promise<string | null> {
   const envVal = process.env[key];
   if (envVal) return envVal;
   try {
-    const sb = createAdminClient();
-    if (!sb) return null;
+    const adminSb = createAdminClient();
+    const sb = adminSb ?? await createClient();
     const { data } = await sb.from("system_config").select("value").eq("key", key).single();
     return (data?.value as string | null) ?? null;
   } catch {
