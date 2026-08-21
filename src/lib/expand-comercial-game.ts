@@ -1,4 +1,4 @@
-// Motor do sistema comercial gamificado — portado do protótipo (funções puras, sem libs).
+// Motor do sistema comercial gamificado — funções puras, sem libs.
 
 export type Plano = {
   metaACV: number; mensalAnual: number; mensalSem: number; mixAnual: number; carteiraMRR: number;
@@ -66,38 +66,67 @@ export function calc(s: Plano) {
   };
 }
 
-export type Missao = { id: string; t: string; d: string; xp: number; tipo: "check" | "ctr"; alvo?: number; dias: number[]; c: string };
-export function missoes(jog: string, C: Calc): Missao[] {
-  if (jog === "luiz") return [
-    { id: "lista", t: "Lista de amanhã pronta", d: "Montar a lista de empresas do ICP que o Luiz vai abordar amanhã. Sem ela, o bloco das 9h vira meia hora procurando perfil.", xp: 15, tipo: "check", dias: UTEIS, c: "var(--c-rit)" },
-    { id: "out", t: "Convites outbound", d: "Direct ou WhatsApp para empresas do ICP que nunca ouviram falar da Expand. Elogio específico e verdadeiro em cada um.", xp: 6, tipo: "ctr", alvo: Math.max(5, up(C.dia.out)), dias: UTEIS, c: "var(--c-out)" },
-    { id: "inb", t: "Convites inbound", d: "Novos seguidores, quem viu stories, quem comentou e leads de tráfego. Lead de formulário responde em até 10 minutos.", xp: 5, tipo: "ctr", alvo: Math.max(5, up(C.dia.inb)), dias: UTEIS, c: "var(--c-in)" },
-    { id: "fup", t: "Follow-ups da régua", d: "Executar os toques do dia: D+1, D+3, D+7, D+14. Nenhum sai do bloco sem próximo passo com dia e hora.", xp: 10, tipo: "ctr", alvo: Math.max(3, up(C.tot.reunR * 4 / DIAS_TOT)), dias: UTEIS, c: "var(--ouro)" },
-    { id: "reu", t: "Reuniões de diagnóstico", d: "Conduzidas pelo Método 3F, gravadas sempre. A gravação permite corrigir o script pelo que aconteceu.", xp: 45, tipo: "ctr", alvo: Math.max(1, Math.round(C.dia.reunA)), dias: UTEIS, c: "var(--dourado)" },
-    { id: "ind", t: "Pedidos de indicação", d: "Aos clientes ativos com entrega em dia e ao menos um resultado apresentado.", xp: 20, tipo: "ctr", alvo: 2, dias: [3], c: "var(--c-ind)" },
-    { id: "crm", t: "CRM atualizado", d: "Mover os estágios do pipeline e registrar o que aconteceu. Contato sem próximo passo é contato perdido que parece ativo.", xp: 10, tipo: "check", dias: UTEIS, c: "var(--c-rit)" },
-  ];
+// Missao unificada — mesma para todos os membros do time comercial.
+// cat: usado para computar totais por categoria.
+export type Missao = {
+  id: string; t: string; d: string; xp: number;
+  tipo: "check" | "ctr"; alvo?: number;
+  dias: number[]; c: string;
+  cat: "conv" | "reun" | "ind" | "fup" | "misc";
+};
+
+export function missoes(C: Calc): Missao[] {
   return [
-    { id: "pipe", t: "Pipeline revisado com o Luiz", d: "Cada oportunidade em aberto: onde está, próximo passo, data. Oportunidade sem data ganha uma ou sai do funil.", xp: 20, tipo: "check", dias: [1], c: "var(--c-rit)" },
-    { id: "cont", t: "Conteúdo de atração publicado", d: "Reel de topo de funil que nomeia o problema sem vender a solução. Alimenta o inbound do Luiz daqui a 45 dias.", xp: 30, tipo: "check", dias: [1, 3, 5], c: "var(--c-in)" },
-    { id: "reug", t: "Reunião de diagnóstico", d: "Contas maiores ou indicações estratégicas, onde a presença do CEO muda a percepção de valor.", xp: 30, tipo: "ctr", alvo: 1, dias: [2, 4], c: "var(--dourado)" },
-    { id: "rev", t: "Ouvir uma gravação do Luiz", d: "Trinta minutos de uma reunião real, com anotação de um ponto a corrigir.", xp: 20, tipo: "check", dias: [4], c: "var(--c-rit)" },
-    { id: "fupg", t: "Follow-up de conta em negociação", d: "Oportunidades de ticket maior paradas. Um áudio do CEO destrava o que três mensagens do comercial não destravam.", xp: 12, tipo: "ctr", alvo: 3, dias: UTEIS, c: "var(--ouro)" },
-    { id: "cart", t: "Contato com a carteira ativa", d: "Uma conversa com dono de cliente ativo, sem pauta de cobrança. Alimenta renovação, indicação e depoimento.", xp: 15, tipo: "ctr", alvo: 1, dias: UTEIS, c: "var(--c-ind)" },
-    { id: "indp", t: "Indicação pedida a cliente ativo", d: "Pedido feito por você, ao dono da empresa cliente. Sai com apresentação em grupo, não com contato solto.", xp: 20, tipo: "ctr", alvo: 1, dias: [3], c: "var(--c-ind)" },
-    { id: "destrava", t: "Pendência comercial destravada", d: "Proposta parada, condição fora da tabela, dúvida de escopo — o que só você decide e está segurando o Luiz.", xp: 15, tipo: "ctr", alvo: 1, dias: UTEIS, c: "var(--c-out)" },
+    {
+      id: "lista", t: "Lista de amanhã pronta",
+      d: "Montar a lista de empresas do ICP para o próximo dia. Sem ela, o bloco das 9h vira meia hora procurando perfil.",
+      xp: 15, tipo: "check", dias: UTEIS, c: "var(--c-rit)", cat: "misc",
+    },
+    {
+      id: "out", t: "Convites outbound",
+      d: "Direct ou WhatsApp para empresas do ICP. Elogio específico e verdadeiro em cada um.",
+      xp: 6, tipo: "ctr", alvo: Math.max(5, up(C.dia.out)), dias: UTEIS, c: "var(--c-out)", cat: "conv",
+    },
+    {
+      id: "inb", t: "Convites inbound",
+      d: "Novos seguidores, quem viu stories, quem comentou e leads de tráfego. Lead de formulário responde em até 10 minutos.",
+      xp: 5, tipo: "ctr", alvo: Math.max(5, up(C.dia.inb)), dias: UTEIS, c: "var(--c-in)", cat: "conv",
+    },
+    {
+      id: "fup", t: "Follow-ups da régua",
+      d: "Executar os toques do dia: D+1, D+3, D+7, D+14. Nenhum sai do bloco sem próximo passo com dia e hora.",
+      xp: 10, tipo: "ctr", alvo: Math.max(3, up(C.tot.reunR * 4 / DIAS_TOT)), dias: UTEIS, c: "var(--ouro)", cat: "fup",
+    },
+    {
+      id: "reu", t: "Reuniões de diagnóstico",
+      d: "Conduzidas pelo Método 3F, gravadas sempre. A gravação permite corrigir o script pelo que aconteceu.",
+      xp: 45, tipo: "ctr", alvo: Math.max(1, Math.round(C.dia.reunA)), dias: UTEIS, c: "var(--dourado)", cat: "reun",
+    },
+    {
+      id: "ind", t: "Pedidos de indicação",
+      d: "Aos clientes ativos com entrega em dia e ao menos um resultado apresentado.",
+      xp: 20, tipo: "ctr", alvo: 2, dias: [3], c: "var(--c-ind)", cat: "ind",
+    },
+    {
+      id: "crm", t: "CRM atualizado",
+      d: "Mover os estágios do pipeline e registrar o que aconteceu. Contato sem próximo passo é contato perdido que parece ativo.",
+      xp: 10, tipo: "check", dias: UTEIS, c: "var(--c-rit)", cat: "misc",
+    },
   ];
 }
 
 export type Reg = Record<string, Record<string, number>>; // dia -> missao -> valor
-export const doDia = (jog: string, wd: number, C: Calc) => missoes(jog, C).filter((m) => m.dias.includes(wd));
-export const xpMax = (jog: string, wd: number, C: Calc) => doDia(jog, wd, C).reduce((a, m) => a + m.xp * (m.tipo === "check" ? 1 : (m.alvo ?? 1)), 0);
-export const metaDia = (jog: string, wd: number, C: Calc) => Math.round(xpMax(jog, wd, C) * 0.65 / 5) * 5;
+
+export const doDia = (wd: number, C: Calc) => missoes(C).filter((m) => m.dias.includes(wd));
+export const xpMax  = (wd: number, C: Calc) => doDia(wd, C).reduce((a, m) => a + m.xp * (m.tipo === "check" ? 1 : (m.alvo ?? 1)), 0);
+export const metaDia = (wd: number, C: Calc) => Math.round(xpMax(wd, C) * 0.65 / 5) * 5;
+
 export function xpDia(jog: string, dia: string, C: Calc, reg: Reg) {
-  const wd = dtFromIso(dia).getDay(), r = reg[dia] || {};
-  return doDia(jog, wd, C).reduce((a, m) => a + m.xp * Math.min(r[m.id] || 0, m.tipo === "check" ? 1 : (m.alvo ?? 1) * 3), 0);
+  const wd = dtFromIso(dia).getDay();
+  const r = reg[dia] || {};
+  return doDia(wd, C).reduce((a, m) => a + m.xp * Math.min(r[m.id] || 0, m.tipo === "check" ? 1 : (m.alvo ?? 1) * 3), 0);
 }
-export const bateu = (jog: string, dia: string, C: Calc, reg: Reg) => ehUtil(dia) && xpDia(jog, dia, C, reg) >= metaDia(jog, dtFromIso(dia).getDay(), C);
+export const bateu    = (jog: string, dia: string, C: Calc, reg: Reg) => ehUtil(dia) && xpDia(jog, dia, C, reg) >= metaDia(dtFromIso(dia).getDay(), C);
 export function streak(jog: string, C: Calc, reg: Reg) {
   let s = 0, d = iso(new Date());
   for (let k = 0; k < 420; k++) { if (ehUtil(d)) { if (bateu(jog, d, C, reg)) s++; else if (k > 0) break; } d = addDias(d, -1); }
@@ -111,35 +140,39 @@ export function maiorStreak(jog: string, C: Calc, reg: Reg) {
 }
 export function totais(reg: Reg) {
   const t = { conv: 0, reun: 0, ind: 0, fup: 0 };
-  Object.values(reg).forEach((v) => { t.conv += (v.out || 0) + (v.inb || 0); t.reun += (v.reu || 0) + (v.reug || 0); t.ind += (v.ind || 0) + (v.indp || 0); t.fup += (v.fup || 0) + (v.fupg || 0) + (v.cart || 0); });
+  Object.values(reg).forEach((v) => {
+    t.conv += (v.out || 0) + (v.inb || 0);
+    t.reun += (v.reu || 0);
+    t.ind  += (v.ind || 0);
+    t.fup  += (v.fup || 0);
+  });
   return t;
 }
 export const xpTotal = (jog: string, C: Calc, reg: Reg) => Object.keys(reg).reduce((a, d) => a + xpDia(jog, d, C, reg), 0);
 
-export const NIVEIS: [number, string][] = [[0, "Iniciante"], [600, "Prospector"], [1800, "Conector"], [4000, "Estrategista"], [8000, "Closer"], [14000, "Mestre do Funil"], [22000, "Fechador Expand"]];
+export const NIVEIS: [number, string][] = [
+  [0, "Iniciante"], [600, "Prospector"], [1800, "Conector"],
+  [4000, "Estrategista"], [8000, "Closer"], [14000, "Mestre do Funil"], [22000, "Fechador"],
+];
 export function nivel(xp: number) {
-  let n = NIVEIS[0], i = 0; NIVEIS.forEach((v, k) => { if (xp >= v[0]) { n = v; i = k; } });
+  let n = NIVEIS[0], i = 0;
+  NIVEIS.forEach((v, k) => { if (xp >= v[0]) { n = v; i = k; } });
   const prox = NIVEIS[i + 1] || null;
   return { i: i + 1, nome: n[1], base: n[0], prox: prox ? prox[0] : null, proxNome: prox ? prox[1] : null };
 }
 
 export type Badge = { i: string; n: string; c: string; f: (t: { conv: number; reun: number; ind: number; fup: number }, m: number) => boolean };
 export const BADGES: Badge[] = [
-  { i: "✦", n: "Primeiro dia", c: "Bater a meta diária uma vez", f: (_t, m) => m >= 1 },
-  { i: "▲", n: "Semana de fogo", c: "5 dias batidos seguidos", f: (_t, m) => m >= 5 },
-  { i: "★", n: "Duas semanas", c: "10 dias seguidos", f: (_t, m) => m >= 10 },
-  { i: "◈", n: "Mês inteiro", c: "20 dias seguidos", f: (_t, m) => m >= 20 },
-  { i: "●", n: "100 convites", c: "Enviados no acumulado", f: (t) => t.conv >= 100 },
-  { i: "◎", n: "500 convites", c: "Enviados no acumulado", f: (t) => t.conv >= 500 },
-  { i: "⬢", n: "1.000 convites", c: "Enviados no acumulado", f: (t) => t.conv >= 1000 },
-  { i: "◆", n: "10 reuniões", c: "Diagnósticos conduzidos", f: (t) => t.reun >= 10 },
-  { i: "⬟", n: "50 reuniões", c: "Diagnósticos conduzidos", f: (t) => t.reun >= 50 },
-  { i: "✧", n: "25 indicações", c: "Pedidos feitos à carteira", f: (t) => t.ind >= 25 },
-  { i: "✚", n: "100 follow-ups", c: "Toques de régua executados", f: (t) => t.fup >= 100 },
-  { i: "✺", n: "Semana perfeita", c: "5 de 5 dias batidos", f: (_t, m) => m >= 5 },
+  { i: "✦", n: "Primeiro dia",     c: "Bater a meta diária uma vez",    f: (_t, m) => m >= 1 },
+  { i: "▲", n: "Semana de fogo",   c: "5 dias batidos seguidos",         f: (_t, m) => m >= 5 },
+  { i: "★", n: "Duas semanas",     c: "10 dias seguidos",                f: (_t, m) => m >= 10 },
+  { i: "◈", n: "Mês inteiro",      c: "20 dias seguidos",                f: (_t, m) => m >= 20 },
+  { i: "●", n: "100 convites",     c: "Enviados no acumulado",           f: (t) => t.conv >= 100 },
+  { i: "◎", n: "500 convites",     c: "Enviados no acumulado",           f: (t) => t.conv >= 500 },
+  { i: "⬢", n: "1.000 convites",  c: "Enviados no acumulado",           f: (t) => t.conv >= 1000 },
+  { i: "◆", n: "10 reuniões",      c: "Diagnósticos conduzidos",         f: (t) => t.reun >= 10 },
+  { i: "⬟", n: "50 reuniões",      c: "Diagnósticos conduzidos",         f: (t) => t.reun >= 50 },
+  { i: "✧", n: "25 indicações",    c: "Pedidos feitos à carteira",       f: (t) => t.ind >= 25 },
+  { i: "✚", n: "100 follow-ups",   c: "Toques de régua executados",      f: (t) => t.fup >= 100 },
+  { i: "✺", n: "Semana perfeita",  c: "5 de 5 dias batidos",             f: (_t, m) => m >= 5 },
 ];
-
-export const JOGADORES: Record<string, { n: string; r: string; ini: string; c: string }> = {
-  luiz: { n: "Luiz", r: "CSO · prospecta e fecha", ini: "L", c: "var(--c-out)" },
-  pedro: { n: "Pedro", r: "CEO · contas maiores e conteúdo", ini: "P", c: "var(--ouro)" },
-};

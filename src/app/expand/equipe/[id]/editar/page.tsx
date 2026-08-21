@@ -1,228 +1,180 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { type Perfil, linhas, parseExp, parseForm, expToText, formToText } from "@/lib/expand-perfis";
+import { getAcesso } from "@/lib/expand-acesso";
+import PerfilAvatar from "@/components/expand/PerfilAvatar";
+import { salvarPerfil, excluirPerfil } from "@/app/expand/actions";
+import type { Perfil } from "@/lib/expand-perfis";
+import type { CSSProperties } from "react";
 
 export const dynamic = "force-dynamic";
 
-async function salvar(formData: FormData) {
-  "use server";
-  const id = String(formData.get("id") ?? "");
-  if (!id) return;
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-  const { data: me } = await supabase.from("profiles").select("role, expand_membro").eq("id", user.id).single();
-  if (!(me?.role === "admin" || (me?.expand_membro as string | null) === id)) redirect(`/expand/equipe/${id}`);
+const fld: CSSProperties = {
+  background: "var(--bg)", border: "1px solid var(--line-2)", borderRadius: 8,
+  color: "var(--txt)", padding: "9px 11px", fontSize: 13, fontFamily: "inherit", width: "100%",
+};
+const label: CSSProperties = { fontSize: 11, color: "var(--dim)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 4 };
+const fgroup: CSSProperties = { display: "flex", flexDirection: "column", gap: 4 };
 
-  const t = (k: string) => String(formData.get(k) ?? "").trim() || null;
-  const arr = (k: string) => linhas(String(formData.get(k) ?? ""));
-  const nota = String(formData.get("nota") ?? "").trim();
-  await supabase.from("expand_perfis").update({
-    nome: String(formData.get("nome") ?? "").trim() || "Sem nome",
-    cargo: t("cargo"), area: t("area"), cor: t("cor"), foto_url: t("foto_url"), bio: t("bio"),
-    interesses: arr("interesses"), hard: arr("hard"), soft: arr("soft"), ferramentas: arr("ferramentas"), linguagens: arr("linguagens"),
-    experiencia: parseExp(String(formData.get("experiencia") ?? "")), formacao: parseForm(String(formData.get("formacao") ?? "")),
-    portfolio_url: t("portfolio_url"), portfolio_label: t("portfolio_label"),
-    email: t("email"), telefone: t("telefone"), pais: t("pais"), idade: t("idade"), aniversario: t("aniversario"),
-    instagram: t("instagram"), linkedin: t("linkedin"),
-    ranking: t("ranking"), nota: nota ? Number(nota) : null,
-    prompt: t("prompt"), memoria: t("memoria"),
-    superior: t("superior"), chapeus: arr("chapeus"),
-    departamento: t("departamento"),
-    google_cal_ics: t("google_cal_ics"),
-    whatsapp_grupo: t("whatsapp_grupo"),
-    whatsapp_grupo_link: t("whatsapp_grupo_link"),
-  }).eq("id", id);
-  revalidatePath(`/expand/equipe/${id}`);
-  revalidatePath("/expand/equipe");
-  redirect(`/expand/equipe/${id}`);
-}
-
-function F({ n, l, v, tipo }: { n: string; l: string; v?: string | number | null; tipo?: string }) {
-  return (<label className="ex-fld"><span>{l}</span><input name={n} type={tipo ?? "text"} defaultValue={v ?? undefined} step={tipo === "number" ? "0.1" : undefined} /></label>);
-}
-function A({ n, l, v, hint }: { n: string; l: string; v?: string; hint?: string }) {
-  return (<label className="ex-fld"><span>{l}{hint ? <em style={{ color: "var(--dim)", fontStyle: "normal", textTransform: "none", letterSpacing: 0 }}> · {hint}</em> : null}</span><textarea name={n} defaultValue={v} /></label>);
-}
-
-export default async function Editar({ params }: { params: Promise<{ id: string }> }) {
+export default async function EditarPerfil({ params, searchParams }: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ ok?: string }>;
+}) {
   const { id } = await params;
+  const { ok } = await searchParams;
   const supabase = await createClient();
+  const { isAdmin } = await getAcesso();
+
+  // Verify current user can edit
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-  const { data: me } = await supabase.from("profiles").select("role, expand_membro").eq("id", user.id).single();
-  const { data } = await supabase.from("expand_perfis").select("*").eq("id", id).single();
+  if (!user) redirect("/auth/login");
+
+  const { data: me } = await supabase.from("profiles").select("expand_membro").eq("id", user.id).single();
+  const membro = me?.expand_membro as string | null;
+  if (!isAdmin && membro !== id) redirect(`/expand/equipe/${id}`);
+
+  const { data } = await supabase.from("expand_perfis").select("*").eq("id", id).maybeSingle();
   if (!data) notFound();
   const p = data as Perfil;
-  if (!(me?.role === "admin" || (me?.expand_membro as string | null) === id)) redirect(`/expand/equipe/${id}`);
 
-  // Acesso: conta vinculada a este perfil
-  const { data: contaData } = await supabase.from("profiles")
-    .select("id, full_name, email, role")
-    .eq("expand_membro", id).maybeSingle();
-  const conta = contaData as { id: string; full_name: string | null; email: string | null; role: string } | null;
-  const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://expand.hshs.com.br";
-  const icsUrl = (p as unknown as { ics_token?: string }).ics_token
-    ? `${site}/api/calendario/${(p as unknown as { ics_token: string }).ics_token}.ics`
-    : null;
+  // Admin: list of human perfis for "superior" select
+  let superiores: { id: string; nome: string }[] = [];
+  if (isAdmin) {
+    const { data: sup } = await supabase.from("expand_perfis").select("id, nome").eq("tipo", "humano").order("nome");
+    superiores = (sup ?? []) as { id: string; nome: string }[];
+  }
 
-  const { data: td } = await supabase.from("expand_perfis").select("id, nome, cargo").order("ordem");
-  const todos = (td ?? []) as { id: string; nome: string; cargo: string | null }[];
+  const pRaw = p as Perfil & { ativo?: boolean; ordem?: number };
+  const ehAgente = p.tipo === "agente";
+  const cor = (p.cor as string | null) ?? "var(--accent)";
 
   return (
     <>
-      <Link href={`/expand/equipe/${id}`} className="ex-back">← Voltar ao perfil</Link>
-      <p className="hx-eyebrow">Editar perfil</p>
-      <h1 className="ex-h1">{p.nome}</h1>
-      <p className="ex-sub">Preencha seu portfólio. Listas: um item por linha. Experiência: <span style={{ fontFamily: "monospace" }}>Empresa | Período | Cargo | Descrição</span>. Formação: <span style={{ fontFamily: "monospace" }}>Instituição | Ano | Curso</span>.</p>
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
+        <Link href={`/expand/equipe/${id}`} style={{ color: "var(--dim)", fontSize: 13, textDecoration: "none" }}>← {p.nome}</Link>
+        <span style={{ color: "var(--line)", fontSize: 13 }}>/</span>
+        <span style={{ fontSize: 13, color: "var(--mut)" }}>Editar</span>
+      </div>
 
-      <form action={salvar}>
-        <input type="hidden" name="id" defaultValue={p.id} />
-        <div className="ex-panel hx-glass" style={{ marginBottom: 16 }}>
-          <div className="ph"><span className="pt">Identidade</span></div>
-          <div className="pb" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 4 }}>
-            <F n="nome" l="Nome" v={p.nome} />
-            <F n="cargo" l="Cargo" v={p.cargo} />
-            <F n="area" l="Área" v={p.area} />
-            <F n="cor" l="Cor" v={p.cor} tipo="color" />
-            <F n="foto_url" l="Foto (URL)" v={p.foto_url} />
-            <F n="ranking" l="Selo / ranking" v={p.ranking} />
-            <F n="nota" l="Nota (0–10)" v={p.nota} tipo="number" />
-          </div>
-          <div className="pb" style={{ paddingTop: 0 }}><A n="bio" l="Bio / descrição" v={p.bio ?? ""} /></div>
+      <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 24 }}>
+        <PerfilAvatar p={p} size={52} radius={8} />
+        <div>
+          <h1 style={{ fontSize: 22, fontWeight: 800, color: "var(--txt)", marginBottom: 2 }}>{p.nome}</h1>
+          <p style={{ fontSize: 12.5, color: "var(--mut)" }}>{ehAgente ? "Agente de IA" : "Membro humano"} · {p.cargo ?? "Sem cargo"}</p>
         </div>
+      </div>
 
-        <div className="ex-panel hx-glass" style={{ marginBottom: 16 }}>
-          <div className="ph"><span className="pt">Estrutura no time</span></div>
-          <div className="pb" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4 }}>
-            <label className="ex-fld"><span>Responde a (superior)</span>
-              <select name="superior" defaultValue={p.superior ?? ""}>
-                <option value="">— ninguém (topo)</option>
-                {todos.filter((x) => x.id !== p.id).map((x) => <option key={x.id} value={x.id}>{x.nome}{x.cargo ? ` · ${x.cargo}` : ""}</option>)}
-              </select>
-            </label>
-            <A n="chapeus" l="Chapéus / papéis" v={(p.chapeus ?? []).join("\n")} hint="um por linha" />
-            <F n="departamento" l="Departamento" v={p.departamento} />
-          </div>
+      {ok === "1" && (
+        <div style={{ padding: "10px 14px", borderRadius: 10, background: "color-mix(in srgb, var(--green) 12%, transparent)", border: "1px solid color-mix(in srgb, var(--green) 30%, transparent)", color: "var(--green)", fontSize: 13, marginBottom: 16 }}>
+          Perfil salvo com sucesso.
         </div>
+      )}
 
-        <div className="ex-panel hx-glass" style={{ marginBottom: 16 }}>
-          <div className="ph"><span className="pt">Agenda & grupos de trabalho</span></div>
-          <div className="pb" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 4 }}>
-            <F n="google_cal_ics" l="Google Agenda (URL .ics pessoal)" v={p.google_cal_ics} />
-            <F n="whatsapp_grupo" l="Grupo de trabalho (nome)" v={p.whatsapp_grupo} />
-            <F n="whatsapp_grupo_link" l="Link do grupo WhatsApp" v={p.whatsapp_grupo_link} />
+      <form action={salvarPerfil} style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 680 }}>
+        <input type="hidden" name="id" value={id} />
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div style={fgroup}>
+            <label style={label}>Nome *</label>
+            <input name="nome" defaultValue={p.nome} required style={fld} />
           </div>
-          <div className="pb" style={{ paddingTop: 0, fontSize: 12, color: "var(--dim)" }}>
-            Para obter a URL .ics do Google Agenda: abra agenda.google.com → Configurações da agenda → Endereço URL do iCal (privado).
+          <div style={fgroup}>
+            <label style={label}>Cargo</label>
+            <input name="cargo" defaultValue={(p.cargo as string | null) ?? ""} style={fld} placeholder="ex: Diretor Comercial" />
           </div>
         </div>
 
-        <div className="ex-panel hx-glass" style={{ marginBottom: 16 }}>
-          <div className="ph"><span className="pt">Habilidades</span></div>
-          <div className="pb" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))", gap: 4 }}>
-            <A n="hard" l="Hard skills" v={(p.hard ?? []).join("\n")} hint="um por linha" />
-            <A n="soft" l="Soft skills" v={(p.soft ?? []).join("\n")} hint="um por linha" />
-            <A n="ferramentas" l="Ferramentas" v={(p.ferramentas ?? []).join("\n")} hint="um por linha" />
-            <A n="linguagens" l="Linguagens" v={(p.linguagens ?? []).join("\n")} hint="um por linha" />
-            <A n="interesses" l="Interesses" v={(p.interesses ?? []).join("\n")} hint="um por linha" />
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+          <div style={fgroup}>
+            <label style={label}>Área</label>
+            <select name="area" defaultValue={(p.area as string | null) ?? ""} style={fld}>
+              <option value="">— Sem área —</option>
+              {["comercial","cs","design","marketing","tech","gestao","financeiro","juridico","ops"].map(a => (
+                <option key={a} value={a}>{a}</option>
+              ))}
+            </select>
+          </div>
+          <div style={fgroup}>
+            <label style={label}>Cor de destaque</label>
+            <input type="color" name="cor" defaultValue={(p.cor as string | null) ?? "#6366F1"} style={{ ...fld, padding: "4px", height: 42, cursor: "pointer" }} />
+          </div>
+          <div style={fgroup}>
+            <label style={label}>Foto (URL)</label>
+            <input name="foto_url" defaultValue={(p.foto_url as string | null) ?? ""} style={fld} placeholder="https://…" />
           </div>
         </div>
 
-        <div className="ex-panel hx-glass" style={{ marginBottom: 16 }}>
-          <div className="ph"><span className="pt">Trajetória</span></div>
-          <div className="pb" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4 }}>
-            <A n="experiencia" l="Experiência" v={expToText(p.experiencia)} hint="Empresa | Período | Cargo | Descrição" />
-            <A n="formacao" l="Formação" v={formToText(p.formacao)} hint="Instituição | Ano | Curso" />
-          </div>
+        <div style={fgroup}>
+          <label style={label}>Bio</label>
+          <textarea name="bio" defaultValue={(p.bio as string | null) ?? ""} rows={3} style={{ ...fld, resize: "vertical" }} placeholder="Resumo de 2-3 frases sobre o papel e estilo de trabalho." />
         </div>
 
-        <div className="ex-panel hx-glass" style={{ marginBottom: 16 }}>
-          <div className="ph"><span className="pt">Portfólio & contato</span></div>
-          <div className="pb" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 4 }}>
-            <F n="portfolio_url" l="Portfólio (URL)" v={p.portfolio_url} />
-            <F n="portfolio_label" l="Portfólio (rótulo)" v={p.portfolio_label} />
-            <F n="email" l="E-mail" v={p.email} />
-            <F n="telefone" l="WhatsApp" v={p.telefone} />
-            <F n="idade" l="Idade" v={p.idade} />
-            <F n="aniversario" l="Aniversário" v={p.aniversario} tipo="date" />
-            <F n="pais" l="País" v={p.pais} />
-            <F n="instagram" l="Instagram (@ ou link)" v={p.instagram} />
-            <F n="linkedin" l="LinkedIn (link)" v={p.linkedin} />
-          </div>
-        </div>
-
-        {p.tipo === "agente" ? (
-          <div className="ex-panel hx-glass" style={{ marginBottom: 16 }}>
-            <div className="ph"><span className="pt">Prompt & memória — o que diferencia o agente</span></div>
-            <div className="pb" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4 }}>
-              <A n="prompt" l="Prompt / instrução" v={p.prompt ?? ""} hint="o que o agente faz e como" />
-              <A n="memoria" l="Memória / base de conhecimento" v={p.memoria ?? ""} hint="referência ao skill em ~/.claude/skills/" />
+        {ehAgente && (
+          <>
+            <div style={{ borderTop: "1px solid var(--line)", paddingTop: 16 }}>
+              <p style={{ fontSize: 11, color: "var(--accent)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 12 }}>Configuração do agente de IA</p>
             </div>
-          </div>
-        ) : null}
+            <div style={fgroup}>
+              <label style={label}>Prompt do sistema</label>
+              <textarea name="prompt" defaultValue={(p.prompt as string | null) ?? ""} rows={8} style={{ ...fld, resize: "vertical", fontFamily: "monospace", fontSize: 12 }} placeholder="Instruções de comportamento do agente — quem é, como age, quais são suas prioridades." />
+            </div>
+            <div style={fgroup}>
+              <label style={label}>Memória (contexto persistente)</label>
+              <textarea name="memoria" defaultValue={(p.memoria as string | null) ?? ""} rows={5} style={{ ...fld, resize: "vertical", fontFamily: "monospace", fontSize: 12 }} placeholder="Acertos, padrões, aprendizados relevantes — injetado no chat automaticamente." />
+            </div>
+          </>
+        )}
 
-        {/* Seção de Acesso à plataforma — visível para admin ou para o próprio membro */}
-        {p.tipo !== "agente" && (
-          <div className="ex-panel hx-glass" style={{ marginBottom: 16 }}>
-            <div className="ph"><span className="pt">Acesso à plataforma</span></div>
-            <div className="pb" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              {/* Status da conta */}
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{
-                  width: 10, height: 10, borderRadius: "50%", flexShrink: 0,
-                  background: conta ? "var(--green)" : "var(--red)",
-                }}/>
-                <div>
-                  <div style={{ fontSize: 13.5, fontWeight: 700, color: "var(--txt)" }}>
-                    {conta ? `Conta vinculada — ${conta.full_name || conta.id.slice(0, 8)}` : "Sem conta na plataforma"}
-                  </div>
-                  <div style={{ fontSize: 11.5, color: "var(--dim)" }}>
-                    {conta
-                      ? `${conta.email || conta.id.slice(0, 8)} · Papel: ${conta.role}`
-                      : `Peça que acesse /login → "Criar conta" → "Sou da equipe" e depois aprove em `}
-                    {!conta && <a href="/expand/acessos" style={{ color: "var(--accent)" }}>/expand/acessos</a>}
-                  </div>
+        {isAdmin && (
+          <div style={{ borderTop: "1px solid var(--line)", paddingTop: 16, display: "flex", flexDirection: "column", gap: 12 }}>
+            <p style={{ fontSize: 11, color: "var(--dim)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em" }}>Configurações de admin</p>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+              {!ehAgente && (
+                <div style={fgroup}>
+                  <label style={label}>Superior direto</label>
+                  <select name="superior" defaultValue={(p.superior as string | null) ?? ""} style={fld}>
+                    <option value="">— Nenhum —</option>
+                    {superiores.filter(s => s.id !== id).map(s => (
+                      <option key={s.id} value={s.nome}>{s.nome}</option>
+                    ))}
+                  </select>
                 </div>
-                {me?.role === "admin" && (
-                  <a href="/expand/acessos" className="hx-btn hx-btn-ghost" style={{ marginLeft: "auto", padding: "5px 12px", fontSize: 12, textDecoration: "none" }}>
-                    Gerenciar acesso →
-                  </a>
-                )}
-              </div>
-
-              {/* ICS Calendar URL */}
-              {icsUrl ? (
-                <div>
-                  <div style={{ fontSize: 12, color: "var(--dim)", marginBottom: 6, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".05em" }}>
-                    Link do calendário (Google Calendar / Apple Calendar / Outlook)
-                  </div>
-                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                    <code style={{
-                      flex: 1, fontSize: 11.5, color: "var(--accent)", background: "var(--bg)",
-                      border: "1px solid var(--line-2)", borderRadius: 8, padding: "8px 12px",
-                      wordBreak: "break-all", display: "block",
-                    }}>
-                      {icsUrl}
-                    </code>
-                  </div>
-                  <p style={{ fontSize: 11, color: "var(--dim)", marginTop: 6, lineHeight: 1.5 }}>
-                    Cole este link em "Adicionar por URL" no Google Calendar ou Outlook para sincronizar as tarefas com datas.
-                  </p>
-                </div>
-              ) : (
-                <p style={{ fontSize: 12.5, color: "var(--dim)" }}>
-                  Nenhum token de calendário gerado. Contate o admin para gerar via SQL: <code style={{ fontSize: 11 }}>UPDATE expand_perfis SET ics_token = gen_random_uuid()::text WHERE id = '{id}'</code>
-                </p>
               )}
+              <div style={fgroup}>
+                <label style={label}>Ordem de exibição</label>
+                <input type="number" name="ordem" defaultValue={pRaw.ordem ?? ""} style={fld} placeholder="0" min={0} />
+              </div>
+              <div style={fgroup}>
+                <label style={label}>Ativo</label>
+                <select name="ativo" defaultValue={pRaw.ativo ? "1" : "0"} style={fld}>
+                  <option value="1">Sim (visível)</option>
+                  <option value="0">Não (oculto)</option>
+                </select>
+              </div>
             </div>
           </div>
         )}
 
-        <button className="hx-btn hx-btn-primary" type="submit">Salvar perfil</button>
+        <div style={{ display: "flex", gap: 10, paddingTop: 4 }}>
+          <button type="submit" className="hx-btn hx-btn-primary" style={{ padding: "10px 24px" }}>Salvar alterações</button>
+          <Link href={`/expand/equipe/${id}`} className="hx-btn hx-btn-ghost" style={{ padding: "10px 20px" }}>Cancelar</Link>
+        </div>
       </form>
+
+      {/* Danger zone — admin only */}
+      {isAdmin && (
+        <div style={{ marginTop: 40, padding: "16px 18px", borderRadius: 12, border: "1px solid color-mix(in srgb, var(--red) 30%, transparent)", background: "color-mix(in srgb, var(--red) 6%, transparent)" }}>
+          <p style={{ fontSize: 12.5, fontWeight: 700, color: "var(--red)", marginBottom: 8 }}>Zona de perigo</p>
+          <p style={{ fontSize: 12, color: "var(--mut)", marginBottom: 12 }}>Excluir {ehAgente ? "este agente" : "este membro"} remove o perfil permanentemente. As etapas vinculadas permanecem.</p>
+          <form action={excluirPerfil} style={{ display: "inline" }}>
+            <input type="hidden" name="id" value={id} />
+            <button type="submit" className="hx-btn" style={{ padding: "8px 16px", fontSize: 12, background: "color-mix(in srgb, var(--red) 14%, transparent)", border: "1px solid var(--red)", color: "var(--red)", borderRadius: 8, cursor: "pointer" }}>
+              Excluir {p.nome}
+            </button>
+          </form>
+        </div>
+      )}
     </>
   );
 }

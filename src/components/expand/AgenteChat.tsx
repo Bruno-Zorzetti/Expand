@@ -37,6 +37,15 @@ export default function AgenteChat({ id, nome, cor, tipo, contexto, memoriaHref 
 
   const scroll = () => setTimeout(() => boxRef.current?.scrollTo({ top: boxRef.current.scrollHeight, behavior: "smooth" }), 40);
 
+  function extrairTopicos(texto: string, pergunta: string): string[] {
+    const stops = new Set(["de","do","da","dos","das","em","no","na","nos","nas","que","com","por","para","uma","como","mais","mas","ou","ao","se","é","um","já","isso","esta","este","são","foi","sua","seu","essa","esse","não","sim","ele","ela","você","eles","elas","nós","ter","ser","tem","está","isso","quem","qual","quando","onde","pois"]);
+    const combined = (pergunta + " " + texto).toLowerCase();
+    const words = combined.split(/[\s,;:!?.()[\]{}"\/\\–—\-]+/).filter((w) => w.length > 4 && !stops.has(w) && /^[a-záéíóúãõâêîôûàèìòùç]+$/i.test(w));
+    const freq: Record<string, number> = {};
+    for (const w of words) freq[w] = (freq[w] ?? 0) + 1;
+    return Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([w]) => w);
+  }
+
   async function enviar(texto?: string, histOverride?: { role: string; content: string }[]) {
     const m = (texto ?? input).trim();
     if (!m || loading) return;
@@ -55,6 +64,11 @@ export default function AgenteChat({ id, nome, cor, tipo, contexto, memoriaHref 
       let acao: Acao | undefined;
       if (produto) { const p = parseAcao(content); if (p) { content = p.texto; acao = p.acao; } }
       setMsgs((s) => [...s, { role: "assistant", content, modelo: j.modelo, acao }]);
+      // Acender nós do grafo de conhecimento com base nos tópicos da conversa
+      if (tipo === "agente" && !j.concept) {
+        const topics = extrairTopicos(content, m);
+        if (topics.length) window.dispatchEvent(new CustomEvent("grafo:activar", { detail: { topics } }));
+      }
     } catch {
       setMsgs((s) => [...s, { role: "assistant", content: "Falha de conexão. Tente de novo." }]);
     } finally {

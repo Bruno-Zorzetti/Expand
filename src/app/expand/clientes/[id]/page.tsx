@@ -4,11 +4,13 @@ import { createClient } from "@/lib/supabase/server";
 import { derive, MAT_COR, RISCO_ROTULO, type ClienteRow } from "@/lib/expand";
 import { getAcesso } from "@/lib/expand-acesso";
 import { listarGrupos } from "@/lib/whatsapp";
-import { salvarLinkDrive, salvarGrupoCliente, testarGrupoCliente, rodarResumoAgora, adotarDemanda, salvarLinkGrupo } from "@/app/expand/actions";
+import type { CSSProperties } from "react";
+import { salvarLinkDrive, salvarGrupoCliente, testarGrupoCliente, rodarResumoAgora, adotarDemanda, salvarLinkGrupo, salvarAgenteCliente, adicionarDiagnostico, gerarConvitePortal, atualizarCliente, excluirCliente } from "@/app/expand/actions";
+import { siteUrl } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
-type Cli = ClienteRow & { whatsapp_grupo?: string | null; whatsapp_grupo_nome?: string | null; whatsapp_grupo_link?: string | null; drive_folder_url?: string | null; agente_id?: string | null };
+type Cli = ClienteRow & { whatsapp_grupo?: string | null; whatsapp_grupo_nome?: string | null; whatsapp_grupo_link?: string | null; drive_folder_url?: string | null; agente_id?: string | null; status?: string | null; produto_slug?: string | null; meta_receita?: number | null };
 type Etapa = { id: string; titulo: string; area: string | null; sla: string | null; status: string | null; origem: string | null; visivel_cliente: boolean; criado_em: string; data_prevista: string | null };
 type Log = { id: string; tipo: string | null; detalhe: string | null; autor: string | null; criado_em: string };
 
@@ -20,15 +22,17 @@ const ABAS = [
   { k: "agente", l: "Agente" },
   { k: "historico", l: "Histórico" },
   { k: "diagnosticos", l: "Diagnósticos" },
+  { k: "acesso", l: "Acesso ao portal" },
   { k: "solicitacoes", l: "Solicitações & Extras" },
+  { k: "editar", l: "Editar dados" },
 ];
 
-const fld: React.CSSProperties = { background: "var(--bg)", border: "1px solid var(--line-2)", borderRadius: 8, color: "var(--txt)", padding: "9px 11px", fontSize: 12.5, fontFamily: "inherit", flex: 1, minWidth: 220 };
+const fld: CSSProperties = { background: "var(--bg)", border: "1px solid var(--line-2)", borderRadius: 8, color: "var(--txt)", padding: "9px 11px", fontSize: 12.5, fontFamily: "inherit", flex: 1, minWidth: 220 };
 const ST_COR: Record<string, string> = { done: "var(--green)", run: "var(--accent)", idle: "var(--dim)", block: "var(--red)" };
 
-export default async function ClienteHub({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ t?: string }> }) {
+export default async function ClienteHub({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ t?: string; ok?: string }> }) {
   const { id } = await params;
-  const { t } = await searchParams;
+  const { t, ok } = await searchParams;
   const aba = ABAS.find((a) => a.k === t)?.k ?? "geral";
   const supabase = await createClient();
   const { isAdmin } = await getAcesso();
@@ -43,6 +47,20 @@ export default async function ClienteHub({ params, searchParams }: { params: Pro
   const { data: lgData } = await supabase.from("expand_log").select("id, tipo, detalhe, autor, criado_em").eq("cliente_id", id).order("criado_em", { ascending: false }).limit(60);
   const logs = (lgData ?? []) as Log[];
   const grupos = isAdmin && aba === "grupo" ? await listarGrupos() : [];
+  // Agentes IA disponíveis para vínculo com o cliente
+  type AgenteOpt = { id: string; nome: string };
+  let agentes: AgenteOpt[] = [];
+  if (aba === "agente") {
+    const { data: ag } = await supabase.from("expand_perfis").select("id, nome").eq("tipo", "agente").order("nome");
+    agentes = (ag ?? []) as AgenteOpt[];
+  }
+  // Diagnósticos do cliente
+  type Diag = { id: string; detalhe: string | null; autor: string | null; criado_em: string };
+  let diagnosticos: Diag[] = [];
+  if (aba === "diagnosticos") {
+    const { data: dg } = await supabase.from("expand_log").select("id, detalhe, autor, criado_em").eq("cliente_id", id).eq("tipo", "diagnostico").order("criado_em", { ascending: false });
+    diagnosticos = (dg ?? []) as Diag[];
+  }
   type Resumo = { dia: string; resumo: string | null; atividades: string[]; demandas: { titulo: string; urgencia: string; importancia: string; citacao: string }[]; msgs_lidas: number; tokens_in: number; tokens_out: number; custo: number; modelo: string | null };
   let resumo: Resumo | null = null;
   let pessoas: { id: string; nome: string }[] = [];
@@ -58,9 +76,9 @@ export default async function ClienteHub({ params, searchParams }: { params: Pro
   const stLabel = d.risco === "ok" ? (cli.maturidade ?? "Saudável") : RISCO_ROTULO[d.risco];
   const dt = (s: string) => new Date(s).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
   const feitas = etapas.filter((e) => e.status === "done").length;
-  const meta: React.CSSProperties = { display: "flex", flexDirection: "column", gap: 2 };
-  const metaLab: React.CSSProperties = { fontSize: 9.5, textTransform: "uppercase", letterSpacing: ".06em", color: "var(--dim)", fontWeight: 700 };
-  const metaVal: React.CSSProperties = { fontSize: 14, fontWeight: 700, color: "var(--txt)", fontVariantNumeric: "tabular-nums" };
+  const meta: CSSProperties = { display: "flex", flexDirection: "column", gap: 2 };
+  const metaLab: CSSProperties = { fontSize: 9.5, textTransform: "uppercase", letterSpacing: ".06em", color: "var(--dim)", fontWeight: 700 };
+  const metaVal: CSSProperties = { fontSize: 14, fontWeight: 700, color: "var(--txt)", fontVariantNumeric: "tabular-nums" };
 
   return (
     <>
@@ -324,9 +342,44 @@ export default async function ClienteHub({ params, searchParams }: { params: Pro
       })() : null}
 
       {aba === "agente" ? (
-        <div className="hx-glass" style={{ borderRadius: 14, padding: 18 }}>
-          <p style={{ fontSize: 13.5, fontWeight: 700, marginBottom: 4 }}>Agente do cliente</p>
-          <p style={{ fontSize: 12.5, color: "var(--mut)", lineHeight: 1.55 }}>Em breve: chat com o agente usando a memória separada deste cliente (RAG por cliente). O agente nunca inventa cliente — só usa o contexto real desta conta.</p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div className="hx-glass" style={{ borderRadius: 14, padding: 18 }}>
+            <p style={{ fontSize: 13.5, fontWeight: 700, marginBottom: 4 }}>Agente vinculado</p>
+            <p style={{ fontSize: 12.5, color: "var(--mut)", lineHeight: 1.55, marginBottom: 14 }}>
+              O agente vinculado atua como ponto de contato inteligente desta conta — usa a memória RAG específica deste cliente para contexto real.
+            </p>
+            {cli.agente_id ? (
+              <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 14, padding: "10px 14px", background: "color-mix(in srgb,var(--accent) 8%,transparent)", borderRadius: 10, border: "1px solid color-mix(in srgb,var(--accent) 25%,transparent)" }}>
+                <span style={{ fontSize: 24 }}>🤖</span>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 13.5 }}>{agentes.find(a => a.id === cli.agente_id)?.nome ?? cli.agente_id}</div>
+                  <div style={{ fontSize: 11.5, color: "var(--dim)" }}>Agente ativo para este cliente</div>
+                </div>
+                <a href={`/expand/equipe/${cli.agente_id}`} className="hx-btn hx-btn-ghost" style={{ marginLeft: "auto", fontSize: 12, padding: "6px 12px", textDecoration: "none" }}>Ver perfil →</a>
+              </div>
+            ) : (
+              <div style={{ padding: "10px 14px", background: "var(--panel-2)", borderRadius: 10, fontSize: 12.5, color: "var(--dim)", marginBottom: 14 }}>
+                Nenhum agente vinculado a esta conta.
+              </div>
+            )}
+            {isAdmin && (
+              <form action={salvarAgenteCliente} style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                <input type="hidden" name="clienteId" value={id} />
+                <select name="agente_id" defaultValue={cli.agente_id ?? ""} style={fld}>
+                  <option value="">— sem agente —</option>
+                  {agentes.map(a => <option key={a.id} value={a.id}>{a.nome}</option>)}
+                </select>
+                <button className="hx-btn hx-btn-primary" type="submit" style={{ padding: "9px 15px", fontSize: 12.5 }}>Salvar</button>
+              </form>
+            )}
+          </div>
+          <div className="hx-glass" style={{ borderRadius: 14, padding: 18 }}>
+            <p style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Memória RAG</p>
+            <p style={{ fontSize: 12.5, color: "var(--mut)", lineHeight: 1.55 }}>
+              O agente aprende com cada interação desta conta. A memória é isolada por cliente — o agente nunca mistura contexto entre contas diferentes.
+            </p>
+            <p style={{ fontSize: 12, color: "var(--dim)", marginTop: 8 }}>Chat com o agente disponível no módulo de equipe, na aba do agente específico.</p>
+          </div>
         </div>
       ) : null}
 
@@ -344,9 +397,87 @@ export default async function ClienteHub({ params, searchParams }: { params: Pro
       ) : null}
 
       {aba === "diagnosticos" ? (
-        <div className="hx-glass" style={{ borderRadius: 14, padding: 18 }}>
-          <p style={{ fontSize: 13.5, fontWeight: 700, marginBottom: 4 }}>Diagnósticos & briefings</p>
-          <p style={{ fontSize: 12.5, color: "var(--mut)", lineHeight: 1.55 }}>Em breve: os diagnósticos e briefings preenchidos deste cliente reunidos aqui.</p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {/* Lista de diagnósticos */}
+          {diagnosticos.length > 0 ? (
+            <div>
+              <div className="ex-grph"><span className="gt">Diagnósticos registrados</span><span className="gc">{diagnosticos.length}</span><span className="gl" /></div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                {diagnosticos.map(d => (
+                  <div key={d.id} className="hx-glass" style={{ borderRadius: 10, padding: "10px 14px", borderLeft: `3px solid ${cor}` }}>
+                    <div style={{ display: "flex", gap: 10, alignItems: "baseline", flexWrap: "wrap" }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, flex: 1 }}>{d.detalhe}</span>
+                      <span style={{ fontSize: 10.5, color: "var(--dim)" }}>{d.autor}</span>
+                      <span style={{ fontSize: 10.5, color: "var(--dim)" }}>{dt(d.criado_em)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <p style={{ fontSize: 12.5, color: "var(--dim)" }}>Nenhum diagnóstico registrado ainda.</p>
+          )}
+
+          {/* Gerar link de diagnóstico */}
+          <div className="hx-glass" style={{ borderRadius: 14, padding: 18 }}>
+            <p style={{ fontSize: 13.5, fontWeight: 700, marginBottom: 4 }}>Link de diagnóstico</p>
+            <p style={{ fontSize: 12.5, color: "var(--mut)", lineHeight: 1.55, marginBottom: 12 }}>
+              Envie o link abaixo para o cliente preencher o diagnóstico de forma autônoma. O link redireciona para o portal com os dados desta conta.
+            </p>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              <input readOnly value={`${siteUrl()}/cliente/diagnostico/${id}`} style={{ ...fld, fontFamily: "monospace", fontSize: 11.5, flex: 1 }} />
+            </div>
+          </div>
+
+          {/* Novo diagnóstico */}
+          {isAdmin ? (
+            <div className="hx-glass" style={{ borderRadius: 14, padding: 18 }}>
+              <p style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>Registrar diagnóstico</p>
+              <form action={adicionarDiagnostico} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <input type="hidden" name="clienteId" value={id} />
+                <input name="titulo" placeholder="Título do diagnóstico (ex: Diagnóstico Inicial PIDE)" required style={fld} />
+                <textarea name="detalhe" placeholder="Observações, pontos-chave, conclusões…" rows={3} style={{ ...fld, resize: "vertical" }} />
+                <div>
+                  <button className="hx-btn hx-btn-primary" type="submit" style={{ padding: "9px 16px", fontSize: 12.5 }}>Registrar</button>
+                </div>
+              </form>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {aba === "acesso" ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div className="hx-glass" style={{ borderRadius: 14, padding: 18 }}>
+            <p style={{ fontSize: 13.5, fontWeight: 700, marginBottom: 4 }}>Portal do cliente</p>
+            <p style={{ fontSize: 12.5, color: "var(--mut)", lineHeight: 1.55, marginBottom: 12 }}>
+              O cliente acessa o portal em <code style={{ background: "var(--panel-2)", padding: "1px 5px", borderRadius: 4 }}>/cliente</code> — visualiza etapas, aprovações, entregas e histórico da conta.
+            </p>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 8 }}>
+              <input readOnly value={`${siteUrl()}/cliente`} style={{ ...fld, fontFamily: "monospace", fontSize: 11.5, flex: 1 }} />
+              <a href={`${siteUrl()}/cliente`} target="_blank" rel="noreferrer" className="hx-btn hx-btn-ghost" style={{ padding: "9px 14px", fontSize: 12.5 }}>Abrir portal ↗</a>
+            </div>
+          </div>
+
+          {isAdmin ? (
+            <div className="hx-glass" style={{ borderRadius: 14, padding: 18 }}>
+              <p style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>Gerar acesso ao portal</p>
+              <p style={{ fontSize: 12.5, color: "var(--mut)", lineHeight: 1.55, marginBottom: 12 }}>
+                Informe o email do responsável do cliente. Será gerado um convite de primeiro acesso — ele receberá um email para definir a senha e acessar o portal.
+              </p>
+              <form action={gerarConvitePortal} style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
+                <input type="hidden" name="clienteId" value={id} />
+                <div style={{ flex: 1, minWidth: 220 }}>
+                  <label style={{ display: "block", fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".05em", color: "var(--dim)", marginBottom: 4 }}>Email do cliente</label>
+                  <input name="email" type="email" placeholder="email@empresa.com.br" required style={fld} />
+                </div>
+                <button className="hx-btn hx-btn-primary" type="submit" style={{ padding: "9px 16px", fontSize: 12.5 }}>Enviar convite</button>
+              </form>
+              <p style={{ fontSize: 11, color: "var(--dim)", marginTop: 10, lineHeight: 1.5 }}>
+                O convite é válido por 24 horas. O papel do usuário será definido como <b>cliente</b> e vinculado a esta conta.
+              </p>
+            </div>
+          ) : null}
         </div>
       ) : null}
 
@@ -362,6 +493,85 @@ export default async function ClienteHub({ params, searchParams }: { params: Pro
             </Link>
           )) : <p style={{ fontSize: 12.5, color: "var(--dim)" }}>Nenhuma demanda extra registrada. Novas solicitações do cliente ou da equipe aparecem aqui.</p>}
         </div>
+      ) : null}
+
+      {aba === "editar" && isAdmin ? (
+        <div style={{ maxWidth: 680, display: "flex", flexDirection: "column", gap: 16 }}>
+          {ok === "1" && (
+            <div style={{ padding: "10px 14px", borderRadius: 10, background: "color-mix(in srgb, var(--green) 12%, transparent)", border: "1px solid color-mix(in srgb, var(--green) 30%, transparent)", color: "var(--green)", fontSize: 13 }}>
+              Dados salvos com sucesso.
+            </div>
+          )}
+
+          <form action={atualizarCliente} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <input type="hidden" name="id" value={id} />
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <label style={{ fontSize: 11, color: "var(--dim)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em" }}>Nome *</label>
+                <input name="nome" defaultValue={cli.nome} required style={fld} />
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <label style={{ fontSize: 11, color: "var(--dim)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em" }}>Segmento</label>
+                <input name="segmento" defaultValue={(cli.segmento as string | null) ?? ""} style={fld} placeholder="ex: Marketing Digital" />
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <label style={{ fontSize: 11, color: "var(--dim)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em" }}>Maturidade</label>
+                <select name="maturidade" defaultValue={(cli.maturidade as string | null) ?? ""} style={fld}>
+                  <option value="">—</option>
+                  {["iniciante","intermediario","avancado","especialista"].map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <label style={{ fontSize: 11, color: "var(--dim)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em" }}>Contrato</label>
+                <select name="contrato_tipo" defaultValue={(cli.contrato_tipo as string | null) ?? ""} style={fld}>
+                  <option value="">—</option>
+                  {["mensal","trimestral","semestral","anual"].map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <label style={{ fontSize: 11, color: "var(--dim)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em" }}>Status</label>
+                <select name="status" defaultValue={(cli.status as string | null) ?? ""} style={fld}>
+                  <option value="">—</option>
+                  {["ativo","pausado","cancelado","churned"].map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <label style={{ fontSize: 11, color: "var(--dim)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em" }}>Produto (slug)</label>
+                <input name="produto_slug" defaultValue={(cli.produto_slug as string | null) ?? ""} style={fld} placeholder="ex: pide" />
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <label style={{ fontSize: 11, color: "var(--dim)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em" }}>Meta de receita (R$)</label>
+                <input type="number" name="meta_receita" defaultValue={(cli.meta_receita as number | null) ?? ""} style={fld} placeholder="0" min={0} />
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: 10, paddingTop: 4 }}>
+              <button type="submit" className="hx-btn hx-btn-primary" style={{ padding: "10px 24px" }}>Salvar</button>
+              <Link href={`/expand/clientes/${id}`} className="hx-btn hx-btn-ghost" style={{ padding: "10px 20px" }}>Cancelar</Link>
+            </div>
+          </form>
+
+          {/* Danger zone */}
+          <div style={{ marginTop: 24, padding: "16px 18px", borderRadius: 12, border: "1px solid color-mix(in srgb, var(--red) 30%, transparent)", background: "color-mix(in srgb, var(--red) 6%, transparent)" }}>
+            <p style={{ fontSize: 12.5, fontWeight: 700, color: "var(--red)", marginBottom: 8 }}>Zona de perigo</p>
+            <p style={{ fontSize: 12, color: "var(--mut)", marginBottom: 12 }}>Excluir este cliente remove o registro permanentemente. As etapas e logs permanecem no banco.</p>
+            <form action={excluirCliente} style={{ display: "inline" }}>
+              <input type="hidden" name="id" value={id} />
+              <button type="submit" className="hx-btn" style={{ padding: "8px 16px", fontSize: 12, background: "color-mix(in srgb, var(--red) 14%, transparent)", border: "1px solid var(--red)", color: "var(--red)", borderRadius: 8, cursor: "pointer" }}>
+                Excluir {cli.nome}
+              </button>
+            </form>
+          </div>
+        </div>
+      ) : aba === "editar" ? (
+        <p style={{ fontSize: 13, color: "var(--dim)" }}>Somente administradores podem editar dados do cliente.</p>
       ) : null}
     </>
   );

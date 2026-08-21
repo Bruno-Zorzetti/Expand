@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { exigirAdmin } from "@/lib/expand-acesso";
+import { siteUrl } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
@@ -70,6 +71,46 @@ const MODULOS = [
 const GRUPOS_MODULOS = ["Tarefas", "Projetos", "Ferramentas", "Comercial", "Financeiro"];
 
 // ── Server actions ─────────────────────────────────────────────────────────────
+async function gerarLinkConvite(formData: FormData) {
+  "use server";
+  await exigirAdmin();
+  const email  = String(formData.get("email")  ?? "").trim();
+  const userId = String(formData.get("userId") ?? "").trim();
+  if (!email || !userId) redirect(`/expand/acessos/${userId}`);
+  const adminSb = createAdminClient();
+  if (!adminSb) redirect(`/expand/acessos/${userId}?err=1`);
+  const { data } = await adminSb!.auth.admin.generateLink({ type: "invite", email });
+  const link = data?.properties?.action_link ?? null;
+  if (link) redirect(`/expand/acessos/${userId}?lk=${encodeURIComponent(link)}&lt=convite`);
+  redirect(`/expand/acessos/${userId}?err=1`);
+}
+
+async function gerarLinkSenha(formData: FormData) {
+  "use server";
+  await exigirAdmin();
+  const email  = String(formData.get("email")  ?? "").trim();
+  const userId = String(formData.get("userId") ?? "").trim();
+  if (!email || !userId) redirect(`/expand/acessos/${userId}`);
+  const adminSb = createAdminClient();
+  if (!adminSb) redirect(`/expand/acessos/${userId}?err=1`);
+  const { data } = await adminSb!.auth.admin.generateLink({ type: "recovery", email });
+  const link = data?.properties?.action_link ?? null;
+  if (link) redirect(`/expand/acessos/${userId}?lk=${encodeURIComponent(link)}&lt=senha`);
+  redirect(`/expand/acessos/${userId}?err=1`);
+}
+
+async function alterarEmail(formData: FormData) {
+  "use server";
+  await exigirAdmin();
+  const userId   = String(formData.get("userId")    ?? "").trim();
+  const novoEmail = String(formData.get("novo_email") ?? "").trim();
+  if (!userId || !novoEmail) redirect(`/expand/acessos/${userId}`);
+  const adminSb = createAdminClient();
+  if (!adminSb) redirect(`/expand/acessos/${userId}?err=1`);
+  await adminSb!.auth.admin.updateUserById(userId, { email: novoEmail });
+  redirect(`/expand/acessos/${userId}?msg=email_ok&ne=${encodeURIComponent(novoEmail)}`);
+}
+
 async function gerarIcsToken(formData: FormData) {
   "use server";
   await exigirAdmin();
@@ -150,9 +191,17 @@ async function salvar(formData: FormData) {
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
-export default async function ConfigurarUsuario({ params }: { params: Promise<{ userId: string }> }) {
+export default async function ConfigurarUsuario({ params, searchParams }: {
+  params: Promise<{ userId: string }>;
+  searchParams: Promise<Record<string, string>>;
+}) {
   await exigirAdmin();
   const { userId } = await params;
+  const sp = await searchParams;
+  const geradoLink = sp.lk ? decodeURIComponent(sp.lk) : null;
+  const geradoTipo = sp.lt ?? null;
+  const errorMsg   = sp.err ? "Erro ao gerar o link. Verifique o email e tente novamente." : null;
+  const emailOk    = sp.msg === "email_ok" ? (sp.ne ? `Email alterado para ${decodeURIComponent(sp.ne)}` : "Email alterado!") : null;
   const sb = await createClient();
 
   const { data: pData } = await sb.rpc("admin_listar_perfis_v2");
@@ -171,8 +220,8 @@ export default async function ConfigurarUsuario({ params }: { params: Promise<{ 
     ? await sb.from("expand_perfis").select("ics_token").eq("id", membroSlug).single()
     : { data: null };
   const icsToken  = (icsData?.ics_token as string | null) ?? null;
-  const baseUrl   = process.env.NEXT_PUBLIC_SITE_URL ?? "https://expand.hshs.com.br";
-  const icsUrl    = icsToken ? `${baseUrl}/api/calendario/${icsToken}` : null;
+  const baseUrl   = siteUrl();
+  const icsUrl    = icsToken ? `${baseUrl}/api/calendario/${icsToken}.ics` : null;
 
   // perfil atual do usuário
   const { data: profileData } = await sb.from("profiles").select("expand_modulos").eq("id", userId).single();
@@ -227,6 +276,72 @@ export default async function ConfigurarUsuario({ params }: { params: Promise<{ 
         <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", padding: "3px 9px", borderRadius: 7, background: `color-mix(in srgb, var(--accent) 12%, transparent)`, color: "var(--accent)" }}>{role}</span>
       </div>
       <p className="ex-sub" style={{ marginBottom: 28 }}>{email}</p>
+
+      {/* ── Flash de feedback ──────────────────────────────── */}
+      {(errorMsg || emailOk || geradoLink) && (
+        <div style={{ marginBottom: 24 }}>
+          {errorMsg && (
+            <div style={{ background: "color-mix(in srgb,var(--red) 12%,transparent)", border: "1px solid color-mix(in srgb,var(--red) 30%,transparent)", borderRadius: 10, padding: "10px 14px", fontSize: 12.5, color: "var(--red)", marginBottom: 8 }}>
+              ⚠ {errorMsg}
+            </div>
+          )}
+          {emailOk && (
+            <div style={{ background: "color-mix(in srgb,var(--green) 12%,transparent)", border: "1px solid color-mix(in srgb,var(--green) 30%,transparent)", borderRadius: 10, padding: "10px 14px", fontSize: 12.5, color: "var(--green)", marginBottom: 8 }}>
+              ✓ {emailOk}
+            </div>
+          )}
+          {geradoLink && (
+            <div style={{ background: "color-mix(in srgb,var(--accent) 10%,transparent)", border: "1px solid color-mix(in srgb,var(--accent) 30%,transparent)", borderRadius: 12, padding: "14px 16px" }}>
+              <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>
+                🔗 Link de {geradoTipo === "convite" ? "convite (primeiro acesso)" : "redefinição de senha"} gerado
+              </div>
+              <p style={{ fontSize: 11.5, color: "var(--mut)", margin: "0 0 10px", lineHeight: 1.5 }}>
+                Copie e envie para <b>{email}</b> via WhatsApp ou email.{" "}
+                Válido por {geradoTipo === "convite" ? "24 horas" : "1 hora"} — uso único.
+              </p>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                <input readOnly value={geradoLink} style={{ ...fld, fontFamily: "monospace", fontSize: 11, flex: 1, minWidth: 200 }} />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Credenciais & Acesso ─────────────────────────── */}
+      <div style={{ background: "var(--panel)", border: "1px solid var(--line-2)", borderRadius: 14, padding: "16px 18px", marginBottom: 28 }}>
+        <div style={{ fontSize: 10.5, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".08em", color: "var(--dim)", marginBottom: 14, paddingBottom: 8, borderBottom: "1px solid var(--line-2)" }}>
+          Credenciais &amp; Acesso
+        </div>
+        <p style={{ fontSize: 12, color: "var(--mut)", marginBottom: 14, lineHeight: 1.5 }}>
+          Ações de autenticação. Todos os links gerados são de uso único e expiram automaticamente.
+        </p>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          <form action={gerarLinkConvite}>
+            <input type="hidden" name="userId" value={userId} />
+            <input type="hidden" name="email" value={email} />
+            <button type="submit" style={{ fontSize: 12, padding: "8px 14px", borderRadius: 8, border: "1px solid var(--accent)", background: "color-mix(in srgb,var(--accent) 12%,transparent)", color: "var(--accent)", cursor: "pointer", fontFamily: "inherit" }}>
+              🔗 Gerar link de convite
+            </button>
+          </form>
+          <form action={gerarLinkSenha}>
+            <input type="hidden" name="userId" value={userId} />
+            <input type="hidden" name="email" value={email} />
+            <button type="submit" style={{ fontSize: 12, padding: "8px 14px", borderRadius: 8, border: "1px solid var(--line-2)", background: "transparent", color: "var(--dim)", cursor: "pointer", fontFamily: "inherit" }}>
+              🔑 Gerar link de redefinição de senha
+            </button>
+          </form>
+        </div>
+        <form action={alterarEmail} style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--line-2)" }}>
+          <input type="hidden" name="userId" value={userId} />
+          <div style={{ flex: 1, minWidth: 220 }}>
+            <label style={{ display: "block", fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".05em", color: "var(--dim)", marginBottom: 4 }}>Alterar email</label>
+            <input name="novo_email" type="email" placeholder={`Novo email (atual: ${email})`} required style={fld} />
+          </div>
+          <button type="submit" style={{ fontSize: 12, padding: "8px 14px", borderRadius: 8, border: "1px solid var(--line-2)", background: "transparent", color: "var(--dim)", cursor: "pointer", fontFamily: "inherit", alignSelf: "flex-end" }}>
+            ✏️ Alterar email
+          </button>
+        </form>
+      </div>
 
       <form action={salvar}>
         <input type="hidden" name="userId" value={userId} />

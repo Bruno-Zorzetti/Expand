@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { JOGADORES, NIVEIS, BADGES } from "@/lib/expand-comercial-game";
+import { NIVEIS, BADGES } from "@/lib/expand-comercial-game";
 
 type Sec = { id: string; titulo: string; sub: string; itens: { t: string; d: string; cor?: string }[] };
 
@@ -83,15 +83,6 @@ export default function Guia() {
       <p className="hx-eyebrow">Sistema Comercial · Referência</p>
       <h1 className="ex-h1">Guia do <span className="hx-accent-text">sistema</span></h1>
       <p className="ex-sub">Como funciona o XP, as missões de cada jogador, os níveis e os badges. Leia uma vez — depois o placar fala por si.</p>
-
-      <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap" }}>
-        {Object.entries(JOGADORES).map(([k, j]) => (
-          <div key={k} className="hx-glass" style={{ padding: "10px 16px", borderLeft: `3px solid ${j.c}`, minWidth: 160 }}>
-            <div style={{ fontWeight: 700, fontSize: 14 }}>{j.n}</div>
-            <div style={{ fontSize: 12, color: "var(--dim)", marginTop: 2 }}>{j.r}</div>
-          </div>
-        ))}
-      </div>
 
       {SECS.map((s) => {
         const isOpen = !!aberto[s.id];

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import PerfilAvatar from "@/components/expand/PerfilAvatar";
 import AgenteChat from "@/components/expand/AgenteChat";
-import GrafoConhecimento from "@/components/expand/GrafoConhecimento";
+import GrafoConhecimento3D from "@/components/expand/GrafoConhecimento3D";
 import type { Perfil } from "@/lib/expand-perfis";
 import { montarDisc, type DiscKey } from "@/lib/expand-disc";
 import { montarBlenda } from "@/lib/expand-disc-blenda";
@@ -197,17 +197,26 @@ export default async function PerfilPage({ params, searchParams }: { params: Pro
     nome.toLowerCase().replace(/[áàãâä]/g,"a").replace(/[éèê]/g,"e").replace(/[íìî]/g,"i")
       .replace(/[óòõô]/g,"o").replace(/[úùû]/g,"u").replace(/ç/g,"c").split(/[\s(]/)[0];
 
-  const TABS: { k: string; l: string }[] = [
-    { k: "visao", l: "Visão geral" },
-    { k: "skills", l: "Skills & trajetória" },
-    { k: "metodologia", l: "Metodologia" },
-    { k: "processos", l: "Processos" },
-    ...(ehAgente ? [{ k: "grafo", l: "Grafo de Conhecimento" }] : []),
-    { k: "arquivos", l: `Arquivos${arquivos.length ? ` (${arquivos.length})` : ""}` },
-    { k: "avaliacoes", l: `Avaliações${avaliacoes.length ? ` (${avaliacoes.length})` : ""}` },
-    { k: "feedback", l: `1x1${feedbacks.length ? ` (${feedbacks.length})` : ""}` },
-    { k: "chat", l: ehAgente ? "Conversar" : "Assistente" },
-  ];
+  // Abas — estrutura diferente para agente de IA vs humano
+  const TABS: { k: string; l: string }[] = ehAgente
+    ? [
+        { k: "visao",      l: "Sobre" },
+        { k: "chat",       l: "Conversar" },
+        { k: "mente",      l: "Mente & Grafo" },
+        { k: "metodologia",l: "Metodologia" },
+        { k: "processos",  l: "Processos" },
+        { k: "avaliacoes", l: `Avaliações${avaliacoes.length ? ` (${avaliacoes.length})` : ""}` },
+      ]
+    : [
+        { k: "visao",      l: "Visão geral" },
+        { k: "skills",     l: "Skills & trajetória" },
+        { k: "metodologia",l: "Metodologia" },
+        { k: "processos",  l: "Processos" },
+        { k: "arquivos",   l: `Arquivos${arquivos.length ? ` (${arquivos.length})` : ""}` },
+        { k: "avaliacoes", l: `Avaliações${avaliacoes.length ? ` (${avaliacoes.length})` : ""}` },
+        { k: "feedback",   l: `1x1${feedbacks.length ? ` (${feedbacks.length})` : ""}` },
+        { k: "chat",       l: "Assistente" },
+      ];
 
   return (
     <>
@@ -217,13 +226,13 @@ export default async function PerfilPage({ params, searchParams }: { params: Pro
       <div className="ex-panel hx-glass" style={{ padding: 0, marginBottom: 14, overflow: "hidden" }}>
         <div style={{ height: 76, background: `linear-gradient(120deg, color-mix(in srgb, ${cor} 34%, transparent), transparent 70%)` }} />
         <div style={{ display: "flex", gap: 18, padding: "0 22px 18px", marginTop: -46, flexWrap: "wrap" }}>
-          <div style={{ border: "4px solid var(--panel)", borderRadius: 20, flexShrink: 0 }}><PerfilAvatar p={p} size={110} radius={16} /></div>
+          <div style={{ border: "3px solid var(--panel-2)", borderRadius: 10, flexShrink: 0, boxShadow: `0 0 0 1px ${cor}33` }}><PerfilAvatar p={p} size={110} radius={8} /></div>
           <div style={{ flex: 1, minWidth: 240, paddingTop: 52 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
               <h1 style={{ fontFamily: "var(--serif)", fontSize: 25, fontWeight: 600 }}>{p.nome}</h1>
               <span className="ex-pill" style={{ background: `color-mix(in srgb, ${cor} 16%, transparent)`, color: cor }}><i className="ex-dot" />{ehAgente ? "Agente de IA" : "Humano"}</span>
               <div style={{ marginLeft: "auto", display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <Link href={`/expand/equipe/${id}/conhecimento`} className="hx-btn hx-btn-ghost" style={{ padding: "6px 12px", fontSize: 12 }}>{ehAgente ? "Conhecimento & RAG" : "Base de conhecimento"}</Link>
+                {!ehAgente && <Link href={`/expand/equipe/${id}/conhecimento`} className="hx-btn hx-btn-ghost" style={{ padding: "6px 12px", fontSize: 12 }}>Base de conhecimento</Link>}
                 {podeEditar ? <Link href={`/expand/equipe/${id}/editar`} className="hx-btn hx-btn-ghost" style={{ padding: "6px 12px", fontSize: 12 }}>Editar</Link> : null}
               </div>
             </div>
@@ -590,26 +599,51 @@ export default async function PerfilPage({ params, searchParams }: { params: Pro
       ) : null}
 
       {/* ---------- CHAT / ASSISTENTE ---------- */}
-      {tab === "grafo" && ehAgente ? (
+      {/* ---------- MENTE & GRAFO (agente) ---------- */}
+      {tab === "mente" && ehAgente ? (
         <>
-          <p className="ex-sub" style={{ marginTop: -4 }}>
-            Grafo interativo dos conceitos e conexões que formam o conhecimento do {p.nome}.
-            Cada nó é um conceito extraído dos materiais e da metodologia; as arestas são relações semânticas.
-            Tamanho = centralidade. Cor = comunidade temática.
+          <p className="ex-sub" style={{ marginTop: -4, marginBottom: 16 }}>
+            Grafo 3D do conhecimento de <b>{p.nome}</b> — cada nó é um conceito ou trecho de documento;
+            as arestas são relações semânticas. Arraste para girar, scroll para zoom, clique num nó para explorar.
+            Nós pulsando (⚡) são áreas ativas no momento.
           </p>
-          <div className="ex-panel hx-glass" style={{ padding: 0 }}>
-            <div style={{ padding: "14px 17px 0", display: "flex", alignItems: "center", gap: 8 }}>
-              <span className="ex-sl" style={{ margin: 0 }}>Grafo de conhecimento — {p.nome}</span>
-              <span style={{ marginLeft: "auto", fontSize: 10.5, color: "var(--dim)" }}>force-directed · interativo</span>
+
+          <div className="hx-glass" style={{ borderRadius: 14, padding: "16px 18px", marginBottom: 14 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+              <span style={{ fontSize: 13.5, fontWeight: 700 }}>Grafo neural — {p.nome}</span>
+              <span style={{ marginLeft: "auto", fontSize: 10.5, color: "var(--dim)", padding: "2px 8px", borderRadius: 20, background: "var(--panel-2)" }}>3D · interativo</span>
             </div>
-            <div style={{ padding: "12px 17px 16px" }}>
-              <GrafoConhecimento agente={nomeToSlug(p.nome)} />
-            </div>
+            <GrafoConhecimento3D agente={nomeToSlug(p.nome)} />
           </div>
-          <p style={{ marginTop: 10, fontSize: 11.5, color: "var(--dim)", lineHeight: 1.5 }}>
-            Para ver a memória operacional (acertos, erros, avaliações, modelos) e enviar materiais:
-            <Link href={`/expand/equipe/${id}/conhecimento`} style={{ color: "var(--accent)", marginLeft: 6 }}>Conhecimento & RAG →</Link>
-          </p>
+
+          {/* Arquivos de conhecimento */}
+          {arquivos.length > 0 && (
+            <div className="hx-glass" style={{ borderRadius: 14, padding: "16px 18px", marginBottom: 14 }}>
+              <p style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>Materiais indexados ({arquivos.length})</p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {arquivos.map(a => (
+                  <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 8, background: "var(--panel-2)" }}>
+                    <span style={{ fontSize: 16 }}>{a.tipo === "biblioteca" ? "📚" : a.tipo === "metodologia" ? "🧩" : "📄"}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 12.5, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.titulo ?? a.arquivo_nome}</div>
+                      {a.fonte && <div style={{ fontSize: 11, color: "var(--dim)" }}>{a.fonte}</div>}
+                    </div>
+                    <span style={{ fontSize: 10.5, padding: "2px 7px", borderRadius: 20, background: "color-mix(in srgb,var(--accent) 12%,transparent)", color: "var(--accent)" }}>{a.tipo}</span>
+                    {assinado[a.id] && (
+                      <a href={assinado[a.id]} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: "var(--dim)", textDecoration: "none" }}>↗</a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Link para o RAG completo */}
+          <div style={{ display: "flex", gap: 8 }}>
+            <Link href={`/expand/equipe/${id}/conhecimento`} className="hx-btn hx-btn-primary" style={{ padding: "9px 16px", textDecoration: "none", fontSize: 12.5 }}>
+              Gerenciar conhecimento & RAG →
+            </Link>
+          </div>
         </>
       ) : null}
 

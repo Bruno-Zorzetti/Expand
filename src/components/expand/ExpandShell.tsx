@@ -21,10 +21,10 @@ const NAV: NavSec[] = [
     id: "tarefas",
     sec: "Tarefas",
     items: [
-      { href: "/expand/v2",           label: "Meu Dia",             icon: "grid",     eyebrow: "Suas tarefas de hoje",       gate: "tarefas.meudia" },
-      { href: "/expand/planejamento", label: "Calendário",          icon: "calendar", eyebrow: "Agenda pessoal",             gate: "tarefas.calendario" },
-      { href: "/expand/plano",        label: "Plano de Ação",       icon: "list",     eyebrow: "Objetivos e ações",          gate: "tarefas.plano" },
-      { href: "/expand/board",        label: "Board de Atividades", icon: "kanban",   eyebrow: "Kanban das contas",          gate: "tarefas.board" },
+      { href: "/expand/v2",           label: "Meu Dia",             icon: "grid",     eyebrow: "Suas tarefas de hoje" },
+      { href: "/expand/planejamento", label: "Calendário",          icon: "calendar", eyebrow: "Agenda pessoal" },
+      { href: "/expand/plano",        label: "Plano de Ação",       icon: "list",     eyebrow: "Objetivos e ações" },
+      { href: "/expand/board",        label: "Board de Atividades", icon: "kanban",   eyebrow: "Kanban das contas" },
     ],
   },
   {
@@ -49,15 +49,6 @@ const NAV: NavSec[] = [
     items: [
       { href: "/expand/ferramentas/grupos",  label: "Criador de Grupos",        icon: "users",   eyebrow: "WhatsApp e squads",     gate: "ferramentas.grupos" },
       { href: "/expand/apresentacoes",       label: "Criador de Apresentações", icon: "slides",  eyebrow: "Decks e slides",         gate: "ferramentas.apresentacoes" },
-      {
-        href: "/expand/conhecimento", label: "Biblioteca de Conhecimento", icon: "library", eyebrow: "Metodologia Expand",
-        gate: "ferramentas.conhecimento",
-        sub: [
-          { href: "/expand/conhecimento/playbook",  label: "Playbook" },
-          { href: "/expand/conhecimento/funil",     label: "Funil de Vendas" },
-          { href: "/expand/conhecimento/objecoes",  label: "Objeções" },
-        ],
-      },
     ],
   },
   {

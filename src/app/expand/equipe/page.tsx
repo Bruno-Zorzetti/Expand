@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getAcesso } from "@/lib/expand-acesso";
-import { convidarMembro } from "@/app/expand/actions";
+import { convidarMembro, criarPerfil } from "@/app/expand/actions";
 import ConvidarMembro from "@/components/expand/ConvidarMembro";
 import PerfilAvatar from "@/components/expand/PerfilAvatar";
 import type { Perfil } from "@/lib/expand-perfis";
@@ -87,9 +87,38 @@ export default async function Equipe() {
 
   return (
     <>
-      <p className="hx-eyebrow">O time · {perfis.length} membros</p>
-      <h1 className="ex-h1">A <span className="hx-accent-text">Equipe</span></h1>
-      <p className="ex-sub">Humanos e agentes de IA medidos pelo mesmo padrão. Carga operacional em tempo real.</p>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
+        <div>
+          <p className="hx-eyebrow">O time · {perfis.length} membros</p>
+          <h1 className="ex-h1">A <span className="hx-accent-text">Equipe</span></h1>
+          <p className="ex-sub">Humanos e agentes de IA medidos pelo mesmo padrão. Carga operacional em tempo real.</p>
+        </div>
+        {isAdmin && (
+          <details style={{ position: "relative" }}>
+            <summary className="hx-btn hx-btn-primary" style={{ padding: "9px 16px", cursor: "pointer", listStyle: "none", display: "inline-flex", alignItems: "center", gap: 6 }}>
+              + Novo membro
+            </summary>
+            <div className="hx-glass" style={{ position: "absolute", right: 0, top: "calc(100% + 6px)", zIndex: 20, borderRadius: 12, padding: 16, minWidth: 280 }}>
+              <form action={criarPerfil} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <input name="nome" placeholder="Nome *" required style={{ background: "var(--bg)", border: "1px solid var(--line-2)", borderRadius: 8, color: "var(--txt)", padding: "8px 10px", fontSize: 13, fontFamily: "inherit" }} />
+                <input name="cargo" placeholder="Cargo" style={{ background: "var(--bg)", border: "1px solid var(--line-2)", borderRadius: 8, color: "var(--txt)", padding: "8px 10px", fontSize: 13, fontFamily: "inherit" }} />
+                <select name="tipo" style={{ background: "var(--bg)", border: "1px solid var(--line-2)", borderRadius: 8, color: "var(--txt)", padding: "8px 10px", fontSize: 13, fontFamily: "inherit" }}>
+                  <option value="humano">Humano</option>
+                  <option value="agente">Agente de IA</option>
+                </select>
+                <select name="area" style={{ background: "var(--bg)", border: "1px solid var(--line-2)", borderRadius: 8, color: "var(--txt)", padding: "8px 10px", fontSize: 13, fontFamily: "inherit" }}>
+                  <option value="">— Área —</option>
+                  {["comercial","cs","design","marketing","tech","gestao","financeiro","ops"].map(a => (
+                    <option key={a} value={a}>{a}</option>
+                  ))}
+                </select>
+                <input type="color" name="cor" defaultValue="#6366F1" style={{ height: 38, borderRadius: 8, border: "1px solid var(--line-2)", cursor: "pointer", padding: 4, width: "100%" }} />
+                <button type="submit" className="hx-btn hx-btn-primary" style={{ padding: "9px" }}>Criar e configurar →</button>
+              </form>
+            </div>
+          </details>
+        )}
+      </div>
 
       {/* KPI bar */}
       <div className="ex-kpis" style={{ marginBottom: 20 }}>

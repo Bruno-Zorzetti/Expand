@@ -1,4 +1,5 @@
 import { revalidatePath } from "next/cache";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getPessoa } from "@/lib/expand-user";
 import PipelineBoard from "@/components/expand/PipelineBoard";
@@ -7,8 +8,9 @@ export const dynamic = "force-dynamic";
 
 export type Op = {
   id: string; nome: string; empresa: string | null; telefone: string | null;
-  email: string | null; etapa: string; produto_slug: string | null;
-  valor: number | null; responsavel: string | null; origem: string | null;
+  email: string | null; etapa: string; board: string;
+  produto_slug: string | null; valor: number | null;
+  responsavel: string | null; origem: string | null;
   observacoes: string | null; data_reuniao: string | null;
   motivo_perda: string | null; created_at: string; updated_at: string;
 };
@@ -17,10 +19,14 @@ async function criar(fd: FormData) {
   "use server";
   const sb = await createClient();
   const v = (k: string) => String(fd.get(k) ?? "").trim() || null;
+  const board = String(fd.get("board") ?? "atendimento");
   await sb.from("expand_oportunidades").insert({
-    nome: String(fd.get("nome")), empresa: v("empresa"), telefone: v("telefone"),
-    email: v("email"), etapa: v("etapa") ?? "lead",
-    produto_slug: v("produto_slug"), valor: fd.get("valor") ? Number(fd.get("valor")) : null,
+    nome: String(fd.get("nome")),
+    empresa: v("empresa"), telefone: v("telefone"), email: v("email"),
+    etapa: v("etapa") ?? (board === "captacao" ? "prospectando" : "novo_lead"),
+    board,
+    produto_slug: v("produto_slug"),
+    valor: fd.get("valor") ? Number(fd.get("valor")) : null,
     responsavel: v("responsavel"), origem: v("origem"), observacoes: v("observacoes"),
   });
   revalidatePath("/expand/comercial/pipeline");
@@ -31,6 +37,7 @@ async function mover(fd: FormData) {
   const sb = await createClient();
   await sb.from("expand_oportunidades").update({
     etapa: String(fd.get("etapa")),
+    board: String(fd.get("board") ?? "atendimento"),
     motivo_perda: String(fd.get("motivo_perda") ?? "").trim() || null,
   }).eq("id", String(fd.get("id")));
   revalidatePath("/expand/comercial/pipeline");
@@ -57,7 +64,23 @@ async function excluir(fd: FormData) {
   revalidatePath("/expand/comercial/pipeline");
 }
 
-export default async function Pipeline() {
+async function moverParaAtendimento(fd: FormData) {
+  "use server";
+  const sb = await createClient();
+  await sb.from("expand_oportunidades").update({
+    board: "atendimento", etapa: "novo_lead",
+  }).eq("id", String(fd.get("id")));
+  revalidatePath("/expand/comercial/pipeline");
+}
+
+export default async function Pipeline({
+  searchParams,
+}: {
+  searchParams: Promise<{ board?: string }>;
+}) {
+  const sp = await searchParams;
+  const board = sp.board === "captacao" ? "captacao" : "atendimento";
+
   const sb = await createClient();
   const { pessoa } = await getPessoa();
 
@@ -69,53 +92,54 @@ export default async function Pipeline() {
   const { data: perfisData } = await sb
     .from("expand_perfis")
     .select("id, nome")
-    .in("tipo", ["humano"])
+    .eq("tipo", "humano")
     .order("nome");
 
-  const ops = (data ?? []) as Op[];
+  const allOps = (data ?? []) as Op[];
   const perfis = (perfisData ?? []) as { id: string; nome: string }[];
 
-  const ativas = ops.filter((o) => !["fechado", "perdido"].includes(o.etapa));
+  // Ops do board selecionado — fallback para ops sem board no atendimento
+  const ops = allOps.filter((o) => {
+    const b = o.board ?? "atendimento";
+    return b === board;
+  });
+
+  // KPIs gerais (ambos os boards)
+  const ativas = allOps.filter((o) => !["cliente", "perda", "fechado", "perdido"].includes(o.etapa));
   const arrAtivo = ativas.reduce((s, o) => s + (o.valor ?? 0), 0);
   const agora = new Date();
-  const fechadasMes = ops.filter((o) => {
-    if (o.etapa !== "fechado") return false;
+  const clientesMes = allOps.filter((o) => {
+    if (!["cliente", "fechado"].includes(o.etapa)) return false;
     const d = new Date(o.updated_at);
     return d.getMonth() === agora.getMonth() && d.getFullYear() === agora.getFullYear();
   });
-  const arrMes = fechadasMes.reduce((s, o) => s + (o.valor ?? 0), 0);
-  const total = ops.length;
-  const fechados = ops.filter((o) => o.etapa === "fechado").length;
-  const taxa = total > 0 ? Math.round((fechados / total) * 100) : 0;
+  const arrMes = clientesMes.reduce((s, o) => s + (o.valor ?? 0), 0);
+  const taxa = allOps.length > 0 ? Math.round((allOps.filter((o) => ["cliente", "fechado"].includes(o.etapa)).length / allOps.length) * 100) : 0;
 
-  const kpis = [
-    { l: "No pipeline", v: String(ativas.length), u: "oportunidades" },
-    { l: "ARR em disputa", v: `R$ ${arrAtivo.toLocaleString("pt-BR")}`, u: "" },
-    { l: "Fechados este mês", v: String(fechadasMes.length), u: `R$ ${arrMes.toLocaleString("pt-BR")}` },
-    { l: "Taxa de conversão", v: `${taxa}%`, u: "lead → fechado" },
-  ];
+  const captTotal = allOps.filter((o) => (o.board ?? "atendimento") === "captacao").length;
+  const funiTotal = allOps.filter((o) => (o.board ?? "atendimento") === "atendimento").length;
 
   return (
     <>
       <div style={{ marginBottom: 6 }}>
-        <p className="hx-eyebrow">Comercial · Funil</p>
+        <p className="hx-eyebrow">Comercial · Pipeline</p>
         <h1 className="ex-h1" style={{ margin: 0 }}>
-          Pipeline de <span className="hx-accent-text">vendas</span>
+          Funil de <span className="hx-accent-text">vendas</span>
         </h1>
       </div>
-      <p className="ex-sub" style={{ marginBottom: 18 }}>
-        Cada oportunidade do primeiro contato ao fechamento.
+      <p className="ex-sub" style={{ marginBottom: 14 }}>
+        Dois kanbans separados: <strong>Captação</strong> (prospecção ativa) e <strong>Atendimento</strong> (funil de fechamento).
       </p>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(148px,1fr))",
-          gap: 10,
-          marginBottom: 22,
-        }}
-      >
-        {kpis.map((k) => (
+      {/* KPIs */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))", gap: 10, marginBottom: 18 }}>
+        {[
+          { l: "Em disputa", v: String(ativas.length), u: `R$ ${arrAtivo.toLocaleString("pt-BR")}` },
+          { l: "Clientes este mês", v: String(clientesMes.length), u: `R$ ${arrMes.toLocaleString("pt-BR")}` },
+          { l: "Taxa de conversão", v: `${taxa}%`, u: "leads → cliente" },
+          { l: "Em captação", v: String(captTotal), u: "prospectando" },
+          { l: "No funil", v: String(funiTotal), u: "atendimento" },
+        ].map((k) => (
           <div key={k.l} className="ex-kpi hx-glass">
             <span className="ex-kpi-l">{k.l}</span>
             <span className="ex-kpi-v">{k.v}</span>
@@ -124,14 +148,37 @@ export default async function Pipeline() {
         ))}
       </div>
 
+      {/* Tab selector */}
+      <div style={{ display: "flex", gap: 4, background: "var(--panel-2)", border: "1px solid var(--line)", borderRadius: 12, padding: 4, marginBottom: 18, width: "fit-content" }}>
+        {[
+          { key: "captacao", label: "Captação", desc: "prospecção ativa" },
+          { key: "atendimento", label: "Atendimento", desc: "funil de fechamento" },
+        ].map((t) => (
+          <Link
+            key={t.key}
+            href={`/expand/comercial/pipeline?board=${t.key}`}
+            style={{
+              padding: "7px 18px", borderRadius: 8, textDecoration: "none", fontSize: 13, fontWeight: 700,
+              background: board === t.key ? "var(--accent)" : "none",
+              color: board === t.key ? "#0A1512" : "var(--mut)",
+            }}
+          >
+            {t.label}
+            <span style={{ fontSize: 10, fontWeight: 400, marginLeft: 5, opacity: 0.7 }}>{t.desc}</span>
+          </Link>
+        ))}
+      </div>
+
       <PipelineBoard
         ops={ops}
+        board={board}
         perfis={perfis}
         pessoaId={pessoa.id}
         criar={criar}
         mover={mover}
         salvar={salvar}
         excluir={excluir}
+        moverParaAtendimento={moverParaAtendimento}
       />
     </>
   );

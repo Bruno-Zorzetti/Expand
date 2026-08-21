@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getPessoa } from "@/lib/expand-user";
-import { exigirAdmin } from "@/lib/expand-acesso";
+import { exigirAdmin, getAcesso } from "@/lib/expand-acesso";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { siteUrl } from "@/lib/site";
 import { instanciasParaCliente, instanciasDeProduto, type ProdEtapaRow } from "@/lib/expand-tarefas";
@@ -914,4 +914,149 @@ export async function gerarCustoFinanceiro(payload: {
   }
 
   revalidatePath(`/expand/etapa/${payload.etapaId}`);
+}
+
+// ── Agente do cliente ─────────────────────────────────────────────────────────
+export async function salvarAgenteCliente(formData: FormData) {
+  const clienteId = String(formData.get("clienteId") ?? "");
+  const agenteId  = String(formData.get("agente_id") ?? "").trim() || null;
+  if (!clienteId) return;
+  const supabase = await createClient();
+  const { pessoa } = await getPessoa();
+  await supabase.from("expand_clientes").update({ agente_id: agenteId }).eq("id", clienteId);
+  await logar(supabase, "agente", `Agente vinculado: ${agenteId ?? "nenhum"}`, { cliente_id: clienteId, autor: pessoa.nome });
+  revalidatePath(`/expand/clientes/${clienteId}`);
+}
+
+// ── Diagnósticos ─────────────────────────────────────────────────────────────
+export async function adicionarDiagnostico(formData: FormData) {
+  const clienteId = String(formData.get("clienteId") ?? "");
+  const titulo    = String(formData.get("titulo")    ?? "").trim();
+  const detalhe   = String(formData.get("detalhe")   ?? "").trim();
+  if (!clienteId || !titulo) return;
+  const supabase = await createClient();
+  const { pessoa } = await getPessoa();
+  await supabase.from("expand_log").insert({
+    tipo: "diagnostico",
+    detalhe: `${titulo}${detalhe ? ` — ${detalhe}` : ""}`,
+    cliente_id: clienteId,
+    autor: pessoa.nome,
+  });
+  revalidatePath(`/expand/clientes/${clienteId}`);
+}
+
+// ── Acesso ao portal do cliente ───────────────────────────────────────────────
+export async function gerarConvitePortal(formData: FormData) {
+  const clienteId = String(formData.get("clienteId") ?? "");
+  const email     = String(formData.get("email")     ?? "").trim();
+  if (!clienteId || !email) return;
+  await exigirAdmin();
+  const adminSb = createAdminClient();
+  if (!adminSb) return;
+  await adminSb.auth.admin.generateLink({
+    type: "invite",
+    email,
+    options: { redirectTo: `${siteUrl()}/cliente` },
+  });
+  const supabase = await createClient();
+  await logar(supabase, "acesso", `Convite de portal enviado para ${email}`, { cliente_id: clienteId });
+  revalidatePath(`/expand/clientes/${clienteId}`);
+}
+
+// ── Criar novo cliente ────────────────────────────────────────────────────────
+export async function criarCliente(formData: FormData) {
+  await exigirAdmin();
+  const nome      = String(formData.get("nome")      ?? "").trim();
+  const segmento  = String(formData.get("segmento")  ?? "").trim() || null;
+  const maturidade = String(formData.get("maturidade") ?? "").trim() || null;
+  const contrato  = String(formData.get("contrato")  ?? "").trim() || null;
+  if (!nome) return;
+  const supabase = await createClient();
+  const { pessoa } = await getPessoa();
+  const { data } = await supabase.from("expand_clientes").insert({
+    nome, segmento, maturidade, contrato_tipo: contrato, ativo: true,
+  }).select("id").single();
+  if (data?.id) {
+    await logar(supabase, "criacao", `Cliente "${nome}" criado`, { cliente_id: data.id as string, autor: pessoa.nome });
+    redirect(`/expand/clientes/${data.id as string}`);
+  }
+  revalidatePath("/expand/carteira");
+}
+
+export async function atualizarCliente(formData: FormData) {
+  await exigirAdmin();
+  const id = String(formData.get("id") ?? "").trim();
+  if (!id) return;
+  const supabase = await createClient();
+  const up: Record<string, unknown> = {};
+  const s = (k: string) => { const v = String(formData.get(k) ?? "").trim(); if (v) up[k] = v; };
+  const n = (k: string) => { const v = String(formData.get(k) ?? "").trim(); if (v) up[k] = v || null; };
+  s("nome"); n("segmento"); n("maturidade"); n("contrato_tipo"); n("produto_slug"); n("status");
+  const meta = String(formData.get("meta_receita") ?? "").trim();
+  if (meta) up["meta_receita"] = Number(meta) || null;
+  await supabase.from("expand_clientes").update(up).eq("id", id);
+  revalidatePath(`/expand/clientes/${id}`);
+  revalidatePath("/expand/carteira");
+  redirect(`/expand/clientes/${id}?t=editar&ok=1` as string);
+}
+
+export async function excluirCliente(formData: FormData) {
+  await exigirAdmin();
+  const id = String(formData.get("id") ?? "").trim();
+  if (!id) return;
+  const supabase = await createClient();
+  await supabase.from("expand_clientes").delete().eq("id", id);
+  revalidatePath("/expand/carteira");
+  redirect("/expand/carteira");
+}
+
+export async function salvarPerfil(formData: FormData) {
+  const { isAdmin } = await getAcesso();
+  const { pessoa } = await getPessoa();
+  const supabase = await createClient();
+  const id = String(formData.get("id") ?? "").trim();
+  const podeEditar = isAdmin || pessoa.id === id;
+  if (!podeEditar) return;
+
+  const up: Record<string, unknown> = {};
+  const s = (k: string, col = k) => { const v = String(formData.get(k) ?? "").trim(); up[col] = v || null; };
+  s("nome"); s("cargo"); s("area"); s("bio"); s("foto_url"); s("cor");
+  // Agents only
+  s("prompt"); s("memoria");
+  // Admin only fields
+  if (isAdmin) { s("superior"); s("ordem"); up["ativo"] = formData.get("ativo") === "1"; }
+
+  if (id) {
+    await supabase.from("expand_perfis").update(up).eq("id", id);
+    revalidatePath(`/expand/equipe/${id}`);
+    revalidatePath(`/expand/equipe/${id}/editar`);
+    revalidatePath("/expand/equipe");
+    redirect(`/expand/equipe/${id}/editar?ok=1`);
+  }
+}
+
+export async function criarPerfil(formData: FormData) {
+  await exigirAdmin();
+  const supabase = await createClient();
+  const nome = String(formData.get("nome") ?? "").trim();
+  const tipo = String(formData.get("tipo") ?? "humano");
+  const cargo = String(formData.get("cargo") ?? "").trim() || null;
+  const area  = String(formData.get("area") ?? "").trim() || null;
+  const cor   = String(formData.get("cor") ?? "#6366F1").trim();
+  if (!nome) return;
+  // Gerar slug: lowercase + hífens
+  const slug = nome.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  await supabase.from("expand_perfis").insert({ id: slug, nome, tipo, cargo, area, cor, ativo: true });
+  revalidatePath("/expand/equipe");
+  redirect(`/expand/equipe/${slug}/editar`);
+}
+
+export async function excluirPerfil(formData: FormData) {
+  await exigirAdmin();
+  const id = String(formData.get("id") ?? "").trim();
+  if (!id) return;
+  const supabase = await createClient();
+  await supabase.from("expand_perfis").delete().eq("id", id);
+  revalidatePath("/expand/equipe");
+  redirect("/expand/equipe");
 }

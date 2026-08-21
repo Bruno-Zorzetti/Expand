@@ -15,8 +15,10 @@ export function BotIcon({ size }: { size: number }) {
 
 export default function PerfilAvatar({ p, size, radius }: { p: Pick<Perfil, "foto_url" | "cor" | "tipo" | "nome">; size: number; radius: number }) {
   const cor = p.cor ?? "var(--accent)";
+  // Fotos são sempre quadradas (borderRadius pequeno), independente do radius passado.
+  const photoRadius = Math.min(radius, 8);
   const st: React.CSSProperties = {
-    width: size, height: size, borderRadius: radius, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center",
+    width: size, height: size, borderRadius: photoRadius, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center",
     overflow: "hidden", fontFamily: "var(--font-cinzel), serif", fontWeight: 700, color: "#0A1512", fontSize: size * 0.42, position: "relative",
   };
   if (p.foto_url) {
