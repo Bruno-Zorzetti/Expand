@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { AREAS, AG_NOME } from "@/lib/expand-esteira";
@@ -8,6 +9,7 @@ import { criarEtapav2 } from "./actions";
 import { MKpiCard, MTaskCard, MClientHero, MEmptyState, MSidebarRight, MHeatmapHours, MProgressBar, MAgentAvatar } from "@/components/monay";
 import MonayFoco from "@/components/monay/MonayFoco";
 import { TaskQuickView, type QVEtapa, type QVArquivo, type QVLog } from "@/components/expand/TaskQuickView";
+import { QuickCapture } from "@/components/expand/QuickCapture";
 
 export const dynamic = "force-dynamic";
 
@@ -316,7 +318,7 @@ export default async function V2({ searchParams }: { searchParams: Promise<Recor
     .slice(0, 8);
 
   // ── Inline styles ────────────────────────────────────────────────────────
-  const selCss: React.CSSProperties = {
+  const selCss: CSSProperties = {
     background: "var(--bg)", border: "1px solid var(--line-2)", borderRadius: 8,
     color: "var(--txt)", padding: "6px 10px", fontSize: 12, outline: "none",
     fontFamily: "inherit", cursor: "pointer",
@@ -434,6 +436,7 @@ export default async function V2({ searchParams }: { searchParams: Promise<Recor
         <div style={{ display: "flex", background: "var(--panel-2)", borderRadius: 10, padding: 3, gap: 2 }}>
           {([
             ["monay",     "✦ Hoje"],
+            ["matrix",    "⬛ Eisenhower"],
             ["lista",     "📋 Lista"],
             ["board",     "🗂 Board"],
             ["gantt",     "📊 Gantt"],
@@ -1225,6 +1228,104 @@ export default async function V2({ searchParams }: { searchParams: Promise<Recor
         );
       })()}
 
+      {/* ════════════════════════════════════════════════════════════
+          MATRIX — Eisenhower 2×2
+      ═══════════════════════════════════════════════════════════════ */}
+      {view === "matrix" && (() => {
+        const QUADS = [
+          { key: "urgente", label: "Fazer Agora",  sub: "Urgente · Importante",    emoji: "🔴", col: "var(--red)",    bg: "color-mix(in srgb,var(--red) 8%,transparent)",    border: "var(--red)" },
+          { key: "alta",    label: "Agendar",       sub: "Importante · Não-urgente", emoji: "🟠", col: "var(--warn)",   bg: "color-mix(in srgb,var(--warn) 8%,transparent)",   border: "var(--warn)" },
+          { key: "normal",  label: "Delegar",        sub: "Urgente · Menos crítico",  emoji: "🔵", col: "var(--accent)", bg: "color-mix(in srgb,var(--accent) 8%,transparent)", border: "var(--accent)" },
+          { key: "baixa",   label: "Eliminar",       sub: "Baixa prioridade",         emoji: "⚪", col: "var(--dim)",    bg: "var(--panel-2)",                                   border: "var(--line-2)" },
+        ] as const;
+
+        const openTasks = etapas.filter(e => eff(e) !== "done");
+
+        return (
+          <div>
+            <p style={{ fontSize: 12, color: "var(--dim)", marginBottom: 16, lineHeight: 1.6 }}>
+              Classificação automática pela urgência derivada de datas, SLA e marcos.
+              Arraste para o <Link href={qs({ v: "board" })} style={{ color: "var(--accent)" }}>Board</Link> para mover entre status.
+            </p>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              {QUADS.map(q => {
+                const items = openTasks.filter(e => urgencia(e) === q.key);
+                return (
+                  <div key={q.key} style={{
+                    borderRadius: 14, border: `1px solid ${q.border}`,
+                    background: q.bg, display: "flex", flexDirection: "column",
+                    minHeight: 200, overflow: "hidden",
+                  }}>
+                    {/* Quadrant header */}
+                    <div style={{ padding: "12px 16px", borderBottom: `1px solid ${q.border}`, display: "flex", alignItems: "center", gap: 10 }}>
+                      <span style={{ fontSize: 18 }}>{q.emoji}</span>
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 800, color: q.col }}>{q.label}</div>
+                        <div style={{ fontSize: 10.5, color: "var(--dim)" }}>{q.sub}</div>
+                      </div>
+                      <span style={{
+                        marginLeft: "auto", fontSize: 12, fontWeight: 700,
+                        padding: "2px 10px", borderRadius: 20,
+                        background: `color-mix(in srgb,${q.col} 18%,transparent)`, color: q.col,
+                      }}>{items.length}</span>
+                    </div>
+                    {/* Tasks */}
+                    <div style={{ flex: 1, padding: "10px 12px", display: "flex", flexDirection: "column", gap: 6, overflowY: "auto", maxHeight: 380 }}>
+                      {items.length === 0 && (
+                        <p style={{ fontSize: 12, color: "var(--dim)", margin: "auto", textAlign: "center", padding: "20px 0", fontStyle: "italic" }}>
+                          Nenhuma tarefa aqui
+                        </p>
+                      )}
+                      {items.slice(0, 20).map(e => {
+                        const s = eff(e); const st = ST[s];
+                        const resp = e.responsavel_atual ?? e.responsavel;
+                        const dateStr = e.data_prevista
+                          ? new Date(e.data_prevista + "T12:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }) : null;
+                        const isPast = e.data_prevista && e.data_prevista < hojeISO;
+                        return (
+                          <Link key={e.id} href={qs({ qv: e.id })} style={{ textDecoration: "none" }}>
+                            <div style={{
+                              background: "var(--panel)", borderRadius: 10,
+                              padding: "9px 12px", borderLeft: `3px solid ${st.bdr}`,
+                            }}>
+                              <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--txt)", lineHeight: 1.35, marginBottom: 5 }}>
+                                {e.marco && <span style={{ color: "var(--accent)", marginRight: 4 }}>◆</span>}
+                                {e.titulo}
+                              </div>
+                              <div style={{ display: "flex", flexWrap: "wrap", gap: 5, alignItems: "center" }}>
+                                {cliMap.get(e.cliente_id) && (
+                                  <span style={{ fontSize: 10.5, padding: "1px 6px", borderRadius: 5, background: "color-mix(in srgb,var(--accent) 13%,transparent)", color: "var(--accent)", fontWeight: 600 }}>
+                                    {cliMap.get(e.cliente_id)}
+                                  </span>
+                                )}
+                                {e.area && AREAS[e.area] && (
+                                  <span style={{ fontSize: 10, color: AREAS[e.area].cor }}>{AREAS[e.area].n}</span>
+                                )}
+                                {resp && <span style={{ fontSize: 10.5, color: "var(--dim)" }}>{resp}</span>}
+                                {dateStr && (
+                                  <span style={{ fontSize: 10.5, fontWeight: 600, color: isPast ? "var(--red)" : "var(--dim)", marginLeft: "auto" }}>
+                                    {isPast ? "⚠ " : "📅 "}{dateStr}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </Link>
+                        );
+                      })}
+                      {items.length > 20 && (
+                        <Link href={qs({ v: "lista" })} style={{ fontSize: 11, color: "var(--dim)", padding: "4px 0", textAlign: "center" }}>
+                          +{items.length - 20} — ver lista completa
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* ── Task Quick View Overlay ────────────────────────────── */}
       {qvEtapa && (
         <TaskQuickView
@@ -1234,6 +1335,15 @@ export default async function V2({ searchParams }: { searchParams: Promise<Recor
           cliente={qvCliente}
           signedUrls={qvSignedUrls}
           isAdmin={isAdmin}
+        />
+      )}
+
+      {/* ── Quick Capture (fixed, all views except dash) ────────── */}
+      {view !== "dash" && (
+        <QuickCapture
+          clientes={clientes}
+          defaultClienteId={filtroCli || undefined}
+          backUrl={`/expand/v2?v=${view}&s=${scope}&g=${grupo}${filtroCli ? `&c=${filtroCli}` : ""}`}
         />
       )}
     </>
