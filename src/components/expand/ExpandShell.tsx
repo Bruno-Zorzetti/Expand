@@ -76,17 +76,23 @@ const NAV: NavSec[] = [
     id: "config",
     sec: "Configurações",
     items: [
-      { href: "/expand/departamentos", label: "Departamentos",  icon: "building", eyebrow: "Estrutura da equipe",      gate: "admin" },
-      { href: "/expand/empresa",      label: "Empresa",        icon: "building", eyebrow: "Identidade e marca",       gate: "admin" },
-      { href: "/expand/ritmo",        label: "Ritmos",         icon: "activity", eyebrow: "Daily, Weekly, Check-in",  gate: "admin" },
-      { href: "/expand/acessos",      label: "Acessos",        icon: "shield",   eyebrow: "Equipe, permissões e custos", gate: "admin" },
-      { href: "/expand/integracoes",  label: "Integração",     icon: "plug",     eyebrow: "Conexões externas",        gate: "admin" },
-      { href: "/expand/rotinas",           label: "Rotinas",        icon: "zap",      eyebrow: "Automações e tokens",       gate: "admin" },
-      { href: "/expand/config/relatorios", label: "Relatórios",     icon: "activity", eyebrow: "Status reports WhatsApp",   gate: "admin" },
-      { href: "/expand/gestao",            label: "Visão Geral",    icon: "layers",   eyebrow: "Painel administrativo",     gate: "admin" },
-      { href: "/expand/log",               label: "Log",            icon: "list",     eyebrow: "Auditoria do sistema",      gate: "admin" },
-      { href: "/expand/estilo",            label: "Folha de Estilo", icon: "brush",   eyebrow: "Design System",            gate: "admin" },
-      { href: "/expand/perfil",             label: "Meu Perfil",      icon: "idcard",  eyebrow: "Sua conta e configurações" },
+      { href: "/expand/departamentos",     label: "Departamentos",  icon: "building", eyebrow: "Estrutura da equipe",         gate: "admin" },
+      { href: "/expand/empresa",           label: "Empresa",        icon: "building", eyebrow: "Identidade e marca",          gate: "admin" },
+      { href: "/expand/ritmo",             label: "Ritmos",         icon: "activity", eyebrow: "Daily, Weekly, Check-in",     gate: "admin" },
+      { href: "/expand/acessos",           label: "Acessos",        icon: "shield",   eyebrow: "Equipe, permissões e custos", gate: "admin" },
+      { href: "/expand/integracoes",       label: "Integração",     icon: "plug",     eyebrow: "Conexões externas",           gate: "admin" },
+      { href: "/expand/rotinas",           label: "Rotinas",        icon: "zap",      eyebrow: "Automações e tokens",         gate: "admin" },
+      { href: "/expand/config/relatorios", label: "Relatórios",     icon: "activity", eyebrow: "Status reports WhatsApp",     gate: "admin" },
+      { href: "/expand/gestao",            label: "Visão Geral",    icon: "layers",   eyebrow: "Painel administrativo",       gate: "admin" },
+      { href: "/expand/log",               label: "Log",            icon: "list",     eyebrow: "Auditoria do sistema",        gate: "admin" },
+      { href: "/expand/estilo",            label: "Folha de Estilo", icon: "brush",  eyebrow: "Design System",               gate: "admin" },
+    ],
+  },
+  {
+    id: "conta",
+    sec: "Minha Conta",
+    items: [
+      { href: "/expand/perfil", label: "Meu Perfil", icon: "idcard", eyebrow: "Identidade, tarefas e calendário" },
     ],
   },
 ];
@@ -479,8 +485,8 @@ export default function ExpandShell({
           </button>
           {showSideMenu && (
             <div style={{ position: "absolute", bottom: "calc(100% + 8px)", left: 0, right: 0, background: "var(--panel-2)", border: "1px solid var(--line-2)", borderRadius: 12, padding: 6, zIndex: 200, boxShadow: "0 -8px 32px rgba(0,0,0,.25)" }}>
-              <Link href={`/expand/equipe/${pessoa.id}`} onClick={() => setShowSideMenu(false)} style={{ display: "block", padding: "9px 12px", borderRadius: 8, fontSize: 13, color: "var(--txt)", textDecoration: "none", fontWeight: 600 }}>
-                Editar perfil
+              <Link href="/expand/perfil" onClick={() => setShowSideMenu(false)} style={{ display: "block", padding: "9px 12px", borderRadius: 8, fontSize: 13, color: "var(--txt)", textDecoration: "none", fontWeight: 600 }}>
+                Meu Perfil
               </Link>
               <div style={{ height: 1, background: "var(--line-2)", margin: "4px 0" }} />
               <button onClick={sair} style={{ display: "block", width: "100%", textAlign: "left", padding: "9px 12px", borderRadius: 8, fontSize: 13, color: "#e05555", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>
@@ -526,8 +532,8 @@ export default function ExpandShell({
               </button>
               {showTopMenu && (
                 <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, background: "var(--panel-2)", border: "1px solid var(--line-2)", borderRadius: 12, padding: 6, minWidth: 180, zIndex: 200, boxShadow: "0 8px 32px rgba(0,0,0,.25)" }}>
-                  <Link href={`/expand/equipe/${pessoa.id}`} onClick={() => setShowTopMenu(false)} style={{ display: "block", padding: "9px 12px", borderRadius: 8, fontSize: 13.5, color: "var(--txt)", textDecoration: "none", fontWeight: 600 }}>
-                    Editar perfil
+                  <Link href="/expand/perfil" onClick={() => setShowTopMenu(false)} style={{ display: "block", padding: "9px 12px", borderRadius: 8, fontSize: 13.5, color: "var(--txt)", textDecoration: "none", fontWeight: 600 }}>
+                    Meu Perfil
                   </Link>
                   <div style={{ height: 1, background: "var(--line-2)", margin: "4px 0" }} />
                   <button onClick={sair} style={{ display: "block", width: "100%", textAlign: "left", padding: "9px 12px", borderRadius: 8, fontSize: 13.5, color: "#e05555", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>
