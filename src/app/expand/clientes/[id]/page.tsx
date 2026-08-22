@@ -44,6 +44,22 @@ const fld: CSSProperties = { background: "var(--bg)", border: "1px solid var(--l
 const ST_COR: Record<string, string> = { done: "var(--green)", run: "var(--accent)", idle: "var(--dim)", block: "var(--red)" };
 const SEC: CSSProperties = { fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".08em", color: "var(--dim)", marginBottom: 8 };
 
+function formatDetalhe(tipo: string | null, detalhe: string | null): string {
+  if (!detalhe) return "—";
+  if (tipo === "custo_financeiro") {
+    try {
+      const d = JSON.parse(detalhe) as { responsavel?: string; duracao_texto?: string; duracao_min?: number; custo_total?: number };
+      const parts: string[] = [];
+      if (d.responsavel) parts.push(d.responsavel);
+      if (d.duracao_texto) parts.push(d.duracao_texto);
+      else if (d.duracao_min) parts.push(`${d.duracao_min}min`);
+      if (typeof d.custo_total === "number") parts.push(`R$${d.custo_total.toFixed(2)}`);
+      return parts.length ? parts.join(" · ") : detalhe;
+    } catch { return detalhe; }
+  }
+  return detalhe;
+}
+
 export default async function ClienteHub({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ t?: string; ok?: string }> }) {
   const { id } = await params;
   const { t, ok } = await searchParams;
@@ -222,7 +238,7 @@ export default async function ClienteHub({ params, searchParams }: { params: Pro
           </div>
 
           {/* Pendências + execução */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 14 }}>
             <div className="hx-glass" style={{ borderRadius: 12, padding: "14px 16px" }}>
               <div style={SEC}>Em execução agora</div>
               {etapas.filter(e => e.status === "run").slice(0, 5).length ? (
@@ -243,7 +259,7 @@ export default async function ClienteHub({ params, searchParams }: { params: Pro
                   {logs.slice(0, 5).map((l) => (
                     <div key={l.id} style={{ display: "flex", gap: 8, fontSize: 12, color: "var(--mut)", padding: "5px 0", borderBottom: "1px solid var(--line)" }}>
                       <span style={{ color: "var(--accent)", minWidth: 50, fontSize: 10.5, fontWeight: 700, textTransform: "uppercase" }}>{l.tipo ?? "—"}</span>
-                      <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.detalhe ?? "—"}</span>
+                      <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{formatDetalhe(l.tipo, l.detalhe)}</span>
                       <span style={{ fontSize: 10.5, color: "var(--dim)", flexShrink: 0 }}>{dt(l.criado_em)}</span>
                     </div>
                   ))}
@@ -517,7 +533,7 @@ export default async function ClienteHub({ params, searchParams }: { params: Pro
             <div key={l.id} className="hx-glass" style={{ display: "flex", gap: 12, padding: "9px 14px", borderRadius: 10, alignItems: "baseline" }}>
               <span style={{ fontSize: 10.5, color: "var(--dim)", minWidth: 52, fontVariantNumeric: "tabular-nums" }}>{dt(l.criado_em)}</span>
               <span style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: ".04em", color: "var(--accent)", minWidth: 70 }}>{l.tipo ?? "—"}</span>
-              <span style={{ fontSize: 12.5, color: "var(--txt)", flex: 1 }}>{l.detalhe ?? "—"}</span>
+              <span style={{ fontSize: 12.5, color: "var(--txt)", flex: 1 }}>{formatDetalhe(l.tipo, l.detalhe)}</span>
               <span style={{ fontSize: 11, color: "var(--dim)" }}>{l.autor ?? ""}</span>
             </div>
           )) : <p style={{ fontSize: 12.5, color: "var(--dim)" }}>Sem atividades registradas.</p>}
@@ -671,7 +687,7 @@ export default async function ClienteHub({ params, searchParams }: { params: Pro
             <form action={atualizarCliente} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <input type="hidden" name="id" value={id} />
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                   <label style={{ fontSize: 11, color: "var(--dim)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em" }}>Nome *</label>
                   <input name="nome" defaultValue={cli.nome} required style={fld} />
@@ -688,7 +704,7 @@ export default async function ClienteHub({ params, searchParams }: { params: Pro
                 <LogoUpload clienteId={id} logoAtual={cli.imagem_url ?? null} />
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12 }}>
                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                   <label style={{ fontSize: 11, color: "var(--dim)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em" }}>Maturidade</label>
                   <select name="maturidade" defaultValue={(cli.maturidade as string | null) ?? ""} style={fld}>
@@ -712,7 +728,7 @@ export default async function ClienteHub({ params, searchParams }: { params: Pro
                 </div>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                   <label style={{ fontSize: 11, color: "var(--dim)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em" }}>Produto (slug)</label>
                   <input name="produto_slug" defaultValue={(cli.produto_slug as string | null) ?? ""} style={fld} placeholder="ex: pide" />

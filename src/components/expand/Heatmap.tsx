@@ -11,13 +11,14 @@ export default function Heatmap({ cols, max, cor = "var(--accent)" }: { cols: He
   };
   const dias = ["S", "T", "Q", "Q", "S", "S", "D"];
   return (
-    <svg viewBox={`0 0 ${W + 18} ${H}`} style={{ width: "100%", maxWidth: W + 18, display: "block" }}>
+    <svg viewBox={`0 0 ${W + 18} ${H}`} style={{ width: "100%", maxWidth: W + 18, display: "block" }} suppressHydrationWarning>
       {dias.map((d, i) => i % 2 === 1 ? <text key={i} x={0} y={i * (cell + gap) + cell} fontSize={8} fill="var(--dim)">{d}</text> : null)}
       <g transform="translate(16 0)">
         {cols.map((col, w) => col.map((c, d) => (
           <rect key={`${w}-${d}`} x={w * (cell + gap)} y={d * (cell + gap)} width={cell} height={cell} rx={3}
-            fill={nivel(c.count)} stroke={c.count > 0 ? "transparent" : "var(--line)"} strokeWidth={0.5}>
-            {c.count >= 0 ? <title>{c.date}: {c.count} {c.count === 1 ? "tarefa" : "tarefas"}</title> : null}
+            fill={nivel(c.count)} stroke={c.count > 0 ? "transparent" : "var(--line)"} strokeWidth={0.5}
+            suppressHydrationWarning>
+            {c.count >= 0 ? <title suppressHydrationWarning>{c.date}: {c.count} {c.count === 1 ? "tarefa" : "tarefas"}</title> : null}
           </rect>
         )))}
       </g>
