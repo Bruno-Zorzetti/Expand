@@ -1,7 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 
 type Acao = { tipo: string; etapa: number; valor: string; motivo?: string };
 type Msg = { role: "user" | "assistant"; content: string; saved?: boolean; modelo?: string; rating?: number; fbSaved?: boolean; acao?: Acao; acaoResult?: string };
@@ -21,21 +22,51 @@ const MODELOS = [
 ];
 const nomeModelo = (id?: string) => MODELOS.find((m) => m.id === id)?.l ?? id ?? "";
 
+async function salvarMensagem(agente_id: string, user_id: string, role: "user" | "assistant", content: string) {
+  const sb = createClient();
+  await sb.from("expand_chat_mensagens").insert({ agente_id, user_id, role, content });
+}
+
 export default function AgenteChat({ id, nome, cor, tipo, contexto, memoriaHref }: {
   id: string; nome: string; cor: string; tipo: string; contexto?: Record<string, unknown>; memoriaHref?: string;
 }) {
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [carregando, setCarregando] = useState(true);
   const [modelo, setModelo] = useState(MODELOS[0].id);
   const [notas, setNotas] = useState<Record<number, string>>({});
+  const [userId, setUserId] = useState<string | null>(null);
   const boxRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const produto = contexto && typeof contexto.produto === "string" ? (contexto.produto as string) : null;
 
   const ehAgente = tipo === "agente";
 
+  // Carregar histórico ao montar
+  useEffect(() => {
+    const sb = createClient();
+    sb.auth.getUser().then(({ data: { user } }) => {
+      if (!user) { setCarregando(false); return; }
+      setUserId(user.id);
+      sb.from("expand_chat_mensagens")
+        .select("role, content, criado_em")
+        .eq("agente_id", id)
+        .eq("user_id", user.id)
+        .order("criado_em", { ascending: true })
+        .limit(40)
+        .then(({ data }) => {
+          if (data && data.length > 0) {
+            setMsgs(data.map((r) => ({ role: r.role as "user" | "assistant", content: r.content })));
+          }
+          setCarregando(false);
+        });
+    });
+  }, [id]);
+
   const scroll = () => setTimeout(() => boxRef.current?.scrollTo({ top: boxRef.current.scrollHeight, behavior: "smooth" }), 40);
+
+  useEffect(() => { if (msgs.length > 0) scroll(); }, [msgs.length]);
 
   function extrairTopicos(texto: string, pergunta: string): string[] {
     const stops = new Set(["de","do","da","dos","das","em","no","na","nos","nas","que","com","por","para","uma","como","mais","mas","ou","ao","se","é","um","já","isso","esta","este","são","foi","sua","seu","essa","esse","não","sim","ele","ela","você","eles","elas","nós","ter","ser","tem","está","isso","quem","qual","quando","onde","pois"]);
@@ -53,6 +84,8 @@ export default function AgenteChat({ id, nome, cor, tipo, contexto, memoriaHref 
     setMsgs((s) => [...s, { role: "user", content: m }]);
     setInput("");
     setLoading(true);
+    // Salvar mensagem do usuário
+    if (userId) salvarMensagem(id, userId, "user", m);
     scroll();
     try {
       const r = await fetch(`/api/agente/${id}`, {
@@ -64,6 +97,8 @@ export default function AgenteChat({ id, nome, cor, tipo, contexto, memoriaHref 
       let acao: Acao | undefined;
       if (produto) { const p = parseAcao(content); if (p) { content = p.texto; acao = p.acao; } }
       setMsgs((s) => [...s, { role: "assistant", content, modelo: j.modelo, acao }]);
+      // Salvar resposta do agente
+      if (userId && !j.concept) salvarMensagem(id, userId, "assistant", content);
       // Acender nós do grafo de conhecimento com base nos tópicos da conversa
       if (tipo === "agente" && !j.concept) {
         const topics = extrairTopicos(content, m);
@@ -136,7 +171,7 @@ export default function AgenteChat({ id, nome, cor, tipo, contexto, memoriaHref 
       <div style={{ display: "flex", alignItems: "center", gap: 9, flexWrap: "wrap", padding: "11px 16px", borderBottom: "1px solid var(--line)", flexShrink: 0 }}>
         <span style={{ width: 8, height: 8, borderRadius: "50%", background: cor, boxShadow: `0 0 8px ${cor}` }} />
         <span style={{ fontSize: 13, fontWeight: 700, color: "var(--txt)" }}>
-          {ehAgente ? nome : nome}
+          {nome}
         </span>
         {memoriaHref && ehAgente ? <a href={memoriaHref} style={{ fontSize: 10.5, color: "var(--accent)", textDecoration: "none" }}>ver memória ↗</a> : null}
         {ehAgente && (
@@ -147,14 +182,14 @@ export default function AgenteChat({ id, nome, cor, tipo, contexto, memoriaHref 
         )}
       </div>
 
-      {/* Messages — fills all available vertical space */}
+      {/* Messages */}
       <div ref={boxRef} style={{ flex: 1, overflowY: "auto", padding: "14px 16px", display: "flex", flexDirection: "column", gap: 14 }}>
-        {msgs.length === 0 ? (
+        {carregando ? (
+          <div style={{ margin: "auto 0", textAlign: "center", color: "var(--dim)", fontSize: 12 }}>Carregando histórico…</div>
+        ) : msgs.length === 0 ? (
           <div style={{ margin: "auto 0", textAlign: "center", color: "var(--dim)", fontSize: 12.5 }}>
             <p style={{ marginBottom: 12 }}>
-              {ehAgente
-                ? `Pergunte algo para ${nome}.`
-                : `Inicie uma conversa com ${nome}.`}
+              {ehAgente ? `Pergunte algo para ${nome}.` : `Inicie uma conversa com ${nome}.`}
             </p>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 7, justifyContent: "center" }}>
               {sugestoes.map((s) => (
@@ -191,7 +226,7 @@ export default function AgenteChat({ id, nome, cor, tipo, contexto, memoriaHref 
                     <button className="hx-btn hx-btn-primary" style={{ padding: "5px 11px", fontSize: 11 }} onClick={() => salvarFeedback(i, m.rating!, notas[i] ?? "")}>Enviar</button>
                   </div>
                 ) : null}
-                {m.fbSaved ? <span style={{ fontSize: 10.5, color: "var(--green)" }}>{m.rating === 5 ? "Valeu! 🙏 salvei como acerto." : "Feedback salvo — vou usar pra melhorar."}</span> : null}
+                {m.fbSaved ? <span style={{ fontSize: 10.5, color: "var(--green)" }}>{m.rating === 5 ? "Valeu! salvei como acerto." : "Feedback salvo — vou usar pra melhorar."}</span> : null}
                 {m.acao && !m.acaoResult ? (
                   <div style={{ border: "1px solid var(--accent)", background: "color-mix(in srgb, var(--accent) 8%, transparent)", borderRadius: 10, padding: "10px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
                     <div style={{ fontSize: 12.5, color: "var(--txt)", lineHeight: 1.45 }}>⚙️ <b>Ação sugerida:</b> alterar {ACAO_LABEL[m.acao.tipo] ?? m.acao.tipo} da etapa <b>#{m.acao.etapa}</b> para <b>&ldquo;{m.acao.valor}&rdquo;</b>{m.acao.motivo ? ` — ${m.acao.motivo}` : ""}.</div>
@@ -206,10 +241,10 @@ export default function AgenteChat({ id, nome, cor, tipo, contexto, memoriaHref 
             ) : null}
           </div>
         ))}
-        {loading ? <div style={{ fontSize: 12, color: "var(--dim)" }}>{nome} está pensando…</div> : null}
+        {loading ? <div style={{ fontSize: 12, color: "var(--dim)" }}>{nome} está respondendo…</div> : null}
       </div>
 
-      {/* Input — fixed at bottom */}
+      {/* Input */}
       <form
         onSubmit={(e) => { e.preventDefault(); enviar(); }}
         style={{ display: "flex", gap: 8, padding: "12px 14px", borderTop: "1px solid var(--line)", alignItems: "center", flexShrink: 0, background: "var(--bg)" }}

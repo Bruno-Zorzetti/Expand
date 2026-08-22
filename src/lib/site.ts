@@ -4,6 +4,11 @@
 // .vercel.app (ex: expand-hazel.vercel.app), gerando links errados enviados a clientes.
 export function siteUrl(): string {
   const s = process.env.NEXT_PUBLIC_SITE_URL;
-  if (s && !/localhost|127\.0\.0\.1/.test(s)) return s.replace(/\/$/, "");
+  if (s) {
+    // Strip BOM (﻿) e espaços acidentais que surgem ao copiar/colar no Vercel
+    const cleaned = s.replace(/^﻿/, "").trim().replace(/\/$/, "");
+    // Rejeita localhost E subdomínios .vercel.app (preview — link errado para clientes)
+    if (cleaned && !/localhost|127\.0\.0\.1|\.vercel\.app/.test(cleaned)) return cleaned;
+  }
   return "https://expand.hshs.com.br";
 }

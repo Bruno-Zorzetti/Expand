@@ -13,7 +13,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (!me || !["admin", "equipe"].includes(me.role as string)) return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
   const body = await req.json().catch(() => ({}));
-  const { data: pf } = await supabase.from("expand_perfis").select("nome, cargo, area, tipo, bio, prompt, memoria").eq("id", id).single();
+  const { data: pf } = await supabase.from("expand_perfis").select("nome, cargo, area, tipo, bio, prompt, memoria, personalidade_pesos, disc_d, disc_i, disc_s, disc_c, arquetipo").eq("id", id).single();
   if (!pf) return NextResponse.json({ error: "not found" }, { status: 404 });
 
   // ---- salvar na memória (curadoria manual do chat) ----
@@ -101,7 +101,21 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         pf.memoria ? `\n=== SUA MEMÓRIA ===\n${pf.memoria}` : "",
         base ? `\n=== SUA BASE DE CONHECIMENTO (acertos, erros, aprendizados, modelos, avaliações) ===\n${base}` : "",
         atividades ? `\n=== SUAS ATIVIDADES ATUAIS ===\n${atividades}` : "",
-        `\nResponda sempre em português, no papel de ${nome}, usando seu conhecimento e experiência. Seja direto e prático. Sem travessão. Se não souber algo, diga o que faria para descobrir.`,
+        (() => {
+          const pp = pf.personalidade_pesos as Record<string, unknown> | null;
+          const disc = pp?.disc as Record<string, number> | undefined;
+          const arqs = pp?.arquetipos as Record<string, number> | undefined;
+          const formalidade = typeof pp?.formalidade === "number" ? pp.formalidade : null;
+          const parts: string[] = [];
+          if (disc) parts.push(`Perfil DISC: D-dominante ${disc.D ?? 0}%, I-influente ${disc.I ?? 0}%, S-estável ${disc.S ?? 0}%, C-criterioso ${disc.C ?? 0}%.`);
+          if (arqs) {
+            const top = Object.entries(arqs).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([k, v]) => `${k} (${v})`).join(", ");
+            if (top) parts.push(`Arquétipos dominantes: ${top}.`);
+          }
+          if (formalidade !== null) parts.push(`Registro: ${formalidade >= 0.7 ? "formal e preciso" : formalidade >= 0.4 ? "profissional com leveza" : "direto e descontraído"}.`);
+          return parts.length ? `\n${parts.join(" ")}` : "";
+        })(),
+        `\nResponda sempre em português, no papel de ${nome}, usando seu conhecimento e experiência. Tom profissional e objetivo — evite gírias, expressões coloquiais ("bora lá", "vamos pra cima") e frases motivacionais genéricas. Seja direto e prático. Sem travessão. Se não souber algo, diga o que faria para descobrir.`,
       ]
     : [
         `Você é o assistente de IA de ${nome}, ${pf.cargo ?? ""}${pf.area ? ` (${pf.area})` : ""} da Expand. Você tem as mesmas habilidades e funções de ${nome} e conhece o contexto, o RAG e as atividades dela.`,
@@ -110,7 +124,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         pf.memoria ? `\n=== CONTEXTO DE ${nome} ===\n${pf.memoria}` : "",
         base ? `\n=== BASE DE CONHECIMENTO DE ${nome} ===\n${base}` : "",
         atividades ? `\n=== ATIVIDADES ATUAIS DE ${nome} ===\n${atividades}` : "",
-        `\nResponda em português, como assistente de ${nome}. Direto e prático. Sem travessão.`,
+        `\nResponda em português, como assistente de ${nome}. Tom profissional e objetivo — evite gírias e expressões coloquiais. Direto e prático. Sem travessão.`,
       ]
   ).filter(Boolean).join("\n")
     + contextoProduto

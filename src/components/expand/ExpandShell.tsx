@@ -21,6 +21,7 @@ const NAV: NavSec[] = [
     id: "tarefas",
     sec: "Tarefas",
     items: [
+      { href: "/expand/chat",          label: "Chat",                icon: "bubble",   eyebrow: "Mensagens da equipe" },
       { href: "/expand/v2",           label: "Meu Dia",             icon: "grid",     eyebrow: "Suas tarefas de hoje" },
       { href: "/expand/planejamento", label: "Calendário",          icon: "calendar", eyebrow: "Agenda pessoal" },
       { href: "/expand/plano",        label: "Plano de Ação",       icon: "list",     eyebrow: "Objetivos e ações" },
@@ -106,6 +107,7 @@ function Ic({ name }: { name: string }) {
     building: <><rect x="3" y="9" width="18" height="13" rx="1.5" /><path d="M3 9l9-6 9 6" /><rect x="9" y="15" width="6" height="7" /></>,
     bars: <><rect x="3" y="3" width="18" height="4" rx="1.5" /><rect x="3" y="10" width="13" height="4" rx="1.5" /><rect x="3" y="17" width="9" height="4" rx="1.5" /></>,
     grip: <><circle cx="9" cy="6" r="1.2" /><circle cx="15" cy="6" r="1.2" /><circle cx="9" cy="12" r="1.2" /><circle cx="15" cy="12" r="1.2" /><circle cx="9" cy="18" r="1.2" /><circle cx="15" cy="18" r="1.2" /></>,
+    bubble: <><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></>,
   };
   return <svg className="ex-ic" viewBox="0 0 24 24">{paths[name]}</svg>;
 }
