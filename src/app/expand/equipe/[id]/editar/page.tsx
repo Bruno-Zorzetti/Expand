@@ -106,9 +106,62 @@ export default async function EditarPerfil({ params, searchParams }: {
         </div>
 
         <div style={fgroup}>
+          <label style={label}>Imagem de capa do hero (URL)</label>
+          <input name="capa_url" defaultValue={(p as Perfil & { capa_url?: string | null }).capa_url ?? ""} style={fld} placeholder="https://… (foto de fundo do perfil — deixe em branco para usar gradiente)" />
+        </div>
+
+        <div style={fgroup}>
           <label style={label}>Bio</label>
           <textarea name="bio" defaultValue={(p.bio as string | null) ?? ""} rows={3} style={{ ...fld, resize: "vertical" }} placeholder="Resumo de 2-3 frases sobre o papel e estilo de trabalho." />
         </div>
+
+        {!ehAgente && (
+          <>
+            <div style={{ borderTop: "1px solid var(--line)", paddingTop: 16 }}>
+              <p style={{ fontSize: 11, color: "var(--dim)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 12 }}>Contato & redes sociais</p>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div style={fgroup}>
+                <label style={label}>E-mail</label>
+                <input name="email" type="email" defaultValue={(p as Perfil & { email?: string | null }).email ?? ""} style={fld} placeholder="nome@exemplo.com" />
+              </div>
+              <div style={fgroup}>
+                <label style={label}>WhatsApp (com DDI)</label>
+                <input name="telefone" defaultValue={(p as Perfil & { telefone?: string | null }).telefone ?? ""} style={fld} placeholder="+5511999999999" />
+              </div>
+              <div style={fgroup}>
+                <label style={label}>LinkedIn (URL)</label>
+                <input name="linkedin" defaultValue={(p as Perfil & { linkedin?: string | null }).linkedin ?? ""} style={fld} placeholder="https://linkedin.com/in/…" />
+              </div>
+              <div style={fgroup}>
+                <label style={label}>Instagram (@usuario ou URL)</label>
+                <input name="instagram" defaultValue={(p as Perfil & { instagram?: string | null }).instagram ?? ""} style={fld} placeholder="@usuario ou URL" />
+              </div>
+            </div>
+            <div style={{ borderTop: "1px solid var(--line)", paddingTop: 16 }}>
+              <p style={{ fontSize: 11, color: "var(--dim)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 4 }}>Competências (separadas por vírgula)</p>
+              <p style={{ fontSize: 11, color: "var(--dim)", marginBottom: 12 }}>Ex: JavaScript, React, TypeScript</p>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div style={fgroup}>
+                <label style={label}>Habilidades técnicas</label>
+                <input name="hard" defaultValue={Array.isArray((p as Perfil & { hard?: string[] }).hard) ? ((p as Perfil & { hard?: string[] }).hard ?? []).join(", ") : ""} style={fld} placeholder="Ex: Figma, Photoshop, Canva" />
+              </div>
+              <div style={fgroup}>
+                <label style={label}>Habilidades comportamentais</label>
+                <input name="soft" defaultValue={Array.isArray((p as Perfil & { soft?: string[] }).soft) ? ((p as Perfil & { soft?: string[] }).soft ?? []).join(", ") : ""} style={fld} placeholder="Ex: Liderança, Comunicação, Empatia" />
+              </div>
+              <div style={fgroup}>
+                <label style={label}>Ferramentas & sistemas</label>
+                <input name="ferramentas" defaultValue={Array.isArray((p as Perfil & { ferramentas?: string[] }).ferramentas) ? ((p as Perfil & { ferramentas?: string[] }).ferramentas ?? []).join(", ") : ""} style={fld} placeholder="Ex: Notion, Slack, HubSpot" />
+              </div>
+              <div style={fgroup}>
+                <label style={label}>Linguagens de programação</label>
+                <input name="linguagens" defaultValue={Array.isArray((p as Perfil & { linguagens?: string[] }).linguagens) ? ((p as Perfil & { linguagens?: string[] }).linguagens ?? []).join(", ") : ""} style={fld} placeholder="Ex: TypeScript, Python, SQL" />
+              </div>
+            </div>
+          </>
+        )}
 
         {ehAgente && (
           <>

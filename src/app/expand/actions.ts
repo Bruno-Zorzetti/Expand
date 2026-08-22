@@ -1208,7 +1208,14 @@ export async function salvarPerfil(formData: FormData) {
 
   const up: Record<string, unknown> = {};
   const s = (k: string, col = k) => { const v = String(formData.get(k) ?? "").trim(); up[col] = v || null; };
-  s("nome"); s("cargo"); s("area"); s("bio"); s("foto_url"); s("cor");
+  s("nome"); s("cargo"); s("area"); s("bio"); s("foto_url"); s("cor"); s("capa_url");
+  s("email"); s("telefone"); s("linkedin"); s("instagram");
+  // Arrays de skills (texto separado por vírgulas → array)
+  const arrField = (k: string) => {
+    const v = String(formData.get(k) ?? "").trim();
+    up[k] = v ? v.split(",").map((x) => x.trim()).filter(Boolean) : null;
+  };
+  arrField("hard"); arrField("soft"); arrField("ferramentas"); arrField("linguagens");
   // Agents only
   s("prompt"); s("memoria");
   // Processos — formato texto simples: cada linha "# Título" abre um processo, "- passo" adiciona um passo

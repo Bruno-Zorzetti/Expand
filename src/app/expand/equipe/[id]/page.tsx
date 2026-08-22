@@ -216,18 +216,20 @@ export default async function PerfilPage({ params, searchParams }: { params: Pro
   // Abas — estrutura diferente para agente de IA vs humano
   const TABS: { k: string; l: string }[] = ehAgente
     ? [
-        { k: "visao",      l: "Sobre" },
-        { k: "chat",       l: "Conversar" },
-        { k: "mente",      l: "Mente & Grafo" },
-        { k: "metodologia",l: "Metodologia" },
-        { k: "processos",  l: "Processos" },
-        { k: "avaliacoes", l: `Avaliações${avaliacoes.length ? ` (${avaliacoes.length})` : ""}` },
+        { k: "visao",       l: "Sobre" },
+        { k: "chat",        l: "Conversar" },
+        { k: "mente",       l: "Mente & Grafo" },
+        { k: "diagnosticos",l: "Diagnósticos" },
+        { k: "metodologia", l: "Metodologia" },
+        { k: "processos",   l: "Processos" },
+        { k: "avaliacoes",  l: `Avaliações${avaliacoes.length ? ` (${avaliacoes.length})` : ""}` },
       ]
     : [
-        { k: "visao",      l: "Visão geral" },
-        { k: "skills",     l: "Competências" },
-        { k: "arquivos",   l: `Arquivos${arquivos.length ? ` (${arquivos.length})` : ""}` },
-        { k: "avaliacoes", l: `Avaliações${avaliacoes.length ? ` (${avaliacoes.length})` : ""}` },
+        { k: "visao",       l: "Visão geral" },
+        { k: "diagnosticos",l: "Diagnósticos" },
+        { k: "agenda",      l: "Agenda" },
+        { k: "arquivos",    l: `Arquivos${arquivos.length ? ` (${arquivos.length})` : ""}` },
+        { k: "avaliacoes",  l: `Avaliações${avaliacoes.length ? ` (${avaliacoes.length})` : ""}` },
       ];
 
   return (
@@ -236,29 +238,43 @@ export default async function PerfilPage({ params, searchParams }: { params: Pro
 
       {/* HERO */}
       <div className="ex-panel hx-glass" style={{ padding: 0, marginBottom: 14, overflow: "hidden" }}>
-        <div style={{ height: 76, background: `linear-gradient(120deg, color-mix(in srgb, ${cor} 34%, transparent), transparent 70%)` }} />
-        <div style={{ display: "flex", gap: 18, padding: "0 22px 18px", marginTop: -52, flexWrap: "wrap" }}>
-          <div style={{ border: "3px solid var(--panel-2)", borderRadius: "50%", flexShrink: 0, boxShadow: `0 0 0 2px ${cor}55`, overflow: "hidden", width: 110, height: 110 }}><PerfilAvatar p={p} size={110} radius={55} /></div>
-          <div style={{ flex: 1, minWidth: 240, paddingTop: 52 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-              <h1 style={{ fontFamily: "var(--serif)", fontSize: 25, fontWeight: 600 }}>{p.nome}</h1>
-              <span className="ex-pill" style={{ background: `color-mix(in srgb, ${cor} 16%, transparent)`, color: cor }}><i className="ex-dot" />{ehAgente ? "Agente de IA" : "Humano"}</span>
-              <div style={{ marginLeft: "auto", display: "flex", gap: 8, flexWrap: "wrap" }}>
-                {!ehAgente && <Link href={`/expand/equipe/${id}/conhecimento`} className="hx-btn hx-btn-ghost" style={{ padding: "6px 12px", fontSize: 12 }}>Base de conhecimento</Link>}
-                {podeEditar ? <Link href={`/expand/equipe/${id}/editar`} className="hx-btn hx-btn-ghost" style={{ padding: "6px 12px", fontSize: 12 }}>Editar</Link> : null}
-              </div>
+        {/* Banda de capa */}
+        <div style={{
+          height: 140, position: "relative",
+          background: (p as { capa_url?: string | null }).capa_url
+            ? `url(${(p as { capa_url?: string | null }).capa_url}) center/cover no-repeat`
+            : `linear-gradient(135deg, color-mix(in srgb, ${cor} 42%, var(--panel)) 0%, color-mix(in srgb, ${cor} 12%, var(--panel)) 100%)`,
+        }}>
+          {/* overlay suave sobre foto de fundo */}
+          {(p as { capa_url?: string | null }).capa_url && (
+            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(0,0,0,.18) 0%, rgba(0,0,0,.48) 100%)" }} />
+          )}
+          {/* botão editar no canto */}
+          <div style={{ position: "absolute", top: 10, right: 12, display: "flex", gap: 8, zIndex: 2 }}>
+            {podeEditar ? <Link href={`/expand/equipe/${id}/editar`} className="hx-btn hx-btn-ghost" style={{ padding: "5px 11px", fontSize: 11.5, backdropFilter: "blur(6px)" }}>Editar</Link> : null}
+          </div>
+          {/* avatar centralizado verticalmente na banda */}
+          <div style={{ position: "absolute", bottom: -52, left: "50%", transform: "translateX(-50%)", zIndex: 2 }}>
+            <div style={{ border: "3px solid var(--panel)", borderRadius: "50%", boxShadow: `0 0 0 2px ${cor}66, 0 4px 16px rgba(0,0,0,.3)`, overflow: "hidden", width: 104, height: 104 }}>
+              <PerfilAvatar p={p} size={104} radius={52} />
             </div>
-            <p style={{ color: "var(--accent)", fontSize: 13.5, fontWeight: 600, marginTop: 3 }}>{p.cargo}{p.area ? ` · ${p.area}` : ""}</p>
-            {p.bio ? <p style={{ color: "var(--mut)", fontSize: 13.5, marginTop: 10, lineHeight: 1.6, maxWidth: 720 }}>{p.bio}</p> : null}
-            <div style={{ display: "flex", gap: 22, flexWrap: "wrap", marginTop: 14 }}>
-              {p.aniversario ? <div className="ex-fact"><span className="fi">🎂</span> <span>Aniversário <b>{fmtDia(p.aniversario)}</b></span></div> : null}
-              {p.pais ? <div className="ex-fact"><span className="fi">📍</span> <b>{p.pais}</b></div> : null}
-              {p.idade ? <div className="ex-fact"><span className="fi">⏳</span> <b>{p.idade} anos</b></div> : null}
-              {p.email ? <div className="ex-fact"><span className="fi">✉</span> <b>{p.email}</b></div> : null}
-              {p.telefone ? <a className="ex-fact" href={`https://wa.me/${p.telefone.replace(/\D/g, "")}`} target="_blank" rel="noreferrer" style={{ textDecoration: "none" }}><span className="fi">💬</span> <b>WhatsApp</b></a> : null}
-              {instaUrl ? <a className="ex-fact" href={instaUrl} target="_blank" rel="noreferrer" style={{ textDecoration: "none" }}><span className="fi">📸</span> <b>Instagram</b></a> : null}
-              {p.linkedin ? <a className="ex-fact" href={p.linkedin} target="_blank" rel="noreferrer" style={{ textDecoration: "none" }}><span className="fi" style={{ fontSize: 10, fontWeight: 800 }}>in</span> <b>LinkedIn</b></a> : null}
-            </div>
+          </div>
+        </div>
+        {/* Conteúdo abaixo da capa */}
+        <div style={{ paddingTop: 62, paddingBottom: 20, paddingLeft: 24, paddingRight: 24, textAlign: "center" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, flexWrap: "wrap", marginBottom: 4 }}>
+            <h1 style={{ fontFamily: "var(--serif)", fontSize: 24, fontWeight: 700 }}>{p.nome}</h1>
+            <span className="ex-pill" style={{ background: `color-mix(in srgb, ${cor} 16%, transparent)`, color: cor }}><i className="ex-dot" />{ehAgente ? "Agente de IA" : "Humano"}</span>
+          </div>
+          <p style={{ color: "var(--accent)", fontSize: 13, fontWeight: 600 }}>{p.cargo}{p.area ? ` · ${labelArea(p.area)}` : ""}</p>
+          {p.bio ? <p style={{ color: "var(--mut)", fontSize: 13, marginTop: 10, lineHeight: 1.65, maxWidth: 640, margin: "10px auto 0" }}>{p.bio}</p> : null}
+          <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 14, justifyContent: "center" }}>
+            {p.aniversario ? <div className="ex-fact"><span className="fi">🎂</span> <span>Aniversário <b>{fmtDia(p.aniversario)}</b></span></div> : null}
+            {p.pais ? <div className="ex-fact"><span className="fi">📍</span> <b>{p.pais}</b></div> : null}
+            {p.email ? <div className="ex-fact"><span className="fi">✉</span> <b>{p.email}</b></div> : null}
+            {p.telefone ? <a className="ex-fact" href={`https://wa.me/${p.telefone.replace(/\D/g, "")}`} target="_blank" rel="noreferrer" style={{ textDecoration: "none" }}><span className="fi">💬</span> <b>WhatsApp</b></a> : null}
+            {instaUrl ? <a className="ex-fact" href={instaUrl} target="_blank" rel="noreferrer" style={{ textDecoration: "none" }}><span className="fi">📸</span> <b>Instagram</b></a> : null}
+            {p.linkedin ? <a className="ex-fact" href={p.linkedin} target="_blank" rel="noreferrer" style={{ textDecoration: "none" }}><span className="fi" style={{ fontSize: 10, fontWeight: 800 }}>in</span> <b>LinkedIn</b></a> : null}
           </div>
         </div>
       </div>
@@ -514,6 +530,182 @@ export default async function PerfilPage({ params, searchParams }: { params: Pro
             {p.portfolio_url ? <Sec titulo="Portfólio"><a href={p.portfolio_url} target="_blank" rel="noreferrer" className="ex-skill" style={{ color: "var(--accent)" }}>{p.portfolio_label ?? p.portfolio_url}</a></Sec> : null}
             {ehAgente && p.prompt ? <Sec titulo="O que penso / instrução"><div style={{ fontSize: 12.5, color: "var(--mut)", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{p.prompt}</div></Sec> : null}
           </div>
+        </div>
+      ) : null}
+
+      {/* ---------- DIAGNÓSTICOS ---------- */}
+      {tab === "diagnosticos" ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {comport ? (
+            <>
+              {/* Badges de perfil */}
+              <div className="ex-panel hx-glass" style={{ padding: "18px 20px" }}>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 20, fontSize: 12, fontWeight: 700, background: `color-mix(in srgb,${cor} 14%,transparent)`, color: cor, border: `1px solid color-mix(in srgb,${cor} 28%,transparent)` }}>DISC: {comport.discSegmento} · {comport.discNome}</span>
+                  {blenda ? <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 20, fontSize: 12, fontWeight: 700, background: `color-mix(in srgb,${blenda.cor} 14%,transparent)`, color: blenda.cor, border: `1px solid color-mix(in srgb,${blenda.cor} 28%,transparent)` }}>Blenda {blenda.cod} · {blenda.nome}</span> : null}
+                  {temper ? <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 20, fontSize: 12, fontWeight: 700, background: `color-mix(in srgb,${temper.cor} 14%,transparent)`, color: temper.cor, border: `1px solid color-mix(in srgb,${temper.cor} 28%,transparent)` }}>{rotuloTemp} · {temper.arquetipo}</span> : null}
+                  {arq ? <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 20, fontSize: 12, fontWeight: 700, background: "color-mix(in srgb,var(--accent-2) 14%,transparent)", color: "var(--accent-2)", border: "1px solid color-mix(in srgb,var(--accent-2) 28%,transparent)" }}>Arq. {arq.dominanteNome}</span> : null}
+                </div>
+
+                {/* DISC radar + Arquétipo lado a lado */}
+                <div style={{ display: "grid", gridTemplateColumns: "200px 1fr", gap: 28, alignItems: "start" }}>
+                  <div>
+                    <div style={{ fontSize: 10.5, fontWeight: 700, color: "var(--dim)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 10 }}>Radar DISC</div>
+                    <Radar cor={cor} eixos={[{ l: "D", v: comport.disc.D / 15 }, { l: "I", v: comport.disc.I / 15 }, { l: "S", v: comport.disc.S / 15 }, { l: "C", v: comport.disc.C / 15 }]} />
+                    {/* Barras DISC */}
+                    <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 6 }}>
+                      {(["D", "I", "S", "C"] as const).map((k) => (
+                        <div key={k} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: cor, width: 14 }}>{k}</span>
+                          <div style={{ flex: 1, height: 7, borderRadius: 4, background: "var(--panel-2)", overflow: "hidden" }}>
+                            <div style={{ height: "100%", width: `${(comport.disc[k] / 15) * 100}%`, background: cor, borderRadius: 4 }} />
+                          </div>
+                          <span style={{ fontSize: 10.5, color: "var(--dim)", width: 22, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{comport.disc[k]}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    {arq ? (
+                      <>
+                        <div style={{ fontSize: 10.5, fontWeight: 700, color: "var(--dim)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 10 }}>Arquétipos de marca</div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                          {arq.top.map((a) => (
+                            <div key={a.k} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                              <span style={{ fontSize: 12, color: "var(--mut)", width: 100, flexShrink: 0 }}>{a.nome}</span>
+                              <div style={{ flex: 1, height: 8, borderRadius: 4, background: "var(--panel-2)", overflow: "hidden" }}>
+                                <div style={{ height: "100%", width: `${(a.v / 5) * 100}%`, background: a.cor, borderRadius: 4 }} />
+                              </div>
+                              <span style={{ fontSize: 11, color: "var(--dim)", width: 28, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{a.v.toFixed(1)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    ) : <p style={{ fontSize: 12, color: "var(--dim)" }}>Sem teste de arquétipo ainda.</p>}
+                  </div>
+                </div>
+              </div>
+
+              {/* Insights textuais completos */}
+              <div className="ex-panel hx-glass" style={{ padding: "18px 20px" }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--dim)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 14 }}>Análise comportamental</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  <div style={{ padding: "12px 14px", borderRadius: 10, background: "var(--panel-2)", border: "1px solid var(--line)" }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: cor, marginBottom: 6 }}>DISC — {comport.discNome}</div>
+                    <p style={{ fontSize: 13, color: "var(--mut)", lineHeight: 1.65 }}>{comport.discDesc}</p>
+                  </div>
+                  {blenda ? (
+                    <div style={{ padding: "12px 14px", borderRadius: 10, background: "var(--panel-2)", border: "1px solid var(--line)" }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: blenda.cor, marginBottom: 6 }}>Como se comunicar com {p.nome.split(" ")[0]}</div>
+                      <p style={{ fontSize: 13, color: "var(--mut)", lineHeight: 1.65 }}>{blenda.comoFalar}</p>
+                    </div>
+                  ) : null}
+                  {temper ? (
+                    <div style={{ padding: "12px 14px", borderRadius: 10, background: "var(--panel-2)", border: "1px solid var(--line)" }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: temper.cor, marginBottom: 6 }}>Temperamento — {temper.arquetipo} ({rotuloTemp})</div>
+                      {temper.luzSombra.virtudes.length ? <p style={{ fontSize: 13, color: "var(--mut)", lineHeight: 1.65, marginBottom: 6 }}><b style={{ color: "var(--green)" }}>Pontos fortes:</b> {temper.luzSombra.virtudes.join(", ")}.</p> : null}
+                      {temper.luzSombra.sombras.length ? <p style={{ fontSize: 13, color: "var(--mut)", lineHeight: 1.65 }}><b style={{ color: "var(--warn)" }}>Ponto cego:</b> {temper.luzSombra.sombras.join(", ")}.</p> : null}
+                    </div>
+                  ) : null}
+                  {arq ? (
+                    <div style={{ padding: "12px 14px", borderRadius: 10, background: "var(--panel-2)", border: "1px solid var(--line)" }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: "var(--accent-2)", marginBottom: 6 }}>Arquétipo dominante — {arq.dominanteNome}</div>
+                      <p style={{ fontSize: 13, color: "var(--mut)", lineHeight: 1.65 }}>{arq.comoLidar}</p>
+                    </div>
+                  ) : null}
+                </div>
+                <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 14 }}>
+                  <Link href={`/expand/equipe/${id}/comportamental`} className="hx-btn hx-btn-ghost" style={{ padding: "6px 13px", fontSize: 12 }}>Relatório completo ↗</Link>
+                  {podeEditar ? <Link href={`/expand/equipe/${id}/diagnostico`} style={{ color: "var(--accent)", fontSize: 12 }}>refazer diagnóstico</Link> : null}
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="ex-panel hx-glass" style={{ padding: "32px 20px", textAlign: "center" }}>
+              <p style={{ fontSize: 14, color: "var(--mut)", marginBottom: 14 }}>Nenhum diagnóstico comportamental de {p.nome} ainda.</p>
+              {podeEditar ? <Link href={`/expand/equipe/${id}/diagnostico`} className="hx-btn hx-btn-primary">{ehAgente ? "Iniciar diagnóstico" : "Preencher diagnóstico"}</Link> : <p style={{ fontSize: 12, color: "var(--dim)" }}>Aguardando {p.nome} preencher.</p>}
+            </div>
+          )}
+        </div>
+      ) : null}
+
+      {/* ---------- AGENDA ---------- */}
+      {tab === "agenda" ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {!ehAgente ? (
+            <>
+              {/* Google Calendar */}
+              <div className="ex-panel hx-glass" style={{ padding: 0 }}>
+                <div className="ph"><span className="pt">Google Calendar</span></div>
+                <div className="pb">
+                  {gcalStatus.conectado || podeEditar ? (
+                    <GoogleCalConnect perfilId={id} initialStatus={gcalStatus} />
+                  ) : (
+                    <p style={{ fontSize: 12, color: "var(--dim)" }}>Agenda não configurada.</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Disponibilidade — feriados & folgas */}
+              <div className="ex-panel hx-glass" style={{ padding: 0 }}>
+                <div className="ph">
+                  <span className="pt">Disponibilidade</span>
+                  <span style={{ marginLeft: "auto", fontSize: 10.5, color: "var(--dim)" }}>PMO evita alocar nesses dias</span>
+                </div>
+                <div className="pb">
+                  {feriados.length ? (
+                    <div style={{ marginBottom: 10 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: "var(--dim)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 6 }}>Feriados</div>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                        {feriados.map((f) => {
+                          const marcado = folgaSet.has(f.data);
+                          return podeEditar ? (
+                            <form key={f.id} action={marcarFolga}>
+                              <input type="hidden" name="perfilId" value={id} /><input type="hidden" name="data" value={f.data} /><input type="hidden" name="motivo" value={f.nome} />
+                              <button type="submit" disabled={marcado} title={marcado ? "já marcado" : "marcar folga"} style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 8px", borderRadius: 7, border: `1px solid ${marcado ? "var(--green)" : "var(--line-2)"}`, background: marcado ? "color-mix(in srgb, var(--green) 12%, transparent)" : "var(--panel-2)", color: marcado ? "var(--green)" : "var(--mut)", cursor: marcado ? "default" : "pointer", fontSize: 11, fontFamily: "inherit" }}>
+                                {marcado ? "✓" : "+"} {new Date(f.data + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })} {f.nome}
+                              </button>
+                            </form>
+                          ) : (
+                            <span key={f.id} style={{ padding: "4px 8px", borderRadius: 7, border: "1px solid var(--line)", background: "var(--panel-2)", color: marcado ? "var(--green)" : "var(--dim)", fontSize: 11 }}>{marcado ? "✓ " : ""}{new Date(f.data + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })} {f.nome}</span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : null}
+                  {folgas.length ? (
+                    <div style={{ marginBottom: podeEditar ? 10 : 0 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: "var(--dim)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 6 }}>Folgas marcadas</div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                        {folgas.map((f) => (
+                          <div key={f.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--mut)" }}>
+                            <span style={{ color: "var(--accent)", fontWeight: 700, fontVariantNumeric: "tabular-nums", flexShrink: 0 }}>{new Date(f.data + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}</span>
+                            <span style={{ flex: 1 }}>{f.motivo ?? "folga"}</span>
+                            {podeEditar ? <form action={removerFolga}><input type="hidden" name="id" value={f.id} /><input type="hidden" name="perfilId" value={id} /><button type="submit" className="ex-arqbtn no" style={{ padding: "1px 7px", fontSize: 10 }}>×</button></form> : null}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                  {!feriados.length && !folgas.length ? <p style={{ fontSize: 12, color: "var(--dim)" }}>Nenhuma folga marcada.</p> : null}
+                  {podeEditar ? (
+                    <form action={marcarFolga} style={{ display: "flex", flexDirection: "column", gap: 6, borderTop: (feriados.length || folgas.length) ? "1px solid var(--line)" : "none", paddingTop: (feriados.length || folgas.length) ? 10 : 0 }}>
+                      <input type="hidden" name="perfilId" value={id} />
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <label style={{ flex: 1 }}><span style={lb}>Data</span><input type="date" name="data" required style={fld} /></label>
+                        <label style={{ flex: 2 }}><span style={lb}>Motivo</span><input name="motivo" placeholder="viagem, feriado…" style={fld} /></label>
+                      </div>
+                      <button className="hx-btn hx-btn-ghost" type="submit" style={{ padding: "6px 12px", fontSize: 11.5, alignSelf: "flex-start" }}>+ Adicionar</button>
+                    </form>
+                  ) : null}
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="ex-panel hx-glass" style={{ padding: "24px 20px", textAlign: "center" }}>
+              <p style={{ fontSize: 13, color: "var(--dim)" }}>Agentes de IA não têm agenda pessoal.</p>
+            </div>
+          )}
         </div>
       ) : null}
 
