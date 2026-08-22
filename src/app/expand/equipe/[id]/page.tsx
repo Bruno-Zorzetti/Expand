@@ -197,9 +197,17 @@ export default async function PerfilPage({ params, searchParams }: { params: Pro
 
   const skillsTotal = (p.hard?.length ?? 0) + (p.soft?.length ?? 0) + (p.ferramentas?.length ?? 0) + (p.linguagens?.length ?? 0);
   const whats = p.telefone ? p.telefone.replace(/\D/g, "") : null;
-  const falarHref = ehAgente ? `/expand/equipe/${id}?t=chat` : whats ? `https://wa.me/${whats}` : p.email ? `mailto:${p.email}` : `/expand/equipe/${id}?t=chat`;
+  const falarHref = ehAgente ? `/expand/equipe/${id}?t=chat` : whats ? `https://wa.me/${whats}` : p.email ? `mailto:${p.email}` : null;
   const falarLabel = ehAgente ? `💬 Conversar com ${p.nome}` : `💬 Falar com ${p.nome}`;
-  const falarExterno = !ehAgente && (!!whats || !!p.email);
+  const falarExterno = true;
+
+  const AREA_LABEL: Record<string, string> = {
+    pm: "Gest. Projetos", pmo: "PMO", tf: "Tech & IA", tech: "Tech & IA",
+    cm: "Comercial", comercial: "Comercial", cs: "Customer Success",
+    marketing: "Marketing", design: "Design", conteudo: "Conteúdo",
+    gestao: "Gestão", video: "Vídeo", operacao: "Operação",
+  };
+  const labelArea = (a: string) => AREA_LABEL[a.toLowerCase()] ?? a.charAt(0).toUpperCase() + a.slice(1);
 
   const nomeToSlug = (nome: string) =>
     nome.toLowerCase().replace(/[áàãâä]/g,"a").replace(/[éèê]/g,"e").replace(/[íìî]/g,"i")
@@ -217,13 +225,9 @@ export default async function PerfilPage({ params, searchParams }: { params: Pro
       ]
     : [
         { k: "visao",      l: "Visão geral" },
-        { k: "skills",     l: "Skills & trajetória" },
-        { k: "metodologia",l: "Metodologia" },
-        { k: "processos",  l: "Processos" },
+        { k: "skills",     l: "Competências" },
         { k: "arquivos",   l: `Arquivos${arquivos.length ? ` (${arquivos.length})` : ""}` },
         { k: "avaliacoes", l: `Avaliações${avaliacoes.length ? ` (${avaliacoes.length})` : ""}` },
-        { k: "feedback",   l: `1x1${feedbacks.length ? ` (${feedbacks.length})` : ""}` },
-        { k: "chat",       l: "Assistente" },
       ];
 
   return (
@@ -233,8 +237,8 @@ export default async function PerfilPage({ params, searchParams }: { params: Pro
       {/* HERO */}
       <div className="ex-panel hx-glass" style={{ padding: 0, marginBottom: 14, overflow: "hidden" }}>
         <div style={{ height: 76, background: `linear-gradient(120deg, color-mix(in srgb, ${cor} 34%, transparent), transparent 70%)` }} />
-        <div style={{ display: "flex", gap: 18, padding: "0 22px 18px", marginTop: -46, flexWrap: "wrap" }}>
-          <div style={{ border: "3px solid var(--panel-2)", borderRadius: 10, flexShrink: 0, boxShadow: `0 0 0 1px ${cor}33` }}><PerfilAvatar p={p} size={110} radius={8} /></div>
+        <div style={{ display: "flex", gap: 18, padding: "0 22px 18px", marginTop: -52, flexWrap: "wrap" }}>
+          <div style={{ border: "3px solid var(--panel-2)", borderRadius: "50%", flexShrink: 0, boxShadow: `0 0 0 2px ${cor}55`, overflow: "hidden", width: 110, height: 110 }}><PerfilAvatar p={p} size={110} radius={55} /></div>
           <div style={{ flex: 1, minWidth: 240, paddingTop: 52 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
               <h1 style={{ fontFamily: "var(--serif)", fontSize: 25, fontWeight: 600 }}>{p.nome}</h1>
@@ -270,9 +274,9 @@ export default async function PerfilPage({ params, searchParams }: { params: Pro
           {/* KPI strip */}
           <div className="ex-kpis" style={{ marginBottom: 16 }}>
             <div className="ex-kpi hx-glass"><div className="lab">Nota geral</div><div className="val hx-accent-text">{p.nota ?? "—"}</div><div className="foot">Média das avaliações</div></div>
-            <div className="ex-kpi hx-glass"><div className="lab">Trabalhos</div><div className="val">{p.trabalhos ?? 0}</div><div className="foot">Entregas realizadas</div></div>
-            <div className="ex-kpi hx-glass"><div className="lab">Skills</div><div className="val">{skillsTotal}</div><div className="foot">Hard + soft + ferramentas</div></div>
-            <div className="ex-kpi hx-glass"><div className="lab">1x1</div><div className="val">{feedbacks.length}</div><div className="foot">Registros com o superior</div></div>
+            <div className="ex-kpi hx-glass"><div className="lab">Entregas</div><div className="val">{prod?.concluidas ?? p.trabalhos ?? 0}</div><div className="foot">Tarefas concluídas</div></div>
+            <div className="ex-kpi hx-glass"><div className="lab">No prazo</div><div className="val" style={{ color: prod?.taxaPrazo == null ? "var(--dim)" : prod.taxaPrazo >= 0.7 ? "var(--green)" : "var(--warn)" }}>{prod?.taxaPrazo == null ? "—" : `${Math.round(prod.taxaPrazo * 100)}%`}</div><div className="foot">{prod?.comTempo ? `de ${prod.comTempo} com data` : "sem data cadastrada"}</div></div>
+            <div className="ex-kpi hx-glass"><div className="lab">Avaliações</div><div className="val">{avaliacoes.length}</div><div className="foot">Registros de feedback</div></div>
           </div>
 
           {/* 2-column layout: main + sidebar */}
@@ -369,7 +373,7 @@ export default async function PerfilPage({ params, searchParams }: { params: Pro
                         <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
                           {prod.porArea.slice(0, 5).map((a) => (
                             <div key={a.area} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                              <span style={{ fontSize: 11.5, color: "var(--mut)", width: 120, flexShrink: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.area}</span>
+                              <span style={{ fontSize: 11.5, color: "var(--mut)", width: 130, flexShrink: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{labelArea(a.area)}</span>
                               <div style={{ flex: 1, height: 7, borderRadius: 4, background: "var(--bg)", overflow: "hidden" }}>
                                 <div style={{ height: "100%", width: `${a.taxa != null ? Math.round(a.taxa * 100) : Math.min(100, a.concluidas * 8)}%`, background: cor, borderRadius: 4 }} />
                               </div>
@@ -396,15 +400,7 @@ export default async function PerfilPage({ params, searchParams }: { params: Pro
                     {(podeEditar || gcalStatus.conectado) ? (
                       <GoogleCalConnect perfilId={id} initialStatus={gcalStatus} />
                     ) : null}
-                    {/* ICS link para assinar as tarefas no Google/Apple Calendar */}
-                    {icsUrl ? (
-                      <div style={{ marginTop: podeEditar || gcalStatus.conectado ? 14 : 0, paddingTop: podeEditar || gcalStatus.conectado ? 12 : 0, borderTop: podeEditar || gcalStatus.conectado ? "1px solid var(--line)" : "none" }}>
-                        <div style={{ fontSize: 10.5, fontWeight: 700, color: "var(--dim)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 6 }}>Link ICS — tarefas no seu app</div>
-                        <code style={{ display: "block", fontSize: 10, color: "var(--accent)", background: "var(--bg)", border: "1px solid var(--line-2)", borderRadius: 7, padding: "6px 8px", wordBreak: "break-all", lineHeight: 1.5 }}>{icsUrl}</code>
-                        <p style={{ fontSize: 10.5, color: "var(--dim)", marginTop: 5, lineHeight: 1.4 }}>Cole no Google/Apple Calendar em "Adicionar por URL"</p>
-                      </div>
-                    ) : null}
-                    {!podeEditar && !gcalStatus.conectado && !icsUrl ? (
+                    {!podeEditar && !gcalStatus.conectado ? (
                       <p style={{ fontSize: 12, color: "var(--dim)" }}>Sem agenda configurada.</p>
                     ) : null}
                   </div>
@@ -481,15 +477,21 @@ export default async function PerfilPage({ params, searchParams }: { params: Pro
         </>
       ) : null}
 
-      {/* ---------- SKILLS & TRAJETÓRIA ---------- */}
+      {/* ---------- COMPETÊNCIAS ---------- */}
       {tab === "skills" ? (
         <div className="ex-two">
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            {p.hard?.length ? <Sec titulo="Hard skills — habilidades"><Chips arr={p.hard} /></Sec> : null}
-            {p.soft?.length ? <Sec titulo="Soft skills"><Chips arr={p.soft} /></Sec> : null}
-            {p.ferramentas?.length ? <Sec titulo="Ferramentas"><Chips arr={p.ferramentas} /></Sec> : null}
-            {p.linguagens?.length ? <Sec titulo="Linguagens"><Chips arr={p.linguagens} /></Sec> : null}
-            {p.interesses?.length ? <Sec titulo="Gostos & interesses"><Chips arr={p.interesses} /></Sec> : null}
+            {p.hard?.length ? <Sec titulo="Habilidades técnicas" extra={podeEditar ? <Link href={`/expand/equipe/${id}/editar`} style={{ fontSize: 11.5, color: "var(--accent)" }}>editar</Link> : null}><Chips arr={p.hard} /></Sec> : null}
+            {p.soft?.length ? <Sec titulo="Habilidades comportamentais"><Chips arr={p.soft} /></Sec> : null}
+            {p.ferramentas?.length ? <Sec titulo="Ferramentas & sistemas"><Chips arr={p.ferramentas} /></Sec> : null}
+            {p.linguagens?.length ? <Sec titulo="Linguagens de programação"><Chips arr={p.linguagens} /></Sec> : null}
+            {p.interesses?.length ? <Sec titulo="Interesses & áreas de desenvolvimento"><Chips arr={p.interesses} /></Sec> : null}
+            {!p.hard?.length && !p.soft?.length && !p.ferramentas?.length && !p.linguagens?.length && !p.interesses?.length ? (
+              <div className="ex-panel hx-glass" style={{ padding: "24px 20px", textAlign: "center" }}>
+                <p style={{ fontSize: 13, color: "var(--mut)", marginBottom: 12 }}>Nenhuma competência preenchida ainda.</p>
+                {podeEditar ? <Link href={`/expand/equipe/${id}/editar`} className="hx-btn hx-btn-primary">Preencher perfil</Link> : <p style={{ fontSize: 12, color: "var(--dim)" }}>Aguardando {p.nome} preencher.</p>}
+              </div>
+            ) : null}
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             {p.experiencia?.length ? (
@@ -559,7 +561,27 @@ export default async function PerfilPage({ params, searchParams }: { params: Pro
 
       {/* ---------- ARQUIVOS ---------- */}
       {tab === "arquivos" ? (
-        <Sec titulo="Arquivos" extra={<Link href={`/expand/equipe/${id}/conhecimento`} style={{ fontSize: 11.5, color: "var(--accent)" }}>{ehAgente ? "gerenciar RAG →" : "gerenciar →"}</Link>}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        {/* Drive pessoal do membro */}
+        {!ehAgente ? (
+          <div className="ex-panel hx-glass" style={{ padding: "16px 18px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <span style={{ fontSize: 28 }}>📁</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13.5, fontWeight: 700, marginBottom: 4 }}>Pasta no Google Drive — {p.nome}</div>
+                <div style={{ fontSize: 12, color: "var(--mut)" }}>Seus arquivos pessoais e profissionais em um só lugar.</div>
+              </div>
+              {(p as { drive_folder_url?: string | null }).drive_folder_url ? (
+                <a href={(p as { drive_folder_url?: string | null }).drive_folder_url!} target="_blank" rel="noreferrer" className="hx-btn hx-btn-primary" style={{ padding: "8px 16px", fontSize: 12.5, flexShrink: 0 }}>Abrir pasta ↗</a>
+              ) : podeEditar ? (
+                <Link href={`/expand/equipe/${id}/editar`} className="hx-btn hx-btn-ghost" style={{ padding: "8px 14px", fontSize: 12, flexShrink: 0 }}>Adicionar link da pasta</Link>
+              ) : (
+                <span style={{ fontSize: 12, color: "var(--dim)" }}>Pasta não configurada</span>
+              )}
+            </div>
+          </div>
+        ) : null}
+        <Sec titulo={ehAgente ? "Arquivos" : "Base de conhecimento"} extra={<Link href={`/expand/equipe/${id}/conhecimento`} style={{ fontSize: 11.5, color: "var(--accent)" }}>{ehAgente ? "gerenciar RAG →" : "gerenciar →"}</Link>}>
           <p style={{ fontSize: 12, color: "var(--mut)", lineHeight: 1.55, marginBottom: 12 }}>Materiais e referências {ehAgente ? "que alimentam a base de conhecimento (RAG) deste agente" : "da base de conhecimento"}. Anexe novos pela página de {ehAgente ? "Conhecimento & RAG" : "conhecimento"}.</p>
           {arquivos.length ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -578,40 +600,70 @@ export default async function PerfilPage({ params, searchParams }: { params: Pro
             <p style={{ fontSize: 12.5, color: "var(--dim)" }}>Nenhum arquivo anexado ainda. <Link href={`/expand/equipe/${id}/conhecimento`} style={{ color: "var(--accent)" }}>Anexar material</Link>.</p>
           )}
         </Sec>
+        </div>
       ) : null}
 
       {/* ---------- AVALIAÇÕES ---------- */}
       {tab === "avaliacoes" ? (
-        <Sec titulo="Notas de avaliação" extra={<span style={{ fontSize: 11.5, color: "var(--dim)" }}>{avaliacoes.length} registro(s)</span>}>
-          {avaliacoes.length ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {avaliacoes.map((a) => (
-                <div key={a.id} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-                  <div className="ex-evn">{a.nota ?? "—"}</div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 12.5, fontWeight: 700 }}>{a.periodo ?? "Avaliação"} <span style={{ color: "var(--dim)", fontWeight: 400, fontSize: 11 }}>· {fmtData(a.data)}{a.avaliador ? ` · por ${a.avaliador}` : ""}</span></div>
-                    {a.destaques ? <div style={{ fontSize: 12.2, color: "var(--mut)", marginTop: 3, lineHeight: 1.5 }}><b style={{ color: "var(--green)" }}>Destaques:</b> {a.destaques}</div> : null}
-                    {a.a_melhorar ? <div style={{ fontSize: 12.2, color: "var(--mut)", marginTop: 2, lineHeight: 1.5 }}><b style={{ color: "var(--warn)" }}>A melhorar:</b> {a.a_melhorar}</div> : null}
-                  </div>
-                </div>
-              ))}
+        <>
+          {/* Dashboard de métricas */}
+          <div className="ex-kpis" style={{ marginBottom: 14 }}>
+            <div className="ex-kpi hx-glass"><div className="lab">Nota atual</div><div className="val hx-accent-text">{p.nota ?? "—"}</div><div className="foot">Média geral</div></div>
+            <div className="ex-kpi hx-glass"><div className="lab">Avaliações</div><div className="val">{avaliacoes.length}</div><div className="foot">Total registrado</div></div>
+            <div className="ex-kpi hx-glass"><div className="lab">Última nota</div><div className="val" style={{ color: avaliacoes[0]?.nota == null ? "var(--dim)" : avaliacoes[0].nota >= 7 ? "var(--green)" : "var(--warn)" }}>{avaliacoes[0]?.nota ?? "—"}</div><div className="foot">{avaliacoes[0] ? fmtData(avaliacoes[0].data) : "sem avaliação"}</div></div>
+            <div className="ex-kpi hx-glass"><div className="lab">Tendência</div><div className="val" style={{ fontSize: 22, color: avaliacoes.length >= 2 ? ((avaliacoes[0]?.nota ?? 0) >= (avaliacoes[1]?.nota ?? 0) ? "var(--green)" : "var(--warn)") : "var(--dim)" }}>{avaliacoes.length >= 2 ? ((avaliacoes[0]?.nota ?? 0) >= (avaliacoes[1]?.nota ?? 0) ? "↑" : "↓") : "—"}</div><div className="foot">vs. anterior</div></div>
+          </div>
+
+          {/* Gráfico de evolução */}
+          {avaliacoes.length > 1 ? (
+            <div className="ex-panel hx-glass" style={{ padding: 0, marginBottom: 14 }}>
+              <div className="ph"><span className="pt">Evolução das notas</span></div>
+              <div className="pb">
+                <Barras cor={cor} dados={[...avaliacoes].reverse().slice(-8).map((a) => ({ v: a.nota ?? 0, l: a.periodo?.slice(0, 6) ?? fmtCurto(a.data) }))} />
+              </div>
             </div>
-          ) : <p style={{ fontSize: 12.5, color: "var(--dim)" }}>Nenhuma avaliação registrada ainda.</p>}
-          {podeAvaliar ? (
-            <details style={{ marginTop: 14 }}>
-              <summary style={{ cursor: "pointer", fontSize: 12, color: "var(--accent)", fontWeight: 700 }}>+ Registrar avaliação</summary>
-              <form action={addAvaliacao} style={{ display: "grid", gridTemplateColumns: "90px 1fr 1fr", gap: 10, marginTop: 10 }}>
-                <input type="hidden" name="perfil_id" value={id} />
-                <label><span style={lb}>Nota</span><input name="nota" type="number" step="0.1" min="0" max="10" style={fld} /></label>
-                <label><span style={lb}>Período</span><input name="periodo" placeholder="ex.: Ago/2026" style={fld} /></label>
-                <label><span style={lb}>Avaliador</span><input name="avaliador" style={fld} /></label>
-                <label style={{ gridColumn: "1 / -1" }}><span style={lb}>Destaques</span><input name="destaques" style={fld} /></label>
-                <label style={{ gridColumn: "1 / -1" }}><span style={lb}>A melhorar</span><input name="a_melhorar" style={fld} /></label>
-                <div><button className="hx-btn hx-btn-primary" type="submit">Salvar avaliação</button></div>
-              </form>
-            </details>
           ) : null}
-        </Sec>
+
+          {/* Timeline de avaliações */}
+          <Sec titulo="Histórico" extra={podeAvaliar ? (
+            <details style={{ position: "relative" }}>
+              <summary style={{ cursor: "pointer", fontSize: 12, color: "var(--accent)", fontWeight: 700, listStyle: "none" }}>+ Nova avaliação</summary>
+              <div style={{ position: "absolute", right: 0, top: 24, zIndex: 10, background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 12, padding: 16, width: 380, boxShadow: "0 8px 32px rgba(0,0,0,.2)" }}>
+                <form action={addAvaliacao} style={{ display: "grid", gridTemplateColumns: "90px 1fr 1fr", gap: 10 }}>
+                  <input type="hidden" name="perfil_id" value={id} />
+                  <label><span style={lb}>Nota</span><input name="nota" type="number" step="0.1" min="0" max="10" style={fld} /></label>
+                  <label><span style={lb}>Período</span><input name="periodo" placeholder="ex.: Ago/2026" style={fld} /></label>
+                  <label><span style={lb}>Avaliador</span><input name="avaliador" style={fld} /></label>
+                  <label style={{ gridColumn: "1 / -1" }}><span style={lb}>Destaques</span><input name="destaques" style={fld} /></label>
+                  <label style={{ gridColumn: "1 / -1" }}><span style={lb}>A melhorar</span><input name="a_melhorar" style={fld} /></label>
+                  <div><button className="hx-btn hx-btn-primary" type="submit">Salvar</button></div>
+                </form>
+              </div>
+            </details>
+          ) : null}>
+            {avaliacoes.length ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {avaliacoes.map((a) => (
+                  <div key={a.id} style={{ display: "flex", gap: 14, alignItems: "flex-start", padding: "12px 14px", background: "var(--panel-2)", borderRadius: 10, border: "1px solid var(--line)" }}>
+                    <div style={{ width: 44, height: 44, borderRadius: 10, background: `color-mix(in srgb, ${a.nota && a.nota >= 7 ? "var(--green)" : a.nota && a.nota >= 5 ? cor : "var(--warn)"} 18%, var(--panel-2))`, border: `1px solid color-mix(in srgb, ${a.nota && a.nota >= 7 ? "var(--green)" : a.nota && a.nota >= 5 ? cor : "var(--warn)"} 30%, transparent)`, display: "grid", placeItems: "center", flexShrink: 0 }}>
+                      <span style={{ fontSize: 17, fontWeight: 800, color: a.nota && a.nota >= 7 ? "var(--green)" : a.nota && a.nota >= 5 ? cor : "var(--warn)", fontVariantNumeric: "tabular-nums" }}>{a.nota ?? "—"}</span>
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 3 }}>{a.periodo ?? "Avaliação"} <span style={{ color: "var(--dim)", fontWeight: 400, fontSize: 11 }}>· {fmtData(a.data)}{a.avaliador ? ` · por ${a.avaliador}` : ""}</span></div>
+                      {a.destaques ? <div style={{ fontSize: 12.2, color: "var(--mut)", lineHeight: 1.5, marginTop: 3 }}><b style={{ color: "var(--green)" }}>Destaques:</b> {a.destaques}</div> : null}
+                      {a.a_melhorar ? <div style={{ fontSize: 12.2, color: "var(--mut)", lineHeight: 1.5, marginTop: 2 }}><b style={{ color: "var(--warn)" }}>A melhorar:</b> {a.a_melhorar}</div> : null}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ textAlign: "center", padding: "24px 0" }}>
+                <p style={{ fontSize: 13, color: "var(--mut)", marginBottom: 8 }}>Nenhuma avaliação registrada ainda.</p>
+                {podeAvaliar ? <p style={{ fontSize: 12, color: "var(--dim)" }}>Use o botão "Nova avaliação" acima para registrar.</p> : null}
+              </div>
+            )}
+          </Sec>
+        </>
       ) : null}
 
       {/* ---------- 1x1 ---------- */}
@@ -720,10 +772,12 @@ export default async function PerfilPage({ params, searchParams }: { params: Pro
       ) : null}
 
       {/* FLOATING — falar com a pessoa (humano) ou conversar (agente) */}
-      <a href={falarHref} {...(falarExterno ? { target: "_blank", rel: "noreferrer" } : {})}
-        style={{ position: "fixed", right: 24, bottom: 92, zIndex: 40, display: "inline-flex", alignItems: "center", gap: 8, padding: "11px 18px", borderRadius: 30, background: cor, color: "#0A1512", fontWeight: 800, fontSize: 13, textDecoration: "none", boxShadow: `0 8px 26px color-mix(in srgb, ${cor} 40%, transparent)` }}>
-        {falarLabel}
-      </a>
+      {falarHref ? (
+        <a href={falarHref} target="_blank" rel="noreferrer"
+          style={{ position: "fixed", right: 24, bottom: 92, zIndex: 40, display: "inline-flex", alignItems: "center", gap: 8, padding: "11px 18px", borderRadius: 30, background: cor, color: "#0A1512", fontWeight: 800, fontSize: 13, textDecoration: "none", boxShadow: `0 8px 26px color-mix(in srgb, ${cor} 40%, transparent)` }}>
+          {falarLabel}
+        </a>
+      ) : null}
     </>
   );
 }

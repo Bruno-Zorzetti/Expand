@@ -11,7 +11,7 @@ export default function Heatmap({ cols, max, cor = "var(--accent)" }: { cols: He
   };
   const dias = ["S", "T", "Q", "Q", "S", "S", "D"];
   return (
-    <svg viewBox={`0 0 ${W + 18} ${H}`} style={{ width: "100%", maxWidth: W + 18, display: "block" }} suppressHydrationWarning>
+    <svg viewBox={`0 0 ${W + 18} ${H}`} style={{ width: "100%", display: "block" }} suppressHydrationWarning>
       {dias.map((d, i) => i % 2 === 1 ? <text key={i} x={0} y={i * (cell + gap) + cell} fontSize={8} fill="var(--dim)">{d}</text> : null)}
       <g transform="translate(16 0)">
         {cols.map((col, w) => col.map((c, d) => (
