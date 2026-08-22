@@ -1,6 +1,10 @@
 {
   "crons": [
     {
+      "path": "/api/rotinas/tarefas-agentes",
+      "schedule": "0 8 * * *"
+    },
+    {
       "path": "/api/rotinas/resumo-diario",
       "schedule": "0 9 * * *"
     }

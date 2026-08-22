@@ -31,24 +31,10 @@ const NAV: NavSec[] = [
     id: "projetos",
     sec: "Projetos",
     items: [
-      { href: "/expand/produtos",  label: "Produtos", icon: "box",    eyebrow: "Catálogo e processos", gate: "projetos.produtos" },
-      {
-        href: "/expand/equipe", label: "Equipe", icon: "idcard", eyebrow: "Humanos + Agentes IA",
-        gate: "projetos.equipe",
-        sub: [
-          { href: "/expand/equipe/humanos", label: "Humanos" },
-          { href: "/expand/equipe/agentes", label: "Agentes IA" },
-        ],
-      },
-      { href: "/expand/carteira",  label: "Clientes", icon: "folder", eyebrow: "Carteira e dossiês",   gate: "projetos.clientes" },
-    ],
-  },
-  {
-    id: "ferramentas",
-    sec: "Ferramentas",
-    items: [
-      { href: "/expand/ferramentas/grupos",  label: "Criador de Grupos",        icon: "users",   eyebrow: "WhatsApp e squads",     gate: "ferramentas.grupos" },
-      { href: "/expand/apresentacoes",       label: "Criador de Apresentações", icon: "slides",  eyebrow: "Decks e slides",         gate: "ferramentas.apresentacoes" },
+      { href: "/expand/produtos",        label: "Produtos",    icon: "box",    eyebrow: "Catálogo e processos", gate: "projetos.produtos" },
+      { href: "/expand/equipe/humanos",  label: "Humanos",     icon: "users",  eyebrow: "Membros da equipe",    gate: "projetos.equipe" },
+      { href: "/expand/equipe/agentes",  label: "Agentes IA",  icon: "zap",    eyebrow: "Assistentes de IA",   gate: "projetos.equipe" },
+      { href: "/expand/carteira",        label: "Clientes",    icon: "folder", eyebrow: "Carteira e dossiês",   gate: "projetos.clientes" },
     ],
   },
   {
@@ -66,14 +52,10 @@ const NAV: NavSec[] = [
     id: "config",
     sec: "Configurações",
     items: [
-      { href: "/expand/departamentos",     label: "Departamentos",  icon: "building", eyebrow: "Estrutura da equipe",         gate: "admin" },
-      { href: "/expand/empresa",           label: "Empresa",        icon: "building", eyebrow: "Identidade e marca",          gate: "admin" },
-      { href: "/expand/ritmo",             label: "Ritmos",         icon: "activity", eyebrow: "Daily, Weekly, Check-in",     gate: "admin" },
+      { href: "/expand/empresa",           label: "Empresa",        icon: "building", eyebrow: "Identidade, docs, ritmo e acessos", gate: "admin" },
       { href: "/expand/acessos",           label: "Acessos",        icon: "shield",   eyebrow: "Equipe, permissões e custos", gate: "admin" },
       { href: "/expand/integracoes",       label: "Integração",     icon: "plug",     eyebrow: "Conexões externas",           gate: "admin" },
-      { href: "/expand/rotinas",           label: "Rotinas",        icon: "zap",      eyebrow: "Automações e tokens",         gate: "admin" },
       { href: "/expand/config/relatorios", label: "Relatórios",     icon: "activity", eyebrow: "Status reports WhatsApp",     gate: "admin" },
-      { href: "/expand/gestao",            label: "Visão Geral",    icon: "layers",   eyebrow: "Painel administrativo",       gate: "admin" },
       { href: "/expand/log",               label: "Log",            icon: "list",     eyebrow: "Auditoria do sistema",        gate: "admin" },
       { href: "/expand/estilo",            label: "Folha de Estilo", icon: "brush",  eyebrow: "Design System",               gate: "admin" },
     ],
@@ -188,6 +170,31 @@ export default function ExpandShell({
 }) {
   const path = usePathname();
   const router = useRouter();
+
+  // busca
+  const [q, setQ] = useState("");
+  const [hits, setHits] = useState<{ label: string; sub: string; href: string }[]>([]);
+  const [focusSearch, setFocusSearch] = useState(false);
+
+  useEffect(() => {
+    if (q.length < 2) { setHits([]); return; }
+    const t = setTimeout(async () => {
+      const sb = createClient();
+      const [{ data: cli }, { data: etapas }, { data: membros }] = await Promise.all([
+        sb.from("expand_clientes").select("id, nome").ilike("nome", `%${q}%`).limit(6),
+        sb.from("expand_etapas").select("id, titulo").ilike("titulo", `%${q}%`).limit(5),
+        sb.from("expand_perfis").select("id, nome, cargo").ilike("nome", `%${q}%`).limit(4),
+      ]);
+      setHits([
+        ...(cli ?? []).map((c: { id: string; nome: string }) => ({ label: c.nome, sub: "Cliente", href: `/expand/clientes/${c.id}` })),
+        ...(etapas ?? []).map((e: { id: string; titulo: string }) => ({ label: e.titulo, sub: "Tarefa", href: `/expand/etapa/${e.id}` })),
+        ...(membros ?? []).map((m: { id: string; nome: string; cargo?: string }) => ({ label: m.nome, sub: m.cargo ?? "Equipe", href: `/expand/equipe/${m.id}` })),
+      ]);
+    }, 280);
+    return () => clearTimeout(t);
+  }, [q]);
+
+  function pickHit(href: string) { setQ(""); setHits([]); searchRef.current?.blur(); router.push(href); }
 
   // sub-item open state (in-session)
   const [aberto, setAberto] = useState<Record<string, boolean>>({});
@@ -504,10 +511,39 @@ export default function ExpandShell({
         <div className="ex-topbar">
           <button className="ex-burger" onClick={toggleNav} aria-label="Menu"><Ic name="menu" /></button>
           <div className="ex-tbtt"><small>{activeInfo.eyebrow}</small>{activeInfo.label}</div>
-          <div className="ex-search">
+          <div className="ex-search" style={{ position: "relative" }}>
             <Ic name="search" />
-            <input ref={searchRef} placeholder="Buscar conta, etapa, pessoa…" style={{ flex: 1, minWidth: 0, width: "auto" }} />
-            <kbd style={{ fontSize: 10, padding: "1px 5px", borderRadius: 4, background: "var(--panel-2)", border: "1px solid var(--line-2)", color: "var(--dim)", pointerEvents: "none", flexShrink: 0 }}>Ctrl K</kbd>
+            <input
+              ref={searchRef}
+              placeholder="Buscar conta, etapa, pessoa… (Ctrl K)"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              onFocus={() => setFocusSearch(true)}
+              onBlur={() => setTimeout(() => setFocusSearch(false), 180)}
+              style={{ flex: 1, minWidth: 0, width: "auto" }}
+            />
+            {q && <button onClick={() => { setQ(""); setHits([]); }} style={{ background: "none", border: "none", color: "var(--dim)", cursor: "pointer", padding: "0 4px", fontSize: 14, lineHeight: 1 }}>✕</button>}
+            {hits.length > 0 && focusSearch && (
+              <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, right: 0, background: "var(--panel)", border: "1px solid var(--line-2)", borderRadius: 12, boxShadow: "0 12px 40px rgba(0,0,0,.45)", zIndex: 400, overflow: "hidden" }}>
+                {hits.map((h, i) => (
+                  <button key={i} onMouseDown={() => pickHit(h.href)} style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", padding: "10px 14px", background: "none", border: "none", borderBottom: i < hits.length - 1 ? "1px solid var(--line)" : "none", cursor: "pointer", textAlign: "left", font: "inherit", color: "inherit" }}>
+                    <div style={{ width: 30, height: 30, borderRadius: 8, background: "color-mix(in srgb, var(--accent) 12%, var(--panel-2))", display: "grid", placeItems: "center", flexShrink: 0 }}>
+                      <span style={{ fontSize: 11, fontWeight: 800, color: "var(--accent)" }}>{h.sub[0]}</span>
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--txt)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{h.label}</div>
+                      <div style={{ fontSize: 11, color: "var(--dim)" }}>{h.sub}</div>
+                    </div>
+                    <span style={{ fontSize: 10, color: "var(--dim)" }}>↵</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            {q.length >= 2 && hits.length === 0 && focusSearch && (
+              <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, right: 0, background: "var(--panel)", border: "1px solid var(--line-2)", borderRadius: 12, boxShadow: "0 12px 40px rgba(0,0,0,.45)", zIndex: 400, padding: "14px 16px", fontSize: 13, color: "var(--dim)", textAlign: "center" }}>
+                Nenhum resultado para &ldquo;{q}&rdquo;
+              </div>
+            )}
           </div>
           <div className="ex-tbr">
             {podeTrocar ? (

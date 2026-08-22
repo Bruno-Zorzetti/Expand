@@ -13,6 +13,7 @@ import { montarArquetipo, type ArqKey } from "@/lib/expand-arquetipo";
 import { metricasPessoa, heatmap, type EtapaProd } from "@/lib/expand-produtividade";
 import Heatmap from "@/components/expand/Heatmap";
 import { marcarFolga, removerFolga } from "@/app/expand/actions";
+import GoogleCalConnect from "@/components/expand/GoogleCalConnect";
 
 export const dynamic = "force-dynamic";
 
@@ -183,6 +184,13 @@ export default async function PerfilPage({ params, searchParams }: { params: Pro
     folgas = (fol ?? []) as Folga[];
   }
   const folgaSet = new Set(folgas.map((f) => f.data));
+
+  // Google Calendar — status de conexão por perfil
+  const { data: gcalRow } = !ehAgente
+    ? await supabase.from("expand_google_tokens").select("email").eq("perfil_id", id).maybeSingle()
+    : { data: null };
+  const gcalStatus = { conectado: !!gcalRow, email: (gcalRow?.email as string | null) ?? null };
+
   const site = process.env.NEXT_PUBLIC_SITE_URL || "";
   const icsUrl = p.ics_token ? `${site}/api/calendario/${p.ics_token}.ics` : null;
   const instaUrl = p.instagram ? (p.instagram.startsWith("http") ? p.instagram : `https://instagram.com/${p.instagram.replace(/^@/, "")}`) : null;
@@ -259,160 +267,217 @@ export default async function PerfilPage({ params, searchParams }: { params: Pro
       {/* ---------- VISÃO GERAL ---------- */}
       {tab === "visao" ? (
         <>
+          {/* KPI strip */}
           <div className="ex-kpis" style={{ marginBottom: 16 }}>
             <div className="ex-kpi hx-glass"><div className="lab">Nota geral</div><div className="val hx-accent-text">{p.nota ?? "—"}</div><div className="foot">Média das avaliações</div></div>
             <div className="ex-kpi hx-glass"><div className="lab">Trabalhos</div><div className="val">{p.trabalhos ?? 0}</div><div className="foot">Entregas realizadas</div></div>
-            <div className="ex-kpi hx-glass"><div className="lab">Skills mapeadas</div><div className="val">{skillsTotal}</div><div className="foot">Hard + soft + ferramentas</div></div>
+            <div className="ex-kpi hx-glass"><div className="lab">Skills</div><div className="val">{skillsTotal}</div><div className="foot">Hard + soft + ferramentas</div></div>
             <div className="ex-kpi hx-glass"><div className="lab">1x1</div><div className="val">{feedbacks.length}</div><div className="foot">Registros com o superior</div></div>
           </div>
-          {/* PERFIL COMPORTAMENTAL — DISC + Temperamentos */}
-          <div className="ex-panel hx-glass" style={{ padding: 0, marginBottom: 16 }}>
-            <div className="ph"><span className="pt">Perfil comportamental</span><span style={{ marginLeft: "auto", fontSize: 11, color: "var(--dim)" }}>DISC + Arquétipo (Henrique)</span></div>
-            <div className="pb">
-              {comport ? (
-                <>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 12, alignItems: "center" }}>
-                    <div>
-                      <p style={{ fontSize: 11.5, fontWeight: 700, textAlign: "center", color: "var(--mut)", marginBottom: 2 }}>DISC · <span style={{ color: cor }}>{comport.discSegmento}</span></p>
-                      <Radar cor={cor} eixos={[{ l: "D", v: comport.disc.D / 15 }, { l: "I", v: comport.disc.I / 15 }, { l: "S", v: comport.disc.S / 15 }, { l: "C", v: comport.disc.C / 15 }]} />
-                      <p style={{ fontSize: 12, textAlign: "center", marginTop: 2, fontWeight: 600 }}>{comport.discNome}</p>
+
+          {/* 2-column layout: main + sidebar */}
+          <div className="ex-perfil-layout">
+
+            {/* ── COLUNA PRINCIPAL ── */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+
+              {/* PERFIL COMPORTAMENTAL */}
+              <div className="ex-panel hx-glass" style={{ padding: 0 }}>
+                <div className="ph">
+                  <span className="pt">Perfil comportamental</span>
+                  <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--dim)" }}>DISC · Temperamento · Arquétipo</span>
+                </div>
+                <div className="pb">
+                  {comport ? (
+                    <>
+                      {/* Badges de resumo */}
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 20, fontSize: 11.5, fontWeight: 700, background: `color-mix(in srgb,${cor} 14%,transparent)`, color: cor, border: `1px solid color-mix(in srgb,${cor} 28%,transparent)` }}>DISC: {comport.discSegmento} · {comport.discNome}</span>
+                        {blenda ? <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 20, fontSize: 11.5, fontWeight: 700, background: `color-mix(in srgb,${blenda.cor} 14%,transparent)`, color: blenda.cor, border: `1px solid color-mix(in srgb,${blenda.cor} 28%,transparent)` }}>Blenda {blenda.cod} · {blenda.nome}</span> : null}
+                        {temper ? <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 20, fontSize: 11.5, fontWeight: 700, background: `color-mix(in srgb,${temper.cor} 14%,transparent)`, color: temper.cor, border: `1px solid color-mix(in srgb,${temper.cor} 28%,transparent)` }}>{rotuloTemp} · {temper.arquetipo}</span> : null}
+                        {arq ? <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 20, fontSize: 11.5, fontWeight: 700, background: "color-mix(in srgb,var(--accent-2) 14%,transparent)", color: "var(--accent-2)", border: "1px solid color-mix(in srgb,var(--accent-2) 28%,transparent)" }}>Arq. {arq.dominanteNome}</span> : null}
+                      </div>
+
+                      {/* DISC radar + Arquétipo lado a lado */}
+                      <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: 20, alignItems: "center", marginBottom: 14 }}>
+                        <div style={{ width: 180 }}>
+                          <Radar cor={cor} eixos={[{ l: "D", v: comport.disc.D / 15 }, { l: "I", v: comport.disc.I / 15 }, { l: "S", v: comport.disc.S / 15 }, { l: "C", v: comport.disc.C / 15 }]} />
+                        </div>
+                        <div>
+                          {arq ? (
+                            <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                              {arq.top.slice(0, 6).map((a) => (
+                                <div key={a.k} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                  <span style={{ fontSize: 11, color: "var(--mut)", width: 88, flexShrink: 0 }}>{a.nome}</span>
+                                  <div style={{ flex: 1, height: 6, borderRadius: 3, background: "var(--panel-2)", overflow: "hidden" }}><div style={{ height: "100%", width: `${(a.v / 5) * 100}%`, background: a.cor, borderRadius: 3 }} /></div>
+                                  <span style={{ fontSize: 10, color: "var(--dim)", width: 26, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{a.v.toFixed(1)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : <p style={{ fontSize: 11.5, color: "var(--dim)" }}>Sem teste de arquétipo ainda.</p>}
+                        </div>
+                      </div>
+
+                      {/* Insights textuais */}
+                      <div style={{ display: "flex", flexDirection: "column", gap: 7, borderTop: "1px solid var(--line)", paddingTop: 12 }}>
+                        <p style={{ fontSize: 12, color: "var(--mut)", lineHeight: 1.55 }}><b style={{ color: cor }}>DISC:</b> {comport.discDesc}</p>
+                        {blenda ? <p style={{ fontSize: 12, color: "var(--mut)", lineHeight: 1.55 }}><b style={{ color: blenda.cor }}>Como falar com {p.nome.split(" ")[0]}:</b> {blenda.comoFalar}</p> : null}
+                        {temper ? <p style={{ fontSize: 12, color: "var(--mut)", lineHeight: 1.55 }}><b style={{ color: temper.cor }}>Ponto cego:</b> {temper.luzSombra.sombras[0]}.</p> : null}
+                        {arq ? <p style={{ fontSize: 12, color: "var(--mut)", lineHeight: 1.55, borderLeft: `2px solid var(--green)`, paddingLeft: 9 }}><b style={{ color: "var(--green)" }}>Nas tarefas:</b> {arq.comoLidar}</p> : null}
+                        <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 2 }}>
+                          <Link href={`/expand/equipe/${id}/comportamental`} className="hx-btn hx-btn-ghost" style={{ padding: "5px 11px", fontSize: 11.5 }}>Relatório completo ↗</Link>
+                          {podeEditar ? <Link href={`/expand/equipe/${id}/diagnostico`} style={{ color: "var(--accent)", fontSize: 11.5 }}>refazer diagnóstico</Link> : null}
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div style={{ textAlign: "center", padding: "18px 0" }}>
+                      <p style={{ fontSize: 13, color: "var(--mut)", marginBottom: 12 }}>Ainda sem diagnóstico comportamental de {p.nome}.</p>
+                      {podeEditar ? <Link href={`/expand/equipe/${id}/diagnostico`} className="hx-btn hx-btn-primary">{ehAgente ? "Preencher (IA) / iniciar" : "Preencher diagnóstico"}</Link> : <span style={{ fontSize: 12, color: "var(--dim)" }}>Aguardando {p.nome} preencher.</span>}
                     </div>
-                    <div>
-                      <p style={{ fontSize: 11.5, fontWeight: 700, textAlign: "center", color: "var(--mut)", marginBottom: 8 }}>Arquétipo {arq ? <>· <span style={{ color: "var(--accent-2)" }}>{arq.dominanteNome}</span></> : null}</p>
-                      {arq ? (
-                        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                          {arq.top.slice(0, 5).map((a) => (
-                            <div key={a.k} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                              <span style={{ fontSize: 11, color: "var(--mut)", width: 80, flexShrink: 0 }}>{a.nome}</span>
-                              <div style={{ flex: 1, height: 7, borderRadius: 4, background: "var(--panel-2)", overflow: "hidden" }}><div style={{ height: "100%", width: `${(a.v / 5) * 100}%`, background: a.cor, borderRadius: 4 }} /></div>
-                              <span style={{ fontSize: 10, color: "var(--dim)", width: 26, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{a.v.toFixed(1)}</span>
+                  )}
+                </div>
+              </div>
+
+              {/* PRODUTIVIDADE */}
+              {prod && heat ? (
+                <div className="ex-panel hx-glass" style={{ padding: 0 }}>
+                  <div className="ph">
+                    <span className="pt">Produtividade</span>
+                    <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--dim)" }}>últimas 14 semanas</span>
+                  </div>
+                  <div className="pb">
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8, marginBottom: 14 }}>
+                      {[
+                        { l: "Concluídas", v: prod.concluidas, sub: "no histórico", c: "hx-accent-text" },
+                        { l: "Em aberto", v: prod.abertas, sub: `${prod.bloqueadas} bloq.` },
+                        { l: "No prazo", v: prod.taxaPrazo == null ? "—" : `${Math.round(prod.taxaPrazo * 100)}%`, sub: prod.comTempo ? `de ${prod.comTempo}` : "sem data", cor: prod.taxaPrazo == null ? "var(--dim)" : prod.taxaPrazo >= 0.7 ? "var(--green)" : "var(--warn)" },
+                        { l: "Eficiência", v: prod.eficiencia, sub: "índice squad", cor },
+                      ].map((k, i) => (
+                        <div key={i} style={{ padding: "10px 12px", borderRadius: 10, background: "var(--panel-2)", border: "1px solid var(--line-2)" }}>
+                          <div style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: ".05em", color: "var(--dim)", fontWeight: 700 }}>{k.l}</div>
+                          <div style={{ fontSize: 22, fontWeight: 800, color: (k as { cor?: string }).cor ?? "var(--txt)", margin: "2px 0" }}>{k.v}</div>
+                          <div style={{ fontSize: 10, color: "var(--dim)" }}>{k.sub}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <Heatmap cols={heat.cols} max={heat.max} cor={cor} />
+                    {heat.total === 0 ? <p style={{ fontSize: 11, color: "var(--dim)", marginTop: 6 }}>O heatmap preenche conforme tarefas são concluídas com data.</p> : null}
+                    {prod.porArea.length ? (
+                      <div style={{ borderTop: "1px solid var(--line)", marginTop: 12, paddingTop: 10 }}>
+                        <div style={{ fontSize: 10.5, fontWeight: 700, color: "var(--dim)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 8 }}>Por área</div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                          {prod.porArea.slice(0, 5).map((a) => (
+                            <div key={a.area} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                              <span style={{ fontSize: 11.5, color: "var(--mut)", width: 120, flexShrink: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.area}</span>
+                              <div style={{ flex: 1, height: 7, borderRadius: 4, background: "var(--bg)", overflow: "hidden" }}>
+                                <div style={{ height: "100%", width: `${a.taxa != null ? Math.round(a.taxa * 100) : Math.min(100, a.concluidas * 8)}%`, background: cor, borderRadius: 4 }} />
+                              </div>
+                              <span style={{ fontSize: 10.5, color: "var(--dim)", width: 70, textAlign: "right", flexShrink: 0, fontVariantNumeric: "tabular-nums" }}>{a.concluidas} feita(s)</span>
                             </div>
                           ))}
                         </div>
-                      ) : <p style={{ fontSize: 11.5, color: "var(--dim)", textAlign: "center" }}>Sem teste de arquétipo ainda.</p>}
-                    </div>
+                      </div>
+                    ) : null}
                   </div>
-                  <div style={{ borderTop: "1px solid var(--line)", marginTop: 10, paddingTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
-                    <p style={{ fontSize: 12, color: "var(--mut)", lineHeight: 1.55 }}><b style={{ color: cor }}>DISC:</b> {comport.discDesc}</p>
-                    {blenda ? <p style={{ fontSize: 12, color: "var(--mut)", lineHeight: 1.55 }}><b style={{ color: blenda.cor }}>Blenda {blenda.cod} — {blenda.nome}:</b> {blenda.dinamica} <b style={{ color: "var(--txt)" }}>Como falar com {p.nome.split(" ")[0]}:</b> {blenda.comoFalar}</p> : null}
-                    {temper ? <p style={{ fontSize: 12, color: "var(--mut)", lineHeight: 1.55 }}><b style={{ color: temper.cor }}>Temperamento ({rotuloTemp}) — {temper.arquetipo}:</b> {temper.resumo} <b style={{ color: "var(--txt)" }}>Ponto cego:</b> {temper.luzSombra.sombras[0]}.</p> : null}
-                    {arq ? <><p style={{ fontSize: 12, color: "var(--mut)", lineHeight: 1.55 }}><b style={{ color: "var(--accent-2)" }}>Arquétipo ({arq.segmento}):</b> {arq.desc}</p>
-                    <p style={{ fontSize: 12, color: "var(--mut)", lineHeight: 1.55, borderLeft: "2px solid var(--green)", paddingLeft: 9 }}><b style={{ color: "var(--green)" }}>Como lidar nas tarefas:</b> {arq.comoLidar}</p></> : null}
-                    <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 4 }}>
-                      <Link href={`/expand/equipe/${id}/comportamental`} className="hx-btn hx-btn-ghost" style={{ padding: "6px 12px", fontSize: 12 }}>Relatório completo / PDF ↗</Link>
-                      {podeEditar ? <Link href={`/expand/equipe/${id}/diagnostico`} style={{ color: "var(--accent)", fontSize: 12 }}>refazer diagnóstico</Link> : null}
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <div style={{ textAlign: "center", padding: "18px 0" }}>
-                  <p style={{ fontSize: 13, color: "var(--mut)", marginBottom: 12 }}>Ainda sem diagnóstico comportamental de {p.nome}.</p>
-                  {podeEditar ? <Link href={`/expand/equipe/${id}/diagnostico`} className="hx-btn hx-btn-primary">{ehAgente ? "Preencher (IA) / iniciar" : "Preencher diagnóstico"}</Link> : <span style={{ fontSize: 12, color: "var(--dim)" }}>Aguardando {p.nome} preencher.</span>}
                 </div>
-              )}
+              ) : null}
             </div>
-          </div>
 
-          {/* PRODUTIVIDADE — heatmap + eficiência por área (humanos) */}
-          {prod && heat ? (
-            <div className="ex-panel hx-glass" style={{ padding: 0, marginBottom: 16 }}>
-              <div className="ph"><span className="pt">Produtividade</span><span style={{ marginLeft: "auto", fontSize: 11, color: "var(--dim)" }}>últimas 14 semanas · alimenta o squad do PMO</span></div>
-              <div className="pb">
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(120px,1fr))", gap: 10, marginBottom: 14 }}>
-                  <div className="ex-kpi hx-glass" style={{ background: "var(--panel-2)" }}><div className="lab">Concluídas</div><div className="val hx-accent-text" style={{ fontSize: 22 }}>{prod.concluidas}</div><div className="foot">no histórico</div></div>
-                  <div className="ex-kpi hx-glass" style={{ background: "var(--panel-2)" }}><div className="lab">Em aberto</div><div className="val" style={{ fontSize: 22 }}>{prod.abertas}</div><div className="foot">{prod.bloqueadas} bloqueada(s)</div></div>
-                  <div className="ex-kpi hx-glass" style={{ background: "var(--panel-2)" }}><div className="lab">No prazo</div><div className="val" style={{ fontSize: 22, color: prod.taxaPrazo == null ? "var(--dim)" : prod.taxaPrazo >= 0.7 ? "var(--green)" : "var(--warn)" }}>{prod.taxaPrazo == null ? "—" : `${Math.round(prod.taxaPrazo * 100)}%`}</div><div className="foot">{prod.comTempo ? `de ${prod.comTempo} c/ tempo` : "sem tempo ainda"}</div></div>
-                  <div className="ex-kpi hx-glass" style={{ background: "var(--panel-2)" }}><div className="lab">Eficiência</div><div className="val" style={{ fontSize: 22, color: cor }}>{prod.eficiencia}</div><div className="foot">índice p/ o squad</div></div>
+            {/* ── SIDEBAR ── */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+
+              {/* AGENDA — Google Calendar + ICS unificados */}
+              {!ehAgente ? (
+                <div className="ex-panel hx-glass" style={{ padding: 0 }}>
+                  <div className="ph"><span className="pt">Agenda</span></div>
+                  <div className="pb">
+                    {/* Google Calendar por perfil */}
+                    {(podeEditar || gcalStatus.conectado) ? (
+                      <GoogleCalConnect perfilId={id} initialStatus={gcalStatus} />
+                    ) : null}
+                    {/* ICS link para assinar as tarefas no Google/Apple Calendar */}
+                    {icsUrl ? (
+                      <div style={{ marginTop: podeEditar || gcalStatus.conectado ? 14 : 0, paddingTop: podeEditar || gcalStatus.conectado ? 12 : 0, borderTop: podeEditar || gcalStatus.conectado ? "1px solid var(--line)" : "none" }}>
+                        <div style={{ fontSize: 10.5, fontWeight: 700, color: "var(--dim)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 6 }}>Link ICS — tarefas no seu app</div>
+                        <code style={{ display: "block", fontSize: 10, color: "var(--accent)", background: "var(--bg)", border: "1px solid var(--line-2)", borderRadius: 7, padding: "6px 8px", wordBreak: "break-all", lineHeight: 1.5 }}>{icsUrl}</code>
+                        <p style={{ fontSize: 10.5, color: "var(--dim)", marginTop: 5, lineHeight: 1.4 }}>Cole no Google/Apple Calendar em "Adicionar por URL"</p>
+                      </div>
+                    ) : null}
+                    {!podeEditar && !gcalStatus.conectado && !icsUrl ? (
+                      <p style={{ fontSize: 12, color: "var(--dim)" }}>Sem agenda configurada.</p>
+                    ) : null}
+                  </div>
                 </div>
-                <div style={{ marginBottom: heat.total ? 6 : 0 }}><Heatmap cols={heat.cols} max={heat.max} cor={cor} /></div>
-                {heat.total === 0 ? <p style={{ fontSize: 11, color: "var(--dim)", marginBottom: 6 }}>O heatmap vai preencher conforme as tarefas forem concluídas com data (contador ao vivo).</p> : null}
-                {prod.porArea.length ? (
-                  <div style={{ borderTop: "1px solid var(--line)", marginTop: 8, paddingTop: 10 }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: "var(--dim)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 8 }}>Eficiência por área — onde rende mais</div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                      {prod.porArea.slice(0, 6).map((a) => (
-                        <div key={a.area} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                          <span style={{ fontSize: 12, color: "var(--mut)", width: 130, flexShrink: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.area}</span>
-                          <div style={{ flex: 1, height: 8, borderRadius: 4, background: "var(--panel-2)", overflow: "hidden" }}>
-                            <div style={{ height: "100%", width: `${a.taxa != null ? Math.round(a.taxa * 100) : Math.min(100, a.concluidas * 8)}%`, background: cor, borderRadius: 4 }} />
-                          </div>
-                          <span style={{ fontSize: 11, color: "var(--dim)", width: 84, textAlign: "right", flexShrink: 0, fontVariantNumeric: "tabular-nums" }}>{a.concluidas} feita(s){a.taxa != null ? ` · ${Math.round(a.taxa * 100)}%` : ""}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-            </div>
-          ) : null}
+              ) : null}
 
-          <div className="ex-panel hx-glass" style={{ padding: 0 }}>
-            <div className="ph"><span className="pt">Evolução das notas</span></div>
-            <div className="pb">
-              <Barras cor={cor} dados={[...avaliacoes].reverse().slice(-8).map((a) => ({ v: a.nota ?? 0, l: a.periodo?.slice(0, 6) ?? fmtCurto(a.data) }))} />
-            </div>
-          </div>
-          {/* DISPONIBILIDADE — feriados & folgas (opcional; cada PJ escolhe) */}
-          {!ehAgente ? (
-            <div className="ex-panel hx-glass" style={{ padding: 0, marginTop: 16 }}>
-              <div className="ph"><span className="pt">🗓️ Disponibilidade — feriados & folgas</span><span style={{ marginLeft: "auto", fontSize: 11, color: "var(--dim)" }}>opcional · o PMO evita alocar nesses dias</span></div>
-              <div className="pb">
-                <p style={{ fontSize: 11.5, color: "var(--mut)", lineHeight: 1.5, marginBottom: 10 }}>Como PJ, você escolhe quais feriados observa. Marque os que vai tirar (e dias pessoais) — o PMO não agenda tarefas para você nesses dias.</p>
-                {feriados.length ? (
-                  <div style={{ marginBottom: 12 }}>
-                    <div style={{ fontSize: 10.5, fontWeight: 700, color: "var(--dim)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 6 }}>Próximos feriados</div>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                      {feriados.map((f) => {
-                        const marcado = folgaSet.has(f.data);
-                        return podeEditar ? (
-                          <form key={f.id} action={marcarFolga}>
-                            <input type="hidden" name="perfilId" value={id} /><input type="hidden" name="data" value={f.data} /><input type="hidden" name="motivo" value={f.nome} />
-                            <button type="submit" disabled={marcado} title={marcado ? "já marcado" : "marcar folga"} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 10px", borderRadius: 8, border: `1px solid ${marcado ? "var(--green)" : "var(--line-2)"}`, background: marcado ? "color-mix(in srgb, var(--green) 12%, transparent)" : "var(--panel-2)", color: marcado ? "var(--green)" : "var(--mut)", cursor: marcado ? "default" : "pointer", fontSize: 11.5, fontFamily: "inherit" }}>
-                              {marcado ? "✓" : "+"} {new Date(f.data + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })} {f.nome}{f.escopo === "facultativo" ? " (fac.)" : f.escopo === "local" ? " (local)" : ""}
-                            </button>
-                          </form>
-                        ) : (
-                          <span key={f.id} style={{ padding: "5px 10px", borderRadius: 8, border: "1px solid var(--line)", background: "var(--panel-2)", color: marcado ? "var(--green)" : "var(--dim)", fontSize: 11.5 }}>{marcado ? "✓ " : ""}{new Date(f.data + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })} {f.nome}</span>
-                        );
-                      })}
-                    </div>
+              {/* DISPONIBILIDADE — feriados & folgas */}
+              {!ehAgente ? (
+                <div className="ex-panel hx-glass" style={{ padding: 0 }}>
+                  <div className="ph">
+                    <span className="pt">Disponibilidade</span>
+                    <span style={{ marginLeft: "auto", fontSize: 10.5, color: "var(--dim)" }}>PMO evita alocar nesses dias</span>
                   </div>
-                ) : null}
-                {folgas.length ? (
-                  <div style={{ marginBottom: podeEditar ? 12 : 0 }}>
-                    <div style={{ fontSize: 10.5, fontWeight: 700, color: "var(--dim)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 6 }}>Minhas folgas</div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                      {folgas.map((f) => (
-                        <div key={f.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: "var(--mut)" }}>
-                          <span style={{ color: "var(--accent)", fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{new Date(f.data + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}</span>
-                          <span>{f.motivo ?? "folga"}</span>
-                          {podeEditar ? <form action={removerFolga} style={{ marginLeft: "auto" }}><input type="hidden" name="id" value={f.id} /><input type="hidden" name="perfilId" value={id} /><button type="submit" className="ex-arqbtn no" style={{ padding: "2px 8px", fontSize: 10.5 }}>remover</button></form> : null}
+                  <div className="pb">
+                    {feriados.length ? (
+                      <div style={{ marginBottom: 10 }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: "var(--dim)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 6 }}>Feriados</div>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                          {feriados.map((f) => {
+                            const marcado = folgaSet.has(f.data);
+                            return podeEditar ? (
+                              <form key={f.id} action={marcarFolga}>
+                                <input type="hidden" name="perfilId" value={id} /><input type="hidden" name="data" value={f.data} /><input type="hidden" name="motivo" value={f.nome} />
+                                <button type="submit" disabled={marcado} title={marcado ? "já marcado" : "marcar folga"} style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 8px", borderRadius: 7, border: `1px solid ${marcado ? "var(--green)" : "var(--line-2)"}`, background: marcado ? "color-mix(in srgb, var(--green) 12%, transparent)" : "var(--panel-2)", color: marcado ? "var(--green)" : "var(--mut)", cursor: marcado ? "default" : "pointer", fontSize: 11, fontFamily: "inherit" }}>
+                                  {marcado ? "✓" : "+"} {new Date(f.data + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })} {f.nome}
+                                </button>
+                              </form>
+                            ) : (
+                              <span key={f.id} style={{ padding: "4px 8px", borderRadius: 7, border: "1px solid var(--line)", background: "var(--panel-2)", color: marcado ? "var(--green)" : "var(--dim)", fontSize: 11 }}>{marcado ? "✓ " : ""}{new Date(f.data + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })} {f.nome}</span>
+                            );
+                          })}
                         </div>
-                      ))}
-                    </div>
+                      </div>
+                    ) : null}
+                    {folgas.length ? (
+                      <div style={{ marginBottom: podeEditar ? 10 : 0 }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: "var(--dim)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 6 }}>Minhas folgas</div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                          {folgas.map((f) => (
+                            <div key={f.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--mut)" }}>
+                              <span style={{ color: "var(--accent)", fontWeight: 700, fontVariantNumeric: "tabular-nums", flexShrink: 0 }}>{new Date(f.data + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}</span>
+                              <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.motivo ?? "folga"}</span>
+                              {podeEditar ? <form action={removerFolga}><input type="hidden" name="id" value={f.id} /><input type="hidden" name="perfilId" value={id} /><button type="submit" className="ex-arqbtn no" style={{ padding: "1px 7px", fontSize: 10 }}>×</button></form> : null}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                    {!feriados.length && !folgas.length && !podeEditar ? <p style={{ fontSize: 12, color: "var(--dim)" }}>Nenhuma folga marcada.</p> : null}
+                    {podeEditar ? (
+                      <form action={marcarFolga} style={{ display: "flex", flexDirection: "column", gap: 6, borderTop: feriados.length || folgas.length ? "1px solid var(--line)" : "none", paddingTop: feriados.length || folgas.length ? 10 : 0 }}>
+                        <input type="hidden" name="perfilId" value={id} />
+                        <div style={{ display: "flex", gap: 6 }}>
+                          <label style={{ flex: 1 }}><span style={lb}>Data</span><input type="date" name="data" required style={fld} /></label>
+                          <label style={{ flex: 2 }}><span style={lb}>Motivo</span><input name="motivo" placeholder="viagem, feriado…" style={fld} /></label>
+                        </div>
+                        <button className="hx-btn hx-btn-ghost" type="submit" style={{ padding: "6px 12px", fontSize: 11.5, alignSelf: "flex-start" }}>+ Adicionar</button>
+                      </form>
+                    ) : null}
                   </div>
-                ) : null}
-                {podeEditar ? (
-                  <form action={marcarFolga} style={{ display: "flex", gap: 6, alignItems: "end", flexWrap: "wrap", borderTop: "1px solid var(--line)", paddingTop: 10 }}>
-                    <input type="hidden" name="perfilId" value={id} />
-                    <label><span style={lb}>Adicionar dia pessoal</span><input type="date" name="data" required style={fld} /></label>
-                    <label style={{ flex: 1, minWidth: 120 }}><span style={lb}>Motivo</span><input name="motivo" placeholder="ex.: viagem, feriado local" style={fld} /></label>
-                    <button className="hx-btn hx-btn-ghost" type="submit" style={{ padding: "7px 12px", fontSize: 12 }}>Adicionar</button>
-                  </form>
-                ) : null}
-              </div>
-            </div>
-          ) : null}
+                </div>
+              ) : null}
 
-          {p.tipo !== "agente" ? (
-            <div className="ex-panel hx-glass" style={{ padding: 0, marginTop: 16 }}>
-              <div className="ph"><span className="pt">📅 Conectar meu calendário</span></div>
-              <div className="pb">
-                <p style={{ fontSize: 12, color: "var(--mut)", marginBottom: 8, lineHeight: 1.5 }}>Copie o link e adicione no Google/Apple Calendar (Adicionar por URL). Suas tarefas agendadas passam a aparecer na sua agenda, atualizando sozinho.</p>
-                {icsUrl ? <><code style={{ display: "block", fontSize: 11, color: "var(--accent)", background: "var(--bg)", border: "1px solid var(--line-2)", borderRadius: 8, padding: "8px 10px", wordBreak: "break-all" }}>{icsUrl}</code>{!site ? <p style={{ fontSize: 11, color: "var(--dim)", marginTop: 6 }}>A URL fica completa (com o domínio) após a publicação da plataforma. O Google OAuth de duas vias entra nessa fase.</p> : null}</> : <span style={{ fontSize: 12, color: "var(--dim)" }}>Link indisponível.</span>}
+              {/* EVOLUÇÃO DAS NOTAS */}
+              <div className="ex-panel hx-glass" style={{ padding: 0 }}>
+                <div className="ph"><span className="pt">Evolução das notas</span></div>
+                <div className="pb">
+                  <Barras cor={cor} dados={[...avaliacoes].reverse().slice(-8).map((a) => ({ v: a.nota ?? 0, l: a.periodo?.slice(0, 6) ?? fmtCurto(a.data) }))} />
+                </div>
               </div>
-            </div>
-          ) : null}
+
+            </div>{/* fim sidebar */}
+          </div>{/* fim 2-col */}
         </>
       ) : null}
 

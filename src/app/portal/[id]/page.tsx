@@ -321,23 +321,23 @@ export default async function EsteMes({ params }: { params: Promise<{ id: string
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
             {SUGE.map((s) => (
-              <Link key={s} href={`/portal/${id}/teo?q=${encodeURIComponent(s)}`} style={{
+              <span key={s} style={{
                 fontSize: 12, padding: "7px 13px", borderRadius: 20,
                 background: "var(--panel-2)", border: "1px solid var(--line)",
-                color: "var(--mut)", textDecoration: "none", transition: "all .15s",
+                color: "var(--mut)", cursor: "default", opacity: 0.7,
               }}>
                 {s}
-              </Link>
+              </span>
             ))}
           </div>
-          <Link href={`/portal/${id}/teo`} style={{
+          <div style={{
             display: "flex", alignItems: "center", gap: 10, padding: "12px 16px",
-            borderRadius: 10, background: "var(--panel-2)", border: "1px solid var(--line)",
-            textDecoration: "none", color: "var(--mut)", fontSize: 13,
+            borderRadius: 10, background: "var(--panel-2)", border: "1px dashed var(--line)",
+            color: "var(--dim)", fontSize: 12,
           }}>
-            <span style={{ flex: 1 }}>Digite sua pergunta…</span>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" /></svg>
-          </Link>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/></svg>
+            <span>IA disponível em breve — seu assistente de projeto chegando logo.</span>
+          </div>
         </div>
       </div>
     </div>

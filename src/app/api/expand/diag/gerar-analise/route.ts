@@ -53,6 +53,15 @@ export async function POST(req: Request) {
   const admin = createAdminClient();
   const MODEL = "claude-haiku-4-5-20251001";
 
+  async function salvarAnalise(tipoKey: string, analise: unknown, tokensIn: number, tokensOut: number) {
+    const row = { perfil_id: perfilId, tipo: tipoKey, analise, modelo: MODEL, tokens_in: tokensIn, tokens_out: tokensOut };
+    const sb = admin ?? supabase;
+    const { error } = await sb.from("expand_diag_analise").upsert(row, { onConflict: "perfil_id,tipo" });
+    if (error) console.error("[diag/gerar-analise] upsert error:", error.message);
+  }
+
+  try {
+
   if (tipo === "disc") {
     if (!p.disc) return NextResponse.json({ error: "Sem dados DISC" }, { status: 400 });
     const rd = montarDisc(p.disc);
@@ -61,7 +70,7 @@ export async function POST(req: Request) {
     if (!r.ok) return NextResponse.json({ error: r.error }, { status: 500 });
     const analise = parseJson<DiscAnalise>(r.text);
     if (!analise) return NextResponse.json({ error: "JSON inválido da IA" }, { status: 500 });
-    await admin!.from("expand_diag_analise").upsert({ perfil_id: perfilId, tipo: "disc", analise, modelo: MODEL, tokens_in: r.usage.input_tokens, tokens_out: r.usage.output_tokens }, { onConflict: "perfil_id,tipo" });
+    await salvarAnalise("disc", analise, r.usage.input_tokens, r.usage.output_tokens);
     return NextResponse.json({ ok: true, analise });
   }
 
@@ -73,7 +82,7 @@ export async function POST(req: Request) {
     if (!r.ok) return NextResponse.json({ error: r.error }, { status: 500 });
     const analise = parseJson<TempAnalise>(r.text);
     if (!analise) return NextResponse.json({ error: "JSON inválido da IA" }, { status: 500 });
-    await admin!.from("expand_diag_analise").upsert({ perfil_id: perfilId, tipo: "temperamento", analise, modelo: MODEL, tokens_in: r.usage.input_tokens, tokens_out: r.usage.output_tokens }, { onConflict: "perfil_id,tipo" });
+    await salvarAnalise("temperamento", analise, r.usage.input_tokens, r.usage.output_tokens);
     return NextResponse.json({ ok: true, analise });
   }
 
@@ -86,7 +95,7 @@ export async function POST(req: Request) {
     if (!r.ok) return NextResponse.json({ error: r.error }, { status: 500 });
     const analise = parseJson<ArqAnalise>(r.text);
     if (!analise) return NextResponse.json({ error: "JSON inválido da IA" }, { status: 500 });
-    await admin!.from("expand_diag_analise").upsert({ perfil_id: perfilId, tipo: "arquetipo", analise, modelo: MODEL, tokens_in: r.usage.input_tokens, tokens_out: r.usage.output_tokens }, { onConflict: "perfil_id,tipo" });
+    await salvarAnalise("arquetipo", analise, r.usage.input_tokens, r.usage.output_tokens);
     return NextResponse.json({ ok: true, analise });
   }
 
@@ -106,8 +115,13 @@ export async function POST(req: Request) {
     if (!r.ok) return NextResponse.json({ error: r.error }, { status: 500 });
     const analise = parseJson<VisaoIntegrada>(r.text);
     if (!analise) return NextResponse.json({ error: "JSON inválido da IA" }, { status: 500 });
-    await admin!.from("expand_diag_analise").upsert({ perfil_id: perfilId, tipo: "visao_integrada", analise, modelo: MODEL, tokens_in: r.usage.input_tokens, tokens_out: r.usage.output_tokens }, { onConflict: "perfil_id,tipo" });
+    await salvarAnalise("visao_integrada", analise, r.usage.input_tokens, r.usage.output_tokens);
     return NextResponse.json({ ok: true, analise });
+  }
+
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return NextResponse.json({ error: `Erro interno: ${msg}` }, { status: 500 });
   }
 
   return NextResponse.json({ error: "tipo inválido" }, { status: 400 });

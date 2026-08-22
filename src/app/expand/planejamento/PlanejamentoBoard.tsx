@@ -304,55 +304,86 @@ function DayPanel({ date, etapas, nomeCli, draggingId, onDragStart, onDragEnd, o
 }
 
 // ── NewTaskForm ───────────────────────────────────────────────────────────────
-function NewTaskForm({ date, clientes, membroNome, onClose, onCreate }: {
-  date: string; clientes: Cli[]; membroNome: string; onClose:()=>void;
-  onCreate:(tipo:string,titulo:string,clienteId:string,date:string,hi:string,hf:string)=>void;
+function NewTaskForm({ date, clientes, equipe, membroNome, onClose, onCreate }: {
+  date: string; clientes: Cli[]; equipe: Membro[]; membroNome: string; onClose:()=>void;
+  onCreate:(tipo:string,titulo:string,clienteId:string,date:string,hi:string,hf:string,obs:string,participantes:string[])=>void;
 }) {
   const [tipo, setTipo] = useState("reuniao");
   const [titulo, setTitulo] = useState("");
-  const [clienteId, setClienteId] = useState(clientes[0]?.id??"");
+  const [clienteId, setClienteId] = useState("");
+  const [emailFree, setEmailFree] = useState("");
   const [dateVal, setDateVal] = useState(date);
   const [hi, setHi] = useState("09:00");
   const [hf, setHf] = useState("10:00");
+  const [obs, setObs] = useState("");
+  const [participantes, setParticipantes] = useState<string[]>([membroNome].filter(Boolean));
   const cor = TIPO_COR[tipo]??"var(--accent)";
+  const isExclusive = tipo==="reuniao"||tipo==="gravacao";
   const inp: React.CSSProperties = { width:"100%",background:"var(--bg)",border:"1px solid var(--line)",borderRadius:8,color:"var(--txt)",padding:"8px 11px",fontSize:13,outline:"none",boxSizing:"border-box",colorScheme:"dark",fontFamily:"inherit" };
+
+  const toggleParticipante = (nome: string) => {
+    setParticipantes(prev => prev.includes(nome) ? prev.filter(p=>p!==nome) : [...prev, nome]);
+  };
+
   return (
     <div>
-      <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20 }}>
+      <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16 }}>
         <div style={{ fontSize:16,fontWeight:800,color:"var(--txt)" }}>Nova tarefa</div>
         <button onClick={onClose} style={{ background:"none",border:"none",cursor:"pointer",color:"var(--dim)",fontSize:18,padding:4,lineHeight:1 }}>✕</button>
       </div>
+
+      {/* Tipo */}
       <div style={{ marginBottom:14 }}>
         <div style={{ fontSize:10.5,fontWeight:700,color:"var(--dim)",textTransform:"uppercase",letterSpacing:".05em",marginBottom:8 }}>Tipo</div>
         <div style={{ display:"flex",flexWrap:"wrap",gap:5 }}>
           {TIPOS.map(t=>{
             const tc=TIPO_COR[t.v];
             const sel=tipo===t.v;
+            const excl=t.v==="reuniao"||t.v==="gravacao";
             return (
               <button key={t.v} onClick={()=>setTipo(t.v)}
-                style={{ fontSize:11.5,padding:"5px 12px",borderRadius:20,border:`1px solid ${sel?tc:"var(--line)"}`,background:sel?`color-mix(in srgb,${tc} 14%,transparent)`:"transparent",color:sel?tc:"var(--dim)",cursor:"pointer",fontWeight:sel?700:400,transition:"all .12s",fontFamily:"inherit" }}>
+                style={{ fontSize:11.5,padding:"5px 12px",borderRadius:20,border:`1px solid ${sel?tc:"var(--line)"}`,background:sel?`color-mix(in srgb,${tc} 14%,transparent)`:"transparent",color:sel?tc:"var(--dim)",cursor:"pointer",fontWeight:sel?700:400,transition:"all .12s",fontFamily:"inherit",position:"relative" }}>
                 {t.l}
+                {excl&&<span title="Bloqueia o horário" style={{ fontSize:8,marginLeft:4,opacity:.7 }}>🔒</span>}
               </button>
             );
           })}
         </div>
+        {isExclusive&&(
+          <div style={{ fontSize:11,color:cor,marginTop:6,display:"flex",alignItems:"center",gap:4 }}>
+            🔒 Este tipo bloqueia o horário do colaborador
+          </div>
+        )}
       </div>
+
+      {/* Título */}
       <div style={{ marginBottom:12 }}>
         <div style={{ fontSize:10.5,fontWeight:700,color:"var(--dim)",textTransform:"uppercase",letterSpacing:".05em",marginBottom:6 }}>Título</div>
         <input type="text" value={titulo} onChange={e=>setTitulo(e.target.value)} placeholder="Descreva a tarefa..." style={inp} autoFocus/>
       </div>
+
+      {/* Cliente (opcional) */}
       <div style={{ marginBottom:12 }}>
-        <div style={{ fontSize:10.5,fontWeight:700,color:"var(--dim)",textTransform:"uppercase",letterSpacing:".05em",marginBottom:6 }}>Cliente</div>
+        <div style={{ fontSize:10.5,fontWeight:700,color:"var(--dim)",textTransform:"uppercase",letterSpacing:".05em",marginBottom:6 }}>Cliente <span style={{ fontWeight:400,color:"var(--mut)",textTransform:"none",letterSpacing:0 }}>(opcional)</span></div>
         <select value={clienteId} onChange={e=>setClienteId(e.target.value)} style={inp}>
+          <option value="">— Sem cliente (lead / interno)</option>
           {clientes.map(c=><option key={c.id} value={c.id}>{c.nome}</option>)}
         </select>
+        {!clienteId&&(
+          <input type="email" value={emailFree} onChange={e=>setEmailFree(e.target.value)}
+            placeholder="E-mail do lead (opcional)" style={{ ...inp,marginTop:6 }}/>
+        )}
       </div>
+
+      {/* Data */}
       <div style={{ marginBottom:12 }}>
         <div style={{ fontSize:10.5,fontWeight:700,color:"var(--dim)",textTransform:"uppercase",letterSpacing:".05em",marginBottom:6 }}>Data</div>
         <input type="date" value={dateVal} onChange={e=>setDateVal(e.target.value)} style={inp}/>
       </div>
+
+      {/* Horário (se reunião/gravação/ligação) */}
       {TIPOS_COM_HORA.has(tipo)&&(
-        <div style={{ marginBottom:20 }}>
+        <div style={{ marginBottom:12 }}>
           <div style={{ fontSize:10.5,fontWeight:700,color:"var(--dim)",textTransform:"uppercase",letterSpacing:".05em",marginBottom:6 }}>Horário</div>
           <div style={{ display:"flex",gap:8,alignItems:"center" }}>
             <input type="time" value={hi} onChange={e=>setHi(e.target.value)} style={{ ...inp,width:"auto",flex:1 }}/>
@@ -361,10 +392,36 @@ function NewTaskForm({ date, clientes, membroNome, onClose, onCreate }: {
           </div>
         </div>
       )}
-      {!TIPOS_COM_HORA.has(tipo)&&<div style={{ marginBottom:20 }}/>}
+
+      {/* Participantes */}
+      {equipe.length>0&&(
+        <div style={{ marginBottom:12 }}>
+          <div style={{ fontSize:10.5,fontWeight:700,color:"var(--dim)",textTransform:"uppercase",letterSpacing:".05em",marginBottom:8 }}>Participantes <span style={{ fontWeight:400,color:"var(--mut)",textTransform:"none",letterSpacing:0 }}>(serão notificados)</span></div>
+          <div style={{ display:"flex",flexWrap:"wrap",gap:5 }}>
+            {equipe.map(m=>{
+              const sel=participantes.includes(m.nome);
+              return (
+                <button key={m.id} onClick={()=>toggleParticipante(m.nome)}
+                  style={{ fontSize:12,padding:"5px 12px",borderRadius:20,border:`1px solid ${sel?"var(--accent)":"var(--line)"}`,background:sel?"var(--accent-20)":"transparent",color:sel?"var(--accent)":"var(--dim)",cursor:"pointer",fontWeight:sel?700:400,transition:"all .12s",fontFamily:"inherit",display:"flex",alignItems:"center",gap:5 }}>
+                  <span style={{ width:20,height:20,borderRadius:"50%",background:sel?"var(--accent)":"var(--line)",display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:800,color:"#fff",flexShrink:0 }}>{m.ini}</span>
+                  {m.nome.split(" ")[0]}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Observações */}
+      <div style={{ marginBottom:20 }}>
+        <div style={{ fontSize:10.5,fontWeight:700,color:"var(--dim)",textTransform:"uppercase",letterSpacing:".05em",marginBottom:6 }}>Observações <span style={{ fontWeight:400,color:"var(--mut)",textTransform:"none",letterSpacing:0 }}>(opcional)</span></div>
+        <textarea value={obs} onChange={e=>setObs(e.target.value)} placeholder="Pauta, links, instruções..." rows={3}
+          style={{ ...inp,resize:"vertical",lineHeight:1.5 }}/>
+      </div>
+
       <div style={{ display:"flex",gap:8 }}>
         <button onClick={onClose} style={{ flex:1,background:"var(--panel-2)",border:"1px solid var(--line)",borderRadius:10,padding:10,fontSize:13,color:"var(--dim)",cursor:"pointer",fontWeight:600,fontFamily:"inherit" }}>Cancelar</button>
-        <button onClick={()=>{ if(!titulo.trim()||!clienteId)return; onCreate(tipo,titulo.trim(),clienteId,dateVal,hi,hf); }}
+        <button onClick={()=>{ if(!titulo.trim())return; onCreate(tipo,titulo.trim(),clienteId,dateVal,hi,hf,obs,participantes); }}
           style={{ flex:2,background:cor,color:"#fff",border:"none",borderRadius:10,padding:10,fontSize:13,fontWeight:800,cursor:"pointer",fontFamily:"inherit" }}>
           Criar {TIPOS.find(t=>t.v===tipo)?.l}
         </button>
@@ -661,12 +718,14 @@ export function PlanejamentoBoard({
       router.refresh();
     });
   };
-  const createTask = (tipo:string,titulo:string,clienteId:string,date:string,hi:string,hf:string) => {
+  const createTask = (tipo:string,titulo:string,clienteId:string,date:string,hi:string,hf:string,obs:string,participantes:string[]) => {
     startTransition(async()=>{
       const fd=new FormData();
       fd.set("tipo",tipo); fd.set("titulo",titulo); fd.set("clienteId",clienteId);
       fd.set("date",date); fd.set("membroNome",membroNome);
       if(hi) fd.set("horario_inicio",hi); if(hf) fd.set("horario_fim",hf);
+      if(obs) fd.set("observacoes",obs);
+      if(participantes.length>0) fd.set("participantes",participantes.join(","));
       await criarEtapaCal(fd);
       router.refresh();
       setPanel(null);
@@ -878,7 +937,7 @@ export function PlanejamentoBoard({
             onClose={()=>setPanel(null)}/>
         )}
         {panel?.kind==="new"&&(
-          <NewTaskForm date={panel.date} clientes={clientes} membroNome={membroNome}
+          <NewTaskForm date={panel.date} clientes={clientes} equipe={equipe} membroNome={membroNome}
             onClose={()=>setPanel(null)}
             onCreate={createTask}/>
         )}

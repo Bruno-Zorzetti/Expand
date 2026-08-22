@@ -21,7 +21,7 @@ export default function Home() {
               <p style={{ color: "var(--mut)", fontSize: 13, marginTop: 6 }}>Acompanhe seu projeto, aprove as entregas e veja os resultados.</p>
               <span style={{ color: "var(--accent)", fontWeight: 700, fontSize: 13, marginTop: 12, display: "inline-block" }}>Entrar →</span>
             </Link>
-            <Link href="/expand" className="hx-glass hx-glass-hover" style={{ padding: 26, textDecoration: "none", color: "inherit", textAlign: "left" }}>
+            <Link href="/expand/v2" className="hx-glass hx-glass-hover" style={{ padding: 26, textDecoration: "none", color: "inherit", textAlign: "left" }}>
               <span className="hx-icon-tile" style={{ width: 48, height: 48, display: "inline-flex", marginBottom: 14 }}><Icon name="briefcase" size={24} /></span>
               <div style={{ fontFamily: "var(--font-cinzel), serif", fontSize: 20, fontWeight: 600 }}>Equipe</div>
               <p style={{ color: "var(--mut)", fontSize: 13, marginTop: 6 }}>O sistema operacional da Expand: seu dia, a carteira e a entrega.</p>

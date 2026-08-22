@@ -270,12 +270,15 @@ export async function removerArquivo(formData: FormData) {
 export async function criarEtapaCal(formData: FormData) {
   const titulo        = String(formData.get("titulo")          ?? "").trim();
   const tipo          = String(formData.get("tipo")            ?? "reuniao");
-  const clienteId     = String(formData.get("clienteId")       ?? "");
+  const clienteId     = String(formData.get("clienteId")       ?? "").trim();
   const date          = String(formData.get("date")            ?? "").trim();
   const membroNome    = String(formData.get("membroNome")      ?? "").trim();
   const horarioInicio = String(formData.get("horario_inicio")  ?? "").trim() || null;
   const horarioFim    = String(formData.get("horario_fim")     ?? "").trim() || null;
-  if (!titulo || !clienteId) return;
+  const observacoes   = String(formData.get("observacoes")     ?? "").trim() || null;
+  const participantesRaw = String(formData.get("participantes") ?? "").trim();
+  const participantes = participantesRaw ? participantesRaw.split(",").map(s => s.trim()).filter(Boolean) : [];
+  if (!titulo) return;
   const supabase = await createClient();
   const { pessoa } = await getPessoa();
   const { data: inserted } = await supabase.from("expand_etapas").insert({
@@ -286,14 +289,16 @@ export async function criarEtapaCal(formData: FormData) {
     status: "idle",
     marco: false,
     data_prevista: date || null,
-    cliente_id: clienteId,
+    cliente_id: clienteId || null,
     horario_inicio: horarioInicio,
     horario_fim:    horarioFim,
+    observacoes,
+    participantes: participantes.length > 0 ? participantes : null,
   }).select("id").single();
   if (inserted?.id) {
     await logar(supabase, "criacao", `Criou evento de calendário: ${titulo} (${tipo})`, {
       etapa_id: inserted.id as string,
-      cliente_id: clienteId,
+      cliente_id: clienteId || null,
       autor: pessoa.nome,
     });
   }
@@ -511,6 +516,7 @@ export async function solicitarDemanda(formData: FormData) {
   const supabase = await createClient();
   await supabase.rpc("solicitar_demanda", { p_cliente: clienteId, p_titulo: titulo, p_desc: String(formData.get("desc") ?? "").trim() });
   revalidatePath(`/portal/${clienteId}`);
+  revalidatePath(`/portal/${clienteId}/solicitacoes`);
 }
 
 // promove uma tarefa da conta para o PROCESSO PADRÃO do produto (admin) → futuros clientes recebem
@@ -887,16 +893,43 @@ export async function enviarMensagemPadrao(formData: FormData) {
   const meetLink = String(formData.get("meet_link") ?? "").trim() || undefined;
   if (!clienteId || !tipo) return;
   const supabase = await createClient();
-  const { data: c } = await supabase.from("expand_clientes").select("nome, whatsapp_grupo").eq("id", clienteId).maybeSingle();
+  const { data: c } = await supabase
+    .from("expand_clientes")
+    .select("nome, whatsapp_grupo, whatsapp_templates")
+    .eq("id", clienteId)
+    .maybeSingle();
   const jid = c?.whatsapp_grupo as string | null;
   if (!jid) return;
   const { buildMensagem, portUrlCliente } = await import("@/lib/whatsapp-templates");
   const portUrl = portUrlCliente(clienteId);
-  const texto = buildMensagem(tipo as Parameters<typeof buildMensagem>[0], { nome: c?.nome ?? "", portUrl, meetLink });
+  const templates = (c?.whatsapp_templates ?? {}) as Record<string, string>;
+  const templateCustom = templates[tipo] ?? null;
+  const texto = buildMensagem(
+    tipo as Parameters<typeof buildMensagem>[0],
+    { nome: c?.nome ?? "", portUrl, meetLink },
+    templateCustom,
+  );
   const { enviarWhatsapp } = await import("@/lib/whatsapp");
   await enviarWhatsapp(jid, texto);
   const { pessoa } = await getPessoa();
   await supabase.from("expand_log").insert({ tipo: "msg_rapida", detalhe: tipo, cliente_id: clienteId, autor: pessoa.nome });
+  revalidatePath(`/expand/clientes/${clienteId}`);
+}
+
+export async function salvarTemplatesMensagem(formData: FormData) {
+  await exigirAdmin();
+  const clienteId = String(formData.get("clienteId") ?? "");
+  if (!clienteId) return;
+  const tipos: Array<"boas_vindas" | "onboarding" | "followup_reuniao" | "relatorio"> = [
+    "boas_vindas", "onboarding", "followup_reuniao", "relatorio",
+  ];
+  const templates: Record<string, string> = {};
+  for (const t of tipos) {
+    const val = String(formData.get(t) ?? "").trim();
+    if (val) templates[t] = val;
+  }
+  const supabase = await createClient();
+  await supabase.from("expand_clientes").update({ whatsapp_templates: templates }).eq("id", clienteId);
   revalidatePath(`/expand/clientes/${clienteId}`);
 }
 

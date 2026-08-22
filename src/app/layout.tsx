@@ -22,6 +22,19 @@ const themeInit = `(function(){try{
   var a2=localStorage.getItem('hx-accent2'); if(a2){document.documentElement.style.setProperty('--accent-2',a2);}
 }catch(e){}})();`;
 
+// Botões de formulário: feedback visual de loading automático ao submeter
+const btnLoadingInit = `(function(){
+  document.addEventListener('submit', function(e){
+    var form = e.target;
+    var btn  = form.querySelector('button[type="submit"]:not([data-no-loading])');
+    if(!btn || btn.getAttribute('aria-busy')==='true') return;
+    btn.setAttribute('aria-busy','true');
+    btn.setAttribute('disabled','');
+    // Remove após 8s para não travar a UI se o redirect demorar
+    setTimeout(function(){ btn.removeAttribute('aria-busy'); btn.removeAttribute('disabled'); }, 8000);
+  }, true);
+})();`;
+
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html
@@ -32,6 +45,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInit }} />
+        <script dangerouslySetInnerHTML={{ __html: btnLoadingInit }} />
       </head>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>

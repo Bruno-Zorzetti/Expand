@@ -12,16 +12,33 @@ const ICONE: Record<string, string> = {
   aprovacao: "✎", entrega: "✓", demanda: "＋", reuniao: "📅", alerta: "⏰", aviso: "ℹ", mensagem: "💬",
 };
 
-export default function SinoCliente({ notas, marcarLida }: { notas: NotifCli[]; marcarLida: (fd: FormData) => Promise<void> }) {
+export default function SinoCliente({ notas, marcarLida, clienteId }: { notas: NotifCli[]; marcarLida: (fd: FormData) => Promise<void>; clienteId?: string }) {
   const [aberto, setAberto] = useState(false);
   const router = useRouter();
   const naoLidas = notas.filter((n) => !n.lida).length;
+
+  function resolverLink(link: string | null): string | null {
+    if (!link) return null;
+    if (!link.startsWith("/expand/") || !clienteId) return link;
+    // Reescreve rotas admin para equivalentes no portal
+    const m = link.match(/[?&]t=([^&]+)/);
+    const tab = m?.[1];
+    const mapa: Record<string, string> = {
+      aprovacoes: `/portal/${clienteId}/aprovacoes`,
+      historico:  `/portal/${clienteId}/historico`,
+      solicitacoes: `/portal/${clienteId}/solicitacoes`,
+      diagnosticos: `/portal/${clienteId}/diagnosticos`,
+    };
+    if (tab && mapa[tab]) return mapa[tab];
+    return `/portal/${clienteId}`;
+  }
 
   async function abrir(n: NotifCli) {
     // ids "aprov-…" são pendências vivas (não são linhas na tabela) — não marcam leitura.
     if (!n.lida && !n.id.startsWith("aprov-")) { const fd = new FormData(); fd.set("notifId", n.id); await marcarLida(fd); }
     const soAviso = SO_AVISO.includes(n.tipo ?? "");
-    if (n.link && !soAviso) { setAberto(false); router.push(n.link); }
+    const link = resolverLink(n.link);
+    if (link && !soAviso) { setAberto(false); router.push(link); }
     else router.refresh();
   }
 

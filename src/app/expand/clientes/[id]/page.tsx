@@ -10,12 +10,15 @@ import {
   adotarDemanda, salvarLinkGrupo, adicionarDiagnostico, gerarConvitePortal,
   atualizarCliente, excluirCliente, arquivarCliente,
   enviarMensagemPadrao, adicionarNotaHistorico, enviarEmailCliente,
+  salvarTemplatesMensagem,
 } from "@/app/expand/actions";
+import { MSG_VARIAVEIS, MSG_LABELS, MSG_EMOJIS, TEMPLATES_PADRAO, type MsgTipo } from "@/lib/whatsapp-templates";
 import { siteUrl } from "@/lib/site";
 import LogoUpload from "@/components/expand/LogoUpload";
 import DriveEstruturaBtn from "@/components/expand/DriveEstruturaBtn";
 import GrupoSelector from "@/components/expand/GrupoSelector";
 import AgendarReuniao from "@/components/expand/AgendarReuniao";
+import MensagensRapidasPanel from "@/components/expand/MensagensRapidasPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +28,7 @@ type Cli = ClienteRow & {
   drive_folder_id?: string | null; drive_estrutura_criada?: boolean | null;
   agente_id?: string | null; produto_slug?: string | null;
   meta_receita?: number | null; imagem_url?: string | null;
+  whatsapp_templates?: Record<string, string> | null;
 };
 type Etapa = { id: string; titulo: string; area: string | null; sla: string | null; status: string | null; origem: string | null; visivel_cliente: boolean; criado_em: string; data_prevista: string | null };
 type Log = { id: string; tipo: string | null; detalhe: string | null; autor: string | null; criado_em: string };
@@ -33,6 +37,7 @@ const ABAS = [
   { k: "geral", l: "Visão Geral" },
   { k: "drive", l: "Drive" },
   { k: "grupo", l: "WhatsApp" },
+  { k: "mensagens", l: "Mensagens" },
   { k: "historico", l: "Histórico" },
   { k: "diagnosticos", l: "Diagnósticos" },
   { k: "editar", l: "Configurações" },
@@ -125,6 +130,16 @@ export default async function ClienteHub({ params, searchParams }: { params: Pro
   const emRun = etapas.filter((e) => e.status === "run").length;
   // portUrl aponta para o portal do CLIENTE (rota /portal), não o hub admin
   const portUrl = `${siteUrl()}/portal/${id}`;
+  const msgPreviews = (["boas_vindas", "onboarding", "followup_reuniao", "relatorio"] as const).reduce((acc, tipo) => {
+    const tmpl = (cli.whatsapp_templates as Record<string, string> | null)?.[tipo] || TEMPLATES_PADRAO[tipo];
+    acc[tipo] = tmpl
+      .replace(/\{\{nome\}\}/g, cli.nome.split(" ")[0])
+      .replace(/\{\{empresa\}\}/g, cli.nome)
+      .replace(/\{\{projeto\}\}/g, (cli.produto_slug as string | null) ?? "seu projeto")
+      .replace(/\{\{link_portal\}\}/g, portUrl)
+      .replace(/\{\{meet_link\}\}/g, "🔗 Link da reunião (informe ao enviar)");
+    return acc;
+  }, {} as Record<string, string>);
   const ini = cli.nome.split(" ").slice(0, 2).map(w => w[0]).join("").toUpperCase();
 
   return (
@@ -348,23 +363,12 @@ export default async function ClienteHub({ params, searchParams }: { params: Pro
                 {cli.whatsapp_grupo && (
                   <div style={{ borderTop: "1px solid var(--line)", paddingTop: 14, marginBottom: 12 }}>
                     <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", color: "var(--dim)", marginBottom: 10 }}>Mensagens rápidas</div>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px,1fr))", gap: 8 }}>
-                      {[
-                        { tipo: "boas_vindas", emoji: "👋", label: "Boas-vindas ao grupo" },
-                        { tipo: "onboarding", emoji: "🚀", label: "Início do projeto" },
-                        { tipo: "followup_reuniao", emoji: "📅", label: "Follow-up de reunião (1h)" },
-                        { tipo: "relatorio", emoji: "📊", label: "Entrega de relatório" },
-                      ].map(({ tipo, emoji, label }) => (
-                        <form key={tipo} action={enviarMensagemPadrao}>
-                          <input type="hidden" name="clienteId" value={id} />
-                          <input type="hidden" name="tipo" value={tipo} />
-                          <button className="hx-btn hx-btn-ghost" type="submit" style={{ width: "100%", textAlign: "left", padding: "10px 12px", fontSize: 12, borderRadius: 10, display: "flex", flexDirection: "column", gap: 3, height: "auto" }}>
-                            <span style={{ fontSize: 18 }}>{emoji}</span>
-                            <span style={{ fontWeight: 600, lineHeight: 1.3 }}>{label}</span>
-                          </button>
-                        </form>
-                      ))}
-                    </div>
+                    <MensagensRapidasPanel
+                      clienteId={id}
+                      grupoJid={cli.whatsapp_grupo as string ?? ""}
+                      previews={msgPreviews as Record<"boas_vindas" | "onboarding" | "followup_reuniao" | "relatorio", string>}
+                      enviarAction={enviarMensagemPadrao}
+                    />
                   </div>
                 )}
 
@@ -827,6 +831,106 @@ export default async function ClienteHub({ params, searchParams }: { params: Pro
 
       {aba === "editar" && !isAdmin && (
         <p style={{ fontSize: 13, color: "var(--dim)" }}>Somente administradores podem editar dados do cliente.</p>
+      )}
+
+      {/* ══════════ MENSAGENS ══════════ */}
+      {aba === "mensagens" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+
+          {/* Cabeçalho + referência de variáveis */}
+          <div className="hx-glass" style={{ borderRadius: 14, padding: 18 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Variáveis disponíveis</div>
+            <div style={{ fontSize: 12, color: "var(--mut)", marginBottom: 12, lineHeight: 1.6 }}>
+              Use essas variáveis nos templates — elas são substituídas automaticamente ao enviar.
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {MSG_VARIAVEIS.map((v) => (
+                <div key={v.var} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 10px", background: "var(--panel-2)", borderRadius: 8, border: "1px solid var(--line-2)" }}>
+                  <code style={{ fontSize: 11.5, color: "var(--accent)", fontFamily: "monospace" }}>{v.var}</code>
+                  <span style={{ fontSize: 11, color: "var(--dim)" }}>{v.desc}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Templates por tipo */}
+          {isAdmin ? (
+            <form action={salvarTemplatesMensagem}>
+              <input type="hidden" name="clienteId" value={id} />
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                {(["boas_vindas", "onboarding", "followup_reuniao", "relatorio"] as MsgTipo[]).map((tipo) => {
+                  const customVal = cli.whatsapp_templates?.[tipo] ?? "";
+                  const padrao = TEMPLATES_PADRAO[tipo];
+                  return (
+                    <div key={tipo} className="hx-glass" style={{ borderRadius: 14, padding: 18 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                        <span style={{ fontSize: 18 }}>{MSG_EMOJIS[tipo]}</span>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 700 }}>{MSG_LABELS[tipo]}</div>
+                          {customVal && (
+                            <span style={{ fontSize: 10.5, color: "var(--green)", fontWeight: 600 }}>Template personalizado ativo</span>
+                          )}
+                        </div>
+                      </div>
+                      <textarea
+                        name={tipo}
+                        rows={6}
+                        defaultValue={customVal}
+                        placeholder={`Deixe em branco para usar o padrão:\n\n${padrao}`}
+                        style={{ ...fld, resize: "vertical", width: "100%", fontFamily: "monospace", fontSize: 11.5, lineHeight: 1.6, minWidth: "auto" }}
+                      />
+                      <div style={{ fontSize: 11, color: "var(--dim)", marginTop: 6 }}>
+                        Se vazio, usa o template padrão do sistema. Use {"{{"}<span style={{ color: "var(--accent)" }}>variavel</span>{"}}"}  para personalizar.
+                      </div>
+                    </div>
+                  );
+                })}
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button type="submit" className="hx-btn hx-btn-primary" style={{ padding: "10px 24px" }}>
+                    Salvar templates
+                  </button>
+                  {Object.keys(cli.whatsapp_templates ?? {}).length > 0 && (
+                    <span style={{ fontSize: 12, color: "var(--green)", alignSelf: "center" }}>
+                      {Object.keys(cli.whatsapp_templates ?? {}).length} template(s) customizados
+                    </span>
+                  )}
+                </div>
+              </div>
+            </form>
+          ) : (
+            <p style={{ fontSize: 13, color: "var(--dim)" }}>Somente administradores podem configurar templates de mensagem.</p>
+          )}
+
+          {/* Preview das mensagens que serão enviadas */}
+          <div className="hx-glass" style={{ borderRadius: 14, padding: 18 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>Prévia das mensagens</div>
+            <div style={{ fontSize: 12, color: "var(--mut)", marginBottom: 14 }}>
+              Como cada mensagem aparecerá para <strong>{cli.nome}</strong> quando enviada pelo WhatsApp.
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {(["boas_vindas", "onboarding", "followup_reuniao", "relatorio"] as MsgTipo[]).map((tipo) => {
+                const tmpl = cli.whatsapp_templates?.[tipo] || TEMPLATES_PADRAO[tipo];
+                const preview = tmpl
+                  .replace(/{{nome}}/g, cli.nome.split(" ")[0])
+                  .replace(/{{empresa}}/g, cli.nome)
+                  .replace(/{{projeto}}/g, (cli.produto_slug as string | null) ?? "seu projeto")
+                  .replace(/{{link_portal}}/g, portUrl)
+                  .replace(/{{meet_link}}/g, "🔗 Link da reunião");
+                return (
+                  <details key={tipo} style={{ borderRadius: 10, border: "1px solid var(--line-2)", overflow: "hidden" }}>
+                    <summary style={{ padding: "10px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer", background: "var(--panel-2)", display: "flex", alignItems: "center", gap: 8 }}>
+                      <span>{MSG_EMOJIS[tipo]}</span> {MSG_LABELS[tipo]}
+                      {cli.whatsapp_templates?.[tipo] && <span style={{ fontSize: 10, color: "var(--green)", marginLeft: "auto" }}>Personalizado</span>}
+                    </summary>
+                    <div style={{ padding: "12px 14px", background: "var(--bg)" }}>
+                      <pre style={{ margin: 0, fontSize: 12, lineHeight: 1.7, whiteSpace: "pre-wrap", fontFamily: "inherit", color: "var(--txt)" }}>{preview}</pre>
+                    </div>
+                  </details>
+                );
+              })}
+            </div>
+          </div>
+        </div>
       )}
     </>
   );

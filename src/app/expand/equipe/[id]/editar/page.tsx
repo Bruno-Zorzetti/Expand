@@ -123,6 +123,26 @@ export default async function EditarPerfil({ params, searchParams }: {
               <label style={label}>Memória (contexto persistente)</label>
               <textarea name="memoria" defaultValue={(p.memoria as string | null) ?? ""} rows={5} style={{ ...fld, resize: "vertical", fontFamily: "monospace", fontSize: 12 }} placeholder="Acertos, padrões, aprendizados relevantes — injetado no chat automaticamente." />
             </div>
+            <div style={fgroup}>
+              <label style={label}>Processos (roteiro de trabalho)</label>
+              <textarea
+                name="processos_txt"
+                rows={12}
+                style={{ ...fld, resize: "vertical", fontFamily: "monospace", fontSize: 12, lineHeight: 1.6 }}
+                defaultValue={
+                  Array.isArray(p.processos)
+                    ? (p.processos as { t: string; passos: string[] }[])
+                        .map(pr => `# ${pr.t}\n${pr.passos.map(s => `- ${s}`).join("\n")}`)
+                        .join("\n\n")
+                    : ""
+                }
+                placeholder={`# Nome do processo\n- Passo 1\n- Passo 2\n\n# Outro processo\n- Passo A\n- Passo B`}
+              />
+              <span style={{ fontSize: 11, color: "var(--dim)" }}>
+                Formato: <code style={{ background: "var(--panel-2)", padding: "1px 5px", borderRadius: 4 }}># Título</code> abre um processo,{" "}
+                <code style={{ background: "var(--panel-2)", padding: "1px 5px", borderRadius: 4 }}>- passo</code> adiciona um passo. Separe processos com linha em branco.
+              </span>
+            </div>
           </>
         )}
 

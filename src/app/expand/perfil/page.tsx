@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAcesso } from "@/lib/expand-acesso";
-import { CopiarUrl } from "@/components/expand/CopiarUrl";
 
 export const dynamic = "force-dynamic";
 
@@ -36,26 +35,6 @@ async function salvarMeuPerfil(formData: FormData) {
       ...(fotoUrl  ? { foto_url: fotoUrl } : {}),
       ...(telefone ? { telefone } : {}),
     }).eq("id", membroSlug);
-  }
-  revalidatePath("/expand/perfil");
-}
-
-async function gerarTokenCalendario(formData: FormData) {
-  "use server";
-  const { userId } = await getAcesso();
-  if (!userId) return;
-  const sb = await createClient();
-  const { data: me } = await sb.from("profiles").select("expand_membro").eq("id", userId).single();
-  const membroSlug = String(me?.expand_membro ?? "").trim();
-  if (!membroSlug) return;
-  const adminSb = createAdminClient();
-  if (adminSb) {
-    const { error: rpcErr } = await adminSb.rpc("gen_ics_token", { p_perfil_id: membroSlug });
-    if (rpcErr) {
-      await adminSb.from("expand_perfis").update({
-        ics_token: crypto.randomUUID(),
-      }).eq("id", membroSlug).is("ics_token", null);
-    }
   }
   revalidatePath("/expand/perfil");
 }
@@ -119,10 +98,6 @@ export default async function MeuPerfil() {
     : { data: [] };
   const clientesMap = new Map((clientesData ?? []).map((c: { id: string; nome: string }) => [c.id, c.nome]));
   const clientes = clienteIds.map(id => ({ id, nome: clientesMap.get(id) ?? id }));
-
-  // URL do calendário ICS
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://expand.hshs.com.br";
-  const icsUrl  = perfil?.ics_token ? `${baseUrl}/api/calendario/${perfil.ics_token}` : null;
 
   const fld: CSSProperties = {
     background: "var(--bg)", border: "1px solid var(--line-2)", borderRadius: 8,
@@ -266,35 +241,6 @@ export default async function MeuPerfil() {
           )
       ))}
 
-      {/* Calendário ICS */}
-      {sec("Calendário Google", (
-        <div>
-          {icsUrl ? (
-            <>
-              <p style={{ fontSize: 12.5, color: "var(--dim)", marginBottom: 10, lineHeight: 1.6 }}>
-                Use o link abaixo para adicionar sua agenda ao Google Calendar.<br />
-                Em Google Calendar → <b>Outros calendários → Por URL</b>.
-              </p>
-              <CopiarUrl url={icsUrl} />
-            </>
-          ) : membroSlug ? (
-            <div>
-              <p style={{ fontSize: 12.5, color: "var(--dim)", marginBottom: 10 }}>
-                Você ainda não tem um link de calendário gerado.
-              </p>
-              <form action={gerarTokenCalendario}>
-                <button className="hx-btn hx-btn-primary" type="submit" style={{ fontSize: 13 }}>
-                  Gerar meu link de calendário
-                </button>
-              </form>
-            </div>
-          ) : (
-            <p style={{ fontSize: 12.5, color: "var(--mut)", fontStyle: "italic" }}>
-              Vincule sua conta a um membro da equipe para ativar o calendário.
-            </p>
-          )}
-        </div>
-      ))}
     </>
   );
 }

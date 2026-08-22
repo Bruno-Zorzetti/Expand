@@ -32,7 +32,7 @@ export default async function Aguardando() {
   if (!user) redirect("/login");
   const { data: me } = await supabase.from("profiles").select("role").eq("id", user.id).single();
   const role = (me?.role as string) ?? "pendente";
-  if (role === "admin" || role === "equipe") redirect("/expand");
+  if (role === "admin" || role === "equipe") redirect("/expand/v2");
   if (role === "cliente") redirect("/cliente");
 
   const nome = user.user_metadata?.full_name as string | undefined;

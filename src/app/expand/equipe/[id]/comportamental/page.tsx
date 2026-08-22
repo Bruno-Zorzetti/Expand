@@ -54,6 +54,14 @@ export default async function Comportamental({ params }: { params: Promise<{ id:
 
   const temAlgum = p.disc || p.arquetipo || p.temperamento;
 
+  // Check if current user is admin
+  const { data: { user } } = await supabase.auth.getUser();
+  let isAdmin = false;
+  if (user) {
+    const { data: me } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+    isAdmin = me?.role === "admin";
+  }
+
   return (
     <>
       <Link href={`/expand/equipe/${id}`} className="ex-back">← Voltar ao perfil</Link>
@@ -64,14 +72,14 @@ export default async function Comportamental({ params }: { params: Promise<{ id:
         <div style={{ flex: 1 }}>
           <p className="hx-eyebrow">Perfil Comportamental 360°</p>
           <h1 className="ex-h1" style={{ margin: 0 }}>{p.nome}</h1>
-          <p style={{ fontSize: 12.5, color: "var(--mut)", marginTop: 2 }}>
+          <p style={{ fontSize: 13, color: "var(--mut)", marginTop: 2 }}>
             {p.cargo}{p.area ? ` · ${p.area}` : ""}
           </p>
         </div>
         <Link
           href={`/expand/equipe/${id}/diagnostico`}
           style={{
-            fontSize: 12, padding: "7px 14px", borderRadius: 9,
+            fontSize: 13, padding: "7px 14px", borderRadius: 9,
             background: "var(--panel-2)", border: "1px solid var(--line-2)",
             color: "var(--txt)", textDecoration: "none", flexShrink: 0,
           }}
@@ -94,7 +102,7 @@ export default async function Comportamental({ params }: { params: Promise<{ id:
           </Link>
         </div>
       ) : (
-        <DiagPerfil360 data={diagData} />
+        <DiagPerfil360 data={diagData} isAdmin={isAdmin} />
       )}
     </>
   );
