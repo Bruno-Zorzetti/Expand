@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useRef, type ReactNode } from "react";
-import AssistentesDock from "@/components/expand/AssistentesDock";
 import Notificacoes, { type Notif } from "@/components/expand/Notificacoes";
 import OnboardingTour from "@/components/expand/OnboardingTour";
 import { createClient } from "@/lib/supabase/client";
@@ -21,7 +20,6 @@ const NAV: NavSec[] = [
     id: "tarefas",
     sec: "Tarefas",
     items: [
-      { href: "/expand/chat",          label: "Chat",                icon: "bubble",   eyebrow: "Mensagens da equipe" },
       { href: "/expand/v2",           label: "Meu Dia",             icon: "grid",     eyebrow: "Suas tarefas de hoje" },
       { href: "/expand/planejamento", label: "Calendário",          icon: "calendar", eyebrow: "Agenda pessoal" },
       { href: "/expand/plano",        label: "Plano de Ação",       icon: "list",     eyebrow: "Objetivos e ações" },
@@ -36,6 +34,7 @@ const NAV: NavSec[] = [
       { href: "/expand/equipe/humanos",  label: "Humanos",     icon: "users",  eyebrow: "Membros da equipe",    gate: "projetos.equipe" },
       { href: "/expand/equipe/agentes",  label: "Agentes IA",  icon: "zap",    eyebrow: "Assistentes de IA",   gate: "projetos.equipe" },
       { href: "/expand/carteira",        label: "Clientes",    icon: "folder", eyebrow: "Carteira e dossiês",   gate: "projetos.clientes" },
+      { href: "/expand/chat",            label: "Chat",        icon: "bubble", eyebrow: "Mensagens da equipe" },
     ],
   },
   {
@@ -66,6 +65,7 @@ const NAV: NavSec[] = [
     sec: "Minha Conta",
     items: [
       { href: "/expand/perfil", label: "Meu Perfil", icon: "idcard", eyebrow: "Identidade, tarefas e calendário" },
+      { href: "/expand/1x1",    label: "1x1 · Humberto", icon: "heart", eyebrow: "Escuta, cultura e combinados" },
     ],
   },
 ];
@@ -558,24 +558,6 @@ export default function ExpandShell({
                 {equipe.map((p) => <option key={p.id} value={p.id}>Ver como {p.nome}</option>)}
               </select>
             ) : null}
-            {isAdmin && (
-              <select
-                value={viewAs ?? ""}
-                onChange={e => setViewAsPersist((e.target.value as "equipe" | "cliente") || null)}
-                title="Navegar como outro nível de acesso"
-                style={{
-                  background: viewAs ? "color-mix(in srgb, var(--warn) 15%, var(--panel-2))" : "var(--panel-2)",
-                  border: `1px solid ${viewAs ? "var(--warn)" : "var(--line-2)"}`,
-                  color: viewAs ? "var(--warn)" : "var(--dim)",
-                  borderRadius: 7, fontSize: 11.5, padding: "4px 8px",
-                  cursor: "pointer", fontFamily: "inherit", outline: "none",
-                }}
-              >
-                <option value="">Navegar como: Admin</option>
-                <option value="equipe">Navegar como: Equipe</option>
-                <option value="cliente">Navegar como: Cliente</option>
-              </select>
-            )}
             <button className="ex-iconbtn" onClick={toggleTema} title="Tema claro/escuro"><Ic name="moon" /></button>
             {marcarLida && marcarTodas
               ? <Notificacoes notas={notif} marcarLida={marcarLida} marcarTodas={marcarTodas} />
@@ -631,7 +613,6 @@ export default function ExpandShell({
         </footer>
       </div>
 
-      <AssistentesDock pessoaId={pessoa.id} pessoaNome={pessoa.nome} />
       <OnboardingTour pessoaId={pessoa.id} pessoaNome={pessoa.nome} />
     </div>
   );
