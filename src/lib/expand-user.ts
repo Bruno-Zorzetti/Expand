@@ -3,12 +3,17 @@ import { createClient } from "@/lib/supabase/server";
 
 export type Pessoa = { id: string; nome: string; papel: string; ini: string };
 
+async function getEquipeCache(): Promise<Pessoa[]> {
+  const supabase = await createClient();
+  const { data } = await supabase.from("expand_equipe").select("id,nome,papel,ini").order("ordem");
+  return (data ?? []) as Pessoa[];
+}
+
 // Resolve a "pessoa da Expand" da sessão:
 // 1) cookie de preview (admin "ver como"), 2) vínculo profiles.expand_membro, 3) fallback Ana.
 export async function getPessoa(): Promise<{ pessoa: Pessoa; equipe: Pessoa[] }> {
   const supabase = await createClient();
-  const { data: eq } = await supabase.from("expand_equipe").select("id,nome,papel,ini").order("ordem");
-  const equipe = (eq ?? []) as Pessoa[];
+  const equipe = await getEquipeCache();
 
   const jar = await cookies();
   const escolhido = jar.get("expand_pessoa")?.value;
