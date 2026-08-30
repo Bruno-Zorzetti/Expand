@@ -218,6 +218,7 @@ export default function ExpandShell({
 
   // "View as" — admin simula nível de acesso de outro papel para navegar como eles veriam
   const [viewAs, setViewAs] = useState<"equipe" | "cliente" | null>(null);
+  const [agentes, setAgentes] = useState<{ id: string; nome: string }[]>([]);
 
   function setViewAsPersist(v: "equipe" | "cliente" | null) {
     setViewAs(v);
@@ -261,6 +262,28 @@ export default function ExpandShell({
       if (va) setViewAs(va);
     } catch { /* noop */ }
   }, []);
+
+  useEffect(() => {
+    const sb = createClient();
+    sb.from("expand_perfis")
+      .select("id, nome")
+      .eq("tipo", "agente")
+      .eq("ativo", true)
+      .order("nome")
+      .limit(40)
+      .then(({ data }) => { if (data) setAgentes(data as { id: string; nome: string }[]); });
+  }, []);
+
+  const computedNAV = NAV.map(s => {
+    if (s.id !== "projetos") return s;
+    return {
+      ...s,
+      items: s.items.map(it => {
+        if (it.href !== "/expand/equipe/agentes" || !agentes.length) return it;
+        return { ...it, sub: agentes.map(a => ({ href: `/expand/equipe/${a.id}`, label: a.nome })) };
+      }),
+    };
+  });
 
   function trocarPessoa(id: string) {
     document.cookie = `expand_pessoa=${id}; path=/; max-age=31536000`;
@@ -309,7 +332,7 @@ export default function ExpandShell({
     if (!dr || dr.sec !== secId || dr.fromIdx === toIdx) { setDropTarget(null); return; }
 
     setOrder(prev => {
-      const sec = NAV.find(s => s.id === secId)!;
+      const sec = computedNAV.find(s => s.id === secId)!;
       const displayed = getDisplayedItemsForSec(sec, prev);
       const hrefs = displayed.map(i => i.href);
       const [moved] = hrefs.splice(dr.fromIdx, 1);
@@ -336,7 +359,7 @@ export default function ExpandShell({
 
   // active item detection (longest-prefix wins)
   const activeHref = (() => {
-    const all = NAV.flatMap(s => s.items.flatMap(i => [
+    const all = computedNAV.flatMap(s => s.items.flatMap(i => [
       i.href,
       ...(i.sub ?? []).map(sub => sub.href),
     ]));
@@ -367,7 +390,7 @@ export default function ExpandShell({
         </div>
 
         <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden" }}>
-          {NAV.map((s) => {
+          {computedNAV.map((s) => {
             const items = getDisplayedItems(s);
             if (!items.length) return null;
             const isCollapsed = !!collapsed[s.id];
