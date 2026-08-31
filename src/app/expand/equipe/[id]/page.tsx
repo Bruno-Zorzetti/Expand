@@ -229,6 +229,11 @@ export default async function PerfilPage({ params, searchParams }: { params: Pro
         { k: "capacidades", l: "O que faço" },
         { k: "chat",        l: "Conversar" },
         { k: "mente",       l: "Mente & Grafo" },
+        ...(id === "daniel" ? [
+          { k: "bibliotecas", l: "Bibliotecas" },
+          { k: "tier",        l: "Ferramentas & Tier" },
+          { k: "exemplos",    l: "Exemplos de pedido" },
+        ] : []),
         { k: "diagnosticos",l: "Diagnósticos" },
         { k: "metodologia", l: "Metodologia" },
         { k: "processos",   l: "Processos" },
@@ -410,75 +415,6 @@ export default async function PerfilPage({ params, searchParams }: { params: Pro
             </div>
           ) : null}
 
-          {/* Tier de custo de ferramentas (Design Master) */}
-          {id === "daniel" ? (
-            <div className="ex-panel hx-glass" style={{ padding: "18px 20px" }}>
-              <div style={{ fontSize: 10.5, fontWeight: 700, color: "var(--dim)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 6 }}>Tier de custo de ferramentas</div>
-              <p style={{ fontSize: 12, color: "var(--mut)", lineHeight: 1.55, marginBottom: 14 }}>A ferramenta é escolhida pelo custo × exigência da peça, não pela senioridade do designer. Sem saldo no tier ideal → cai um tier e avisa.</p>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {([
-                  { tier: "Grátis", c: "var(--green)", desc: "Rascunho, volume, peça simples", tools: ["Canva", "FLUX Klein 4B"] },
-                  { tier: "Médio", c: "#f0a500", desc: "Qualidade no custo justo", tools: ["Nano Banana", "Gemini Flash Image", "FLUX Dev"] },
-                  { tier: "Premium", c: cor, desc: "Peça-chave, 4K, cliente exigente", tools: ["Higgsfield", "Seedream 4.5", "GPT-Image", "Reve (texto)"] },
-                  { tier: "Vídeo", c: "#D946EF", desc: "Animações e vídeos gerados por IA", tools: ["Veo", "Sora", "Seedance", "Grok"] },
-                ] as { tier: string; c: string; desc: string; tools: string[] }[]).map((row) => (
-                  <div key={row.tier} style={{ display: "flex", gap: 12, alignItems: "flex-start", padding: "10px 12px", background: "var(--panel-2)", borderRadius: 8, border: "1px solid var(--line)" }}>
-                    <span style={{ padding: "3px 9px", borderRadius: 6, fontSize: 11, fontWeight: 700, background: `color-mix(in srgb, ${row.c} 14%, transparent)`, color: row.c, flexShrink: 0, marginTop: 1 }}>{row.tier}</span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 11.5, color: "var(--dim)", marginBottom: 5 }}>{row.desc}</div>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-                        {row.tools.map((tl) => <span key={tl} style={{ fontSize: 11.5, padding: "2px 8px", borderRadius: 5, background: "var(--panel)", border: "1px solid var(--line-2)", color: "var(--txt)" }}>{tl}</span>)}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : null}
-
-          {/* Bibliotecas visuais de referência (Design Master) */}
-          {id === "daniel" ? (
-            <div className="ex-panel hx-glass" style={{ padding: "18px 20px" }}>
-              <div style={{ fontSize: 10.5, fontWeight: 700, color: "var(--dim)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 14 }}>Bibliotecas visuais de referência</div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                {[
-                  { nome: "shadcn/ui", uso: "Base de todo componente — botão, modal, input, tabela, card", onde: "plataforma", href: "https://ui.shadcn.com/docs/components" },
-                  { nome: "motion", uso: "Animações suaves de entrada/saída, 120fps via GPU", onde: "plataforma", href: "https://motion.dev" },
-                  { nome: "kokonutui", uso: "Componentes premium prontos: brilho, ripple, hover 3D, glassmorphism", onde: "dashboards de cliente", href: "https://kokonutui.com" },
-                  { nome: "bklit-ui", uso: "Gráficos interativos: linha, barra, pizza, área, gauge", onde: "dashboards financeiros/KPIs", href: "https://ui.bklit.com/studio" },
-                  { nome: "anime.js", uso: "Animações de texto, SVG e sequências complexas de apresentação", onde: "open-slide", href: "https://animejs.com" },
-                ].map((lib) => (
-                  <a key={lib.nome} href={lib.href} target="_blank" rel="noreferrer" style={{ display: "block", padding: "12px 14px", background: "var(--panel-2)", border: "1px solid var(--line)", borderRadius: 10, textDecoration: "none" }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: cor, marginBottom: 4 }}>{lib.nome} ↗</div>
-                    <div style={{ fontSize: 11.5, color: "var(--mut)", lineHeight: 1.5, marginBottom: 6 }}>{lib.uso}</div>
-                    <span style={{ fontSize: 10.5, padding: "2px 7px", borderRadius: 4, background: "var(--panel)", border: "1px solid var(--line-2)", color: "var(--dim)" }}>{lib.onde}</span>
-                  </a>
-                ))}
-              </div>
-            </div>
-          ) : null}
-
-          {/* Exemplos de como acionar (Design Master) */}
-          {id === "daniel" ? (
-            <div className="ex-panel hx-glass" style={{ padding: "18px 20px" }}>
-              <div style={{ fontSize: 10.5, fontWeight: 700, color: "var(--dim)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 14 }}>Exemplos de pedido</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {[
-                  { prompt: "Preciso de uma capa de ebook sobre liderança — paleta azul e dourado.", resultado: "Roteia para Designer de Social · Nano Banana ou Canva (tier grátis/médio)" },
-                  { prompt: "Quero uma landing page de vendas para o PIDE, responsiva com vídeo de fundo.", resultado: "Roteia para Designer de Lançamento (código Next.js + visual)" },
-                  { prompt: "Preciso de um vídeo de produto com estética cinematográfica, 30 segundos.", resultado: "Roteia para Max · Sora ou Higgsfield (tier Premium/Vídeo)" },
-                  { prompt: "Thumbnail do episódio 47 com o Rodrigo Góes falando sobre escassez.", resultado: "Roteia para Nina · framework MrBeast + Thomas Frank" },
-                  { prompt: "Qual a diferença entre Canva e Higgsfield para uma peça de campanha?", resultado: "Daniel explica o tier de custo e recomenda pelo briefing" },
-                ].map((ex, i) => (
-                  <div key={i} style={{ padding: "11px 14px", background: "var(--panel-2)", border: "1px solid var(--line)", borderRadius: 10 }}>
-                    <div style={{ fontSize: 12.5, color: "var(--txt)", lineHeight: 1.55, marginBottom: 5, fontStyle: "italic" }}>"{ex.prompt}"</div>
-                    <div style={{ fontSize: 11.5, color: cor, fontWeight: 600 }}>{ex.resultado}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : null}
-
           {/* Estado vazio */}
           {!p.bio && !p.soft?.length && !p.hard?.length && !p.ferramentas?.length && !p.processos?.length ? (
             <div className="ex-panel hx-glass" style={{ padding: "32px 20px", textAlign: "center" }}>
@@ -492,6 +428,143 @@ export default async function PerfilPage({ params, searchParams }: { params: Pro
             </div>
           ) : null}
 
+        </div>
+      ) : null}
+
+      {/* ---------- BIBLIOTECAS (Daniel) ---------- */}
+      {tab === "bibliotecas" && id === "daniel" ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div className="ex-panel hx-glass" style={{ padding: "14px 18px" }}>
+            <p style={{ fontSize: 12.5, color: "var(--mut)", lineHeight: 1.6 }}>Estas bibliotecas são a referência técnica que Daniel (e o Designer de Sistemas) usa para criar interfaces, animações e gráficos nos projetos Hashes. Cada card abre a documentação oficial.</p>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            {[
+              { nome: "shadcn/ui", emoji: "🧱", uso: "Base de todo componente — botão, modal, input, tabela, select, card. O componente vira seu código, editável.", onde: "plataforma", href: "https://ui.shadcn.com/docs/components" },
+              { nome: "motion", emoji: "🎞️", uso: "Animações suaves de entrada/saída a 120fps via GPU. Padrão de mercado React.", onde: "plataforma", href: "https://motion.dev" },
+              { nome: "kokonutui", emoji: "✨", uso: "Componentes premium prontos: brilho, ripple, hover 3D, glassmorphism. Usar em dashboards de cliente e áreas de vendas.", onde: "dashboards de cliente", href: "https://kokonutui.com" },
+              { nome: "bklit-ui", emoji: "📊", uso: "Gráficos interativos: linha, barra, pizza, área, gauge. Studio online para gerar o código visualmente.", onde: "dashboards financeiros/KPIs", href: "https://ui.bklit.com/studio" },
+              { nome: "anime.js", emoji: "🎬", uso: "Animações de texto letra a letra, SVG path draw, sequências com timeline. Exclusivo para apresentações.", onde: "open-slide", href: "https://animejs.com" },
+            ].map((lib) => (
+              <a key={lib.nome} href={lib.href} target="_blank" rel="noreferrer" style={{ display: "block", padding: "16px 16px", background: "var(--panel-2)", border: "1px solid var(--line)", borderRadius: 12, textDecoration: "none" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                  <span style={{ fontSize: 20 }}>{lib.emoji}</span>
+                  <span style={{ fontSize: 14, fontWeight: 800, color: cor }}>{lib.nome}</span>
+                  <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--dim)" }}>↗ docs</span>
+                </div>
+                <div style={{ fontSize: 12, color: "var(--mut)", lineHeight: 1.55, marginBottom: 8 }}>{lib.uso}</div>
+                <span style={{ fontSize: 10.5, padding: "2px 8px", borderRadius: 4, background: "var(--panel)", border: "1px solid var(--line-2)", color: "var(--dim)" }}>{lib.onde}</span>
+              </a>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {/* ---------- TIER DE FERRAMENTAS (Daniel) ---------- */}
+      {tab === "tier" && id === "daniel" ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div className="ex-panel hx-glass" style={{ padding: "14px 18px" }}>
+            <p style={{ fontSize: 12.5, color: "var(--mut)", lineHeight: 1.6 }}>A ferramenta é escolhida pelo custo × exigência da peça — não pela senioridade do designer. Sem saldo no tier ideal: cai um tier e avisa.</p>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {([
+              { tier: "Grátis", emoji: "🆓", c: "var(--green)", desc: "Rascunho, volume alto, peça simples — entregável rápido sem custo", tools: ["Canva", "FLUX Klein 4B"] },
+              { tier: "Médio", emoji: "⚖️", c: "#f0a500", desc: "Qualidade profissional no custo justo — maioria das entregas de cliente", tools: ["Nano Banana", "Gemini Flash Image", "FLUX Dev"] },
+              { tier: "Premium", emoji: "💎", c: cor, desc: "Peça-chave de campanha, 4K, cliente exigente — justifica o custo", tools: ["Higgsfield", "Seedream 4.5", "GPT-Image", "Reve (texto na arte)"] },
+              { tier: "Vídeo", emoji: "🎥", c: "#D946EF", desc: "Animações e vídeos gerados por IA — projetos audiovisuais", tools: ["Veo", "Sora", "Seedance", "Grok"] },
+            ] as { tier: string; emoji: string; c: string; desc: string; tools: string[] }[]).map((row) => (
+              <div key={row.tier} className="ex-panel hx-glass" style={{ padding: "14px 16px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                  <span style={{ fontSize: 20 }}>{row.emoji}</span>
+                  <span style={{ fontSize: 14, fontWeight: 800, color: row.c }}>{row.tier}</span>
+                  <span style={{ fontSize: 12, color: "var(--mut)", flex: 1 }}>{row.desc}</span>
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {row.tools.map((tl) => <span key={tl} style={{ fontSize: 12, padding: "4px 10px", borderRadius: 6, background: `color-mix(in srgb, ${row.c} 10%, var(--panel-2))`, border: `1px solid color-mix(in srgb, ${row.c} 22%, var(--line))`, color: "var(--txt)", fontWeight: 600 }}>{tl}</span>)}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {/* ---------- EXEMPLOS DE PEDIDO (Daniel) ---------- */}
+      {tab === "exemplos" && id === "daniel" ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div className="ex-panel hx-glass" style={{ padding: "14px 18px" }}>
+            <p style={{ fontSize: 12.5, color: "var(--mut)", lineHeight: 1.6 }}>Cada pedido abaixo mostra como Daniel faz o briefing, identifica a disciplina e roteia para o especialista certo — com a ferramenta e o tier de custo justificados.</p>
+          </div>
+          {[
+            {
+              prompt: "Preciso de uma capa de ebook sobre liderança — paleta azul e dourado.",
+              especialista: "Designer de Social & Marca",
+              especialistaId: "designer-social",
+              ferramenta: "Nano Banana ou Canva",
+              tier: "Grátis / Médio",
+              tierCor: "#f0a500",
+              briefing: ["Qual o tamanho? (A4 vertical, square, outro)", "É para download digital ou impressão?", "Tem logo ou foto do autor para incluir?"],
+            },
+            {
+              prompt: "Quero uma landing page de vendas para o PIDE, responsiva com vídeo de fundo.",
+              especialista: "Designer de Lançamento",
+              especialistaId: "designer-lp",
+              ferramenta: "Next.js + Tailwind (código)",
+              tier: "Sem custo de geração",
+              tierCor: "var(--green)",
+              briefing: ["Quais seções? (hero, prova social, oferta, FAQ, rodapé)", "Tem vídeo gravado ou precisa gerar com IA?", "Tem brand guide ou seguimos a paleta Expand?"],
+            },
+            {
+              prompt: "Preciso de um vídeo de produto com estética cinematográfica, 30 segundos.",
+              especialista: "Max",
+              especialistaId: "max",
+              ferramenta: "Higgsfield ou Sora",
+              tier: "Premium / Vídeo",
+              tierCor: cor,
+              briefing: ["Há assets (produto, logo, imagens)? Ou é 100% gerado por IA?", "Tom: minimalista, emocional, impactante?", "Tem narração / voz off ou só trilha?"],
+            },
+            {
+              prompt: "Thumbnail do episódio 47 com o Rodrigo Góes falando sobre escassez.",
+              especialista: "Nina",
+              especialistaId: "nina",
+              ferramenta: "Canva (template CTR)",
+              tier: "Grátis",
+              tierCor: "var(--green)",
+              briefing: ["Tem foto do convidado ou precisa buscar?", "Qual o gancho em 3-5 palavras para o título?", "Qual canal / identidade visual do podcast?"],
+            },
+            {
+              prompt: "Qual a diferença entre Canva e Higgsfield para uma peça de campanha?",
+              especialista: "Daniel (resposta direta)",
+              especialistaId: "daniel",
+              ferramenta: "Orientação de tier",
+              tier: "Sem custo",
+              tierCor: "var(--green)",
+              briefing: ["Daniel explica: Canva = grátis, edição manual, bom para volume. Higgsfield = geração IA, 4K, custo por crédito — só justifica em peça-chave de campanha."],
+            },
+          ].map((ex, i) => (
+            <div key={i} className="ex-panel hx-glass" style={{ padding: "16px 18px" }}>
+              <div style={{ fontSize: 13, fontStyle: "italic", color: "var(--txt)", lineHeight: 1.6, marginBottom: 12, borderLeft: `2px solid ${cor}`, paddingLeft: 10 }}>"{ex.prompt}"</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "var(--dim)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 4 }}>Especialista acionado</div>
+                  <Link href={`/expand/equipe/${ex.especialistaId}`} style={{ fontSize: 12.5, fontWeight: 700, color: cor, textDecoration: "none" }}>{ex.especialista} ↗</Link>
+                </div>
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "var(--dim)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 4 }}>Ferramenta escolhida</div>
+                  <span style={{ fontSize: 12.5, color: "var(--txt)" }}>{ex.ferramenta}</span>
+                </div>
+              </div>
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "var(--dim)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 6 }}>Briefing que Daniel pede primeiro</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  {ex.briefing.map((q, j) => (
+                    <div key={j} style={{ fontSize: 12, color: "var(--mut)", display: "flex", gap: 7, alignItems: "flex-start" }}>
+                      <span style={{ color: cor, flexShrink: 0 }}>•</span> {q}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <span style={{ fontSize: 11, padding: "3px 9px", borderRadius: 5, background: `color-mix(in srgb, ${ex.tierCor} 12%, transparent)`, color: ex.tierCor, border: `1px solid color-mix(in srgb, ${ex.tierCor} 24%, transparent)`, fontWeight: 700 }}>Tier: {ex.tier}</span>
+            </div>
+          ))}
         </div>
       ) : null}
 
