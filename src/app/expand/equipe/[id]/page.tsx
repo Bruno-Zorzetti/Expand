@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { siteUrl } from "@/lib/site";
 import { notFound } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
@@ -191,7 +192,7 @@ export default async function PerfilPage({ params, searchParams }: { params: Pro
     : { data: null };
   const gcalStatus = { conectado: !!gcalRow, email: (gcalRow?.email as string | null) ?? null };
 
-  const site = process.env.NEXT_PUBLIC_SITE_URL || "";
+  const site = siteUrl();
   const icsUrl = p.ics_token ? `${site}/api/calendario/${p.ics_token}.ics` : null;
   const instaUrl = p.instagram ? (p.instagram.startsWith("http") ? p.instagram : `https://instagram.com/${p.instagram.replace(/^@/, "")}`) : null;
 
@@ -216,7 +217,7 @@ export default async function PerfilPage({ params, searchParams }: { params: Pro
   // Abas — estrutura diferente para agente de IA vs humano
   const TABS: { k: string; l: string }[] = ehAgente
     ? [
-        { k: "visao",       l: "Sobre" },
+        { k: "capacidades", l: "O que faço" },
         { k: "chat",        l: "Conversar" },
         { k: "mente",       l: "Mente & Grafo" },
         { k: "diagnosticos",l: "Diagnósticos" },
@@ -283,6 +284,116 @@ export default async function PerfilPage({ params, searchParams }: { params: Pro
       <div className="ex-chips" style={{ marginBottom: 16 }}>
         {TABS.map((x) => <Link key={x.k} href={`/expand/equipe/${id}?t=${x.k}`} className={`ex-chip2${tab === x.k ? " on" : ""}`}>{x.l}</Link>)}
       </div>
+
+      {/* ---------- CAPACIDADES (agente) ---------- */}
+      {tab === "capacidades" && ehAgente ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+
+          {/* Papel e propósito */}
+          <div className="ex-panel hx-glass" style={{ padding: "20px 22px" }}>
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 16 }}>
+              <div style={{ width: 48, height: 48, borderRadius: 14, background: `color-mix(in srgb, ${cor} 16%, var(--panel-2))`, border: `1.5px solid color-mix(in srgb, ${cor} 32%, transparent)`, display: "grid", placeItems: "center", flexShrink: 0 }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={cor} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2a4 4 0 0 1 4 4 4 4 0 0 1-4 4 4 4 0 0 1-4-4 4 4 0 0 1 4-4z"/><path d="M20 21a8 8 0 1 0-16 0"/>
+                </svg>
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 10.5, fontWeight: 700, color: cor, textTransform: "uppercase", letterSpacing: ".07em", marginBottom: 5 }}>Papel na equipe</div>
+                <div style={{ fontSize: 15, fontWeight: 800, color: "var(--txt)", marginBottom: 8 }}>{p.cargo}</div>
+                <p style={{ fontSize: 13.5, color: "var(--mut)", lineHeight: 1.65 }}>
+                  {p.bio ?? "Ainda sem descrição de papel. Peça ao admin para preencher o perfil com o que este agente faz, quando acionar e o que entrega."}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+
+            {/* Quando acionar */}
+            {p.soft?.length ? (
+              <div className="ex-panel hx-glass" style={{ padding: "18px 20px" }}>
+                <div style={{ fontSize: 10.5, fontWeight: 700, color: "var(--dim)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 14 }}>Quando acionar</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {p.soft.map((trigger, i) => (
+                    <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                      <span style={{ width: 20, height: 20, borderRadius: 6, background: `color-mix(in srgb, ${cor} 16%, var(--panel-2))`, display: "grid", placeItems: "center", flexShrink: 0, marginTop: 1 }}>
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={cor} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                      </span>
+                      <span style={{ fontSize: 12.5, color: "var(--mut)", lineHeight: 1.5 }}>{trigger}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            {/* O que entrega */}
+            {p.hard?.length ? (
+              <div className="ex-panel hx-glass" style={{ padding: "18px 20px" }}>
+                <div style={{ fontSize: 10.5, fontWeight: 700, color: "var(--dim)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 14 }}>O que entrega</div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+                  {p.hard.map((item, i) => (
+                    <span key={i} style={{ padding: "5px 11px", borderRadius: 20, fontSize: 12, fontWeight: 600, background: `color-mix(in srgb, ${cor} 12%, var(--panel-2))`, color: cor, border: `1px solid color-mix(in srgb, ${cor} 24%, transparent)` }}>{item}</span>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+          </div>
+
+          {/* Ferramentas */}
+          {p.ferramentas?.length ? (
+            <div className="ex-panel hx-glass" style={{ padding: "18px 20px" }}>
+              <div style={{ fontSize: 10.5, fontWeight: 700, color: "var(--dim)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 14 }}>Ferramentas e recursos</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {p.ferramentas.map((f, i) => (
+                  <span key={i} style={{ padding: "5px 12px", borderRadius: 8, fontSize: 12, fontWeight: 600, background: "var(--panel-2)", color: "var(--txt)", border: "1px solid var(--line)" }}>{f}</span>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {/* Processos */}
+          {p.processos?.length ? (
+            <div className="ex-panel hx-glass" style={{ padding: "18px 20px" }}>
+              <div style={{ fontSize: 10.5, fontWeight: 700, color: "var(--dim)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 16 }}>Como trabalha</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                {p.processos.map((proc, i) => (
+                  <div key={i} style={{ display: "flex", gap: 14 }}>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0 }}>
+                      <div style={{ width: 28, height: 28, borderRadius: 8, background: `color-mix(in srgb, ${cor} 18%, var(--panel-2))`, color: cor, display: "grid", placeItems: "center", fontSize: 12, fontWeight: 800, flexShrink: 0 }}>{i + 1}</div>
+                      {i < (p.processos?.length ?? 0) - 1 && <div style={{ width: 2, flex: 1, minHeight: 16, background: `color-mix(in srgb, ${cor} 24%, var(--line))`, marginTop: 4 }} />}
+                    </div>
+                    <div style={{ flex: 1, paddingBottom: i < (p.processos?.length ?? 0) - 1 ? 8 : 0 }}>
+                      <div style={{ fontSize: 13.5, fontWeight: 700, color: "var(--txt)", marginBottom: 6 }}>{proc.t}</div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                        {proc.passos.map((passo, j) => (
+                          <div key={j} style={{ fontSize: 12.5, color: "var(--mut)", lineHeight: 1.5, display: "flex", gap: 6 }}>
+                            <span style={{ color: cor, flexShrink: 0 }}>{i + 1}.{j + 1}</span> {passo}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {/* Estado vazio */}
+          {!p.bio && !p.soft?.length && !p.hard?.length && !p.ferramentas?.length && !p.processos?.length ? (
+            <div className="ex-panel hx-glass" style={{ padding: "32px 20px", textAlign: "center" }}>
+              <div style={{ fontSize: 32, marginBottom: 12 }}>🤖</div>
+              <p style={{ fontSize: 14, color: "var(--mut)", marginBottom: 12 }}>O perfil de {p.nome} ainda não tem capacidades preenchidas.</p>
+              {podeEditar ? (
+                <Link href={`/expand/equipe/${id}/editar`} className="hx-btn hx-btn-primary">Preencher capacidades</Link>
+              ) : (
+                <p style={{ fontSize: 12, color: "var(--dim)" }}>Peça ao admin para preencher o perfil com bio, entregas e quando acionar.</p>
+              )}
+            </div>
+          ) : null}
+
+        </div>
+      ) : null}
 
       {/* ---------- VISÃO GERAL ---------- */}
       {tab === "visao" ? (
