@@ -27,8 +27,11 @@ async function salvarMensagem(agente_id: string, user_id: string, role: "user" |
   await sb.from("expand_chat_mensagens").insert({ agente_id, user_id, role, content });
 }
 
-export default function AgenteChat({ id, nome, cor, tipo, contexto, memoriaHref }: {
+type EstiloPicker = { id: string; emoji: string; label: string; desc: string };
+
+export default function AgenteChat({ id, nome, cor, tipo, contexto, memoriaHref, estilosPicker }: {
   id: string; nome: string; cor: string; tipo: string; contexto?: Record<string, unknown>; memoriaHref?: string;
+  estilosPicker?: EstiloPicker[];
 }) {
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
@@ -37,13 +40,20 @@ export default function AgenteChat({ id, nome, cor, tipo, contexto, memoriaHref 
   const [modelo, setModelo] = useState(MODELOS[0].id);
   const [notas, setNotas] = useState<Record<number, string>>({});
   const [userId, setUserId] = useState<string | null>(null);
+  const [estiloAtivo, setEstiloAtivo] = useState<EstiloPicker | null>(null);
   const boxRef = useRef<HTMLDivElement>(null);
+  const introSentRef = useRef(false);
   const router = useRouter();
   const produto = contexto && typeof contexto.produto === "string" ? (contexto.produto as string) : null;
 
+  // Contexto enriquecido com estilo selecionado
+  const contextoComEstilo = estiloAtivo
+    ? { ...contexto, estilo: estiloAtivo.label, tipo_entrega: contexto?.tipo_entrega ?? "capa-ebook-amazon" }
+    : contexto;
+
   const ehAgente = tipo === "agente";
 
-  // Carregar histórico ao montar
+  // Carregar histórico ao montar; auto-intro quando sem histórico e for agente
   useEffect(() => {
     const sb = createClient();
     sb.auth.getUser().then(({ data: { user } }) => {
@@ -55,13 +65,38 @@ export default function AgenteChat({ id, nome, cor, tipo, contexto, memoriaHref 
         .eq("user_id", user.id)
         .order("criado_em", { ascending: true })
         .limit(40)
-        .then(({ data }) => {
+        .then(async ({ data }) => {
           if (data && data.length > 0) {
             setMsgs(data.map((r) => ({ role: r.role as "user" | "assistant", content: r.content })));
+            setCarregando(false);
+          } else if (tipo === "agente" && !introSentRef.current) {
+            introSentRef.current = true;
+            setCarregando(false);
+            setLoading(true);
+            try {
+              const r = await fetch(`/api/agente/${id}`, {
+                method: "POST", headers: { "content-type": "application/json" },
+                body: JSON.stringify({
+                  mensagem: "Apresente-se brevemente: seu nome, o que você faz aqui na Expand e como pode ajudar. Seja direto, amigável e fale em 2-3 frases.",
+                  historico: [], model: MODELOS[0].id, contexto: contextoComEstilo,
+                }),
+              });
+              const j = await r.json();
+              const content = (j.reply ?? "") as string;
+              if (content) {
+                setMsgs([{ role: "assistant", content, modelo: j.modelo }]);
+                salvarMensagem(id, user.id, "assistant", content);
+              }
+            } catch { /* silent */ } finally {
+              setLoading(false);
+              scroll();
+            }
+          } else {
+            setCarregando(false);
           }
-          setCarregando(false);
         });
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const scroll = () => setTimeout(() => boxRef.current?.scrollTo({ top: boxRef.current.scrollHeight, behavior: "smooth" }), 40);
@@ -90,7 +125,7 @@ export default function AgenteChat({ id, nome, cor, tipo, contexto, memoriaHref 
     try {
       const r = await fetch(`/api/agente/${id}`, {
         method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ mensagem: m, historico, model: modelo, contexto }),
+        body: JSON.stringify({ mensagem: m, historico, model: modelo, contexto: contextoComEstilo }),
       });
       const j = await r.json();
       let content = (j.reply ?? j.error ?? "(sem resposta)") as string;
@@ -187,14 +222,49 @@ export default function AgenteChat({ id, nome, cor, tipo, contexto, memoriaHref 
         {carregando ? (
           <div style={{ margin: "auto 0", textAlign: "center", color: "var(--dim)", fontSize: 12 }}>Carregando histórico…</div>
         ) : msgs.length === 0 ? (
-          <div style={{ margin: "auto 0", textAlign: "center", color: "var(--dim)", fontSize: 12.5 }}>
-            <p style={{ marginBottom: 12 }}>
-              {ehAgente ? `Pergunte algo para ${nome}.` : `Inicie uma conversa com ${nome}.`}
-            </p>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 7, justifyContent: "center" }}>
-              {sugestoes.map((s) => (
-                <button key={s} onClick={() => enviar(s)} className="ex-arqbtn" style={{ fontWeight: 500 }}>{s}</button>
-              ))}
+          <div style={{ margin: "auto 0", display: "flex", flexDirection: "column", gap: 18 }}>
+            {/* Seletor de estilo visual */}
+            {estilosPicker && estilosPicker.length > 0 && (
+              <div>
+                <p style={{ fontSize: 11, fontWeight: 700, color: "var(--dim)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 10, textAlign: "center" }}>
+                  {estiloAtivo ? "Estilo selecionado:" : "Qual o estilo da peça?"}
+                </p>
+                {estiloAtivo ? (
+                  <div style={{ display: "flex", justifyContent: "center" }}>
+                    <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "7px 14px", borderRadius: 20, background: `color-mix(in srgb, ${cor} 14%, var(--panel-2))`, border: `1.5px solid color-mix(in srgb, ${cor} 36%, transparent)` }}>
+                      <span style={{ fontSize: 18 }}>{estiloAtivo.emoji}</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: cor }}>{estiloAtivo.label}</span>
+                      <button onClick={() => setEstiloAtivo(null)} style={{ background: "none", border: "none", color: "var(--dim)", cursor: "pointer", fontSize: 14, padding: "0 2px", lineHeight: 1 }}>✕</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                    {estilosPicker.map((e) => (
+                      <button key={e.id} onClick={() => setEstiloAtivo(e)}
+                        style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", background: "var(--panel-2)", border: "1px solid var(--line)", borderRadius: 10, cursor: "pointer", textAlign: "left", transition: "border-color .15s" }}
+                        onMouseEnter={(ev) => (ev.currentTarget.style.borderColor = `color-mix(in srgb, ${cor} 50%, transparent)`)}
+                        onMouseLeave={(ev) => (ev.currentTarget.style.borderColor = "var(--line)")}>
+                        <span style={{ fontSize: 22, flexShrink: 0, marginTop: 1 }}>{e.emoji}</span>
+                        <div>
+                          <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--txt)", marginBottom: 2 }}>{e.label}</div>
+                          <div style={{ fontSize: 11, color: "var(--dim)", lineHeight: 1.4 }}>{e.desc}</div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            {/* Sugestões padrão */}
+            <div style={{ textAlign: "center" }}>
+              <p style={{ fontSize: 12.5, color: "var(--dim)", marginBottom: 10 }}>
+                {ehAgente ? `Ou pergunte algo para ${nome}.` : `Inicie uma conversa com ${nome}.`}
+              </p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 7, justifyContent: "center" }}>
+                {sugestoes.map((s) => (
+                  <button key={s} onClick={() => enviar(s)} className="ex-arqbtn" style={{ fontWeight: 500 }}>{s}</button>
+                ))}
+              </div>
             </div>
           </div>
         ) : msgs.map((m, i) => (

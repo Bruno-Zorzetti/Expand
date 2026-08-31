@@ -8,7 +8,7 @@ import OnboardingTour from "@/components/expand/OnboardingTour";
 import { createClient } from "@/lib/supabase/client";
 
 type Pessoa = { id: string; nome: string; papel: string; ini: string };
-type Sub = { href: string; label: string; external?: boolean };
+type Sub = { href: string; label: string; external?: boolean; indent?: boolean };
 type NavItem = {
   href: string; label: string; icon: string; eyebrow: string;
   badge?: number; external?: boolean; gate?: string; sub?: Sub[];
@@ -274,13 +274,22 @@ export default function ExpandShell({
       .then(({ data }) => { if (data) setAgentes(data as { id: string; nome: string }[]); });
   }, []);
 
+  const DESIGN_SQUAD = new Set(["designer-sistemas", "designer-lp", "designer-social", "nina", "max"]);
   const computedNAV = NAV.map(s => {
     if (s.id !== "projetos") return s;
     return {
       ...s,
       items: s.items.map(it => {
         if (it.href !== "/expand/equipe/agentes" || !agentes.length) return it;
-        return { ...it, sub: agentes.map(a => ({ href: `/expand/equipe/${a.id}`, label: a.nome })) };
+        const daniel = agentes.find(a => a.id === "daniel");
+        const squad = agentes.filter(a => DESIGN_SQUAD.has(a.id));
+        const rest = agentes.filter(a => a.id !== "daniel" && !DESIGN_SQUAD.has(a.id));
+        const ordered = [
+          ...(daniel ? [{ ...daniel, indent: false }] : []),
+          ...squad.map(a => ({ ...a, indent: true })),
+          ...rest.map(a => ({ ...a, indent: false })),
+        ];
+        return { ...it, sub: ordered.map(a => ({ href: `/expand/equipe/${a.id}`, label: a.nome, indent: a.indent })) };
       }),
     };
   });
@@ -450,7 +459,7 @@ export default function ExpandShell({
                               {...(sub.external ? { target: "_blank", rel: "noreferrer" } : {})}
                               onClick={() => document.body.classList.remove("ex-nav-open")}
                               className={`ex-navi${sub.href === activeHref ? " on" : ""}`}
-                              style={{ paddingLeft: 40, fontSize: 12.5, margin: 0 }}
+                              style={{ paddingLeft: sub.indent ? 20 : 40, fontSize: 12.5, margin: 0, marginLeft: sub.indent ? 20 : 0, borderLeft: sub.indent ? "2px solid var(--line)" : undefined }}
                             >
                               {sub.label}
                             </Link>

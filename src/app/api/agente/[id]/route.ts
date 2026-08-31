@@ -98,6 +98,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         `Você é ${nome}, ${pf.cargo ?? ""}${pf.area ? ` (${pf.area})` : ""} da Expand.`,
         pf.bio ? `Resumo: ${pf.bio}` : "",
         pf.prompt ? `\n=== SEU PROMPT / INSTRUÇÃO ===\n${pf.prompt}` : "",
+        (() => {
+          const ctx = body.contexto as Record<string, unknown> | null;
+          const parts: string[] = [];
+          if (ctx?.estilo) parts.push(`Estilo visual selecionado pelo usuário: "${ctx.estilo}". Adapte o briefing, a escolha de ferramenta e as perguntas a este estilo específico.`);
+          if (ctx?.tipo_entrega) parts.push(`Tipo de entrega: ${ctx.tipo_entrega}.`);
+          return parts.length ? `\n=== CONTEXTO DA SESSÃO ===\n${parts.join(" ")}` : "";
+        })(),
         pf.memoria ? `\n=== SUA MEMÓRIA ===\n${pf.memoria}` : "",
         base ? `\n=== SUA BASE DE CONHECIMENTO (acertos, erros, aprendizados, modelos, avaliações) ===\n${base}` : "",
         atividades ? `\n=== SUAS ATIVIDADES ATUAIS ===\n${atividades}` : "",
