@@ -4,7 +4,8 @@ import { useState } from "react";
 import type { EtapaRow } from "@/lib/expand-tarefas";
 import TaskBoard from "@/components/expand/TaskBoard";
 import TaskList from "@/components/expand/TaskList";
-import { atualizarTarefa } from "./actions";
+import NovaTarefaModal from "@/components/expand/NovaTarefaModal";
+import { atualizarTarefa2026 } from "@/app/expand/2026/actions";
 
 type Tarefa = EtapaRow & { cliente_nome?: string };
 
@@ -27,7 +28,7 @@ export default function TarefasClient({ tarefas, clientes }: Props) {
   });
 
   async function onUpdate(id: string, fields: Partial<EtapaRow>) {
-    await atualizarTarefa(id, fields as Record<string, unknown>);
+    await atualizarTarefa2026(id, fields as Record<string, unknown>);
   }
 
   return (
@@ -78,6 +79,7 @@ export default function TarefasClient({ tarefas, clientes }: Props) {
         <span style={{ marginLeft: "auto", fontSize: 12, color: "var(--dim)" }}>
           {filtered.length} tarefa{filtered.length !== 1 ? "s" : ""}
         </span>
+        <NovaTarefaModal clientes={clientes} />
       </div>
 
       {/* View */}

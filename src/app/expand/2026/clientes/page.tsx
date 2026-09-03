@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import NovoClienteModal from "@/components/expand/NovoClienteModal";
 
 export const dynamic = "force-dynamic";
 
@@ -49,12 +50,15 @@ export default async function ClientesPage2026() {
 
   return (
     <div>
-      <div style={{ marginBottom: 24 }}>
-        <p className="hx-eyebrow">CRM · Gestão de Projetos</p>
-        <h1 className="ex-h1" style={{ marginBottom: 4 }}>Clientes</h1>
-        <p className="ex-sub" style={{ marginTop: 0 }}>
-          {isAdmin ? `${(clientes ?? []).length} clientes ativos` : "Sua carteira de clientes"}
-        </p>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 24 }}>
+        <div>
+          <p className="hx-eyebrow">CRM · Gestão de Projetos</p>
+          <h1 className="ex-h1" style={{ marginBottom: 4 }}>Clientes</h1>
+          <p className="ex-sub" style={{ marginTop: 0 }}>
+            {isAdmin ? `${(clientes ?? []).length} clientes ativos` : "Sua carteira de clientes"}
+          </p>
+        </div>
+        {isAdmin && <NovoClienteModal />}
       </div>
 
       {(!clientes || clientes.length === 0) ? (
