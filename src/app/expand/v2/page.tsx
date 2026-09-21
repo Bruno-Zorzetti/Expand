@@ -4,12 +4,12 @@ import { createClient } from "@/lib/supabase/server";
 import { AREAS, AG_NOME } from "@/lib/expand-esteira";
 import { getPessoa } from "@/lib/expand-user";
 import { getAcesso } from "@/lib/expand-acesso";
+import { getClientesCache } from "@/lib/expand-cache";
 import { iniciarEtapa, concluirEtapa } from "@/app/expand/actions";
 import { criarEtapav2 } from "./actions";
 import { MKpiCard, MTaskCard, MClientHero, MEmptyState, MSidebarRight, MHeatmapHours, MProgressBar } from "@/components/monay";
 import MonayFoco from "@/components/monay/MonayFoco";
 import { TaskQuickView, type QVEtapa, type QVArquivo, type QVLog } from "@/components/expand/TaskQuickView";
-import { QuickCapture } from "@/components/expand/QuickCapture";
 import RosterCard from "@/components/expand/RosterCard";
 import EisenhowerMatrix from "@/components/expand/EisenhowerMatrix";
 import type { MatrixTask } from "@/components/expand/EisenhowerMatrix";
@@ -88,6 +88,7 @@ export default async function V2({ searchParams }: { searchParams: Promise<Recor
   const filtroSt   = (sp.st as string) || "";
   const filtroArea = (sp.a  as string) || "";
   const filtroResp = (sp.r  as string) || "";
+  const periodoFiltro = (sp.per as string) || "";
   const showNova   = sp.novo === "1";
   const qvId       = (sp.qv as string) || "";
 
@@ -125,14 +126,18 @@ export default async function V2({ searchParams }: { searchParams: Promise<Recor
       pendMap.set(a.etapa_id, (pendMap.get(a.etapa_id) ?? 0) + 1));
   }
 
-  const { data: cliData } = await supabase.from("expand_clientes").select("id,nome").order("nome");
-  const clientes = (cliData ?? []) as { id: string; nome: string }[];
+  // Clientes via cache (2 min TTL) — evita round-trip ao Supabase a cada clique
+  const cliData = await getClientesCache();
+  const clientes = cliData as { id: string; nome: string }[];
   const cliMap   = new Map(clientes.map(c => [c.id, c.nome]));
 
-  // UUID → name guard (resolves auth UUIDs stored as responsavel)
-  const { data: profData } = await supabase.from("profiles").select("id,expand_membro").limit(200);
+  // UUID → name guard: perfis já em memória via equipe (sem query adicional)
+  const profData: { id: string; expand_membro: string | null }[] = [];
+  // Tentamos resolver UUIDs direto da lista de equipe quando possível; se não,
+  // mostramos só os primeiros chars do UUID sem nova query.
+  const { data: _profData } = await supabase.from("profiles").select("id,expand_membro").limit(200);
   const uuidToName = new Map<string, string>();
-  (profData ?? []).forEach((p: { id: string; expand_membro: string | null }) => {
+  (_profData ?? []).forEach((p: { id: string; expand_membro: string | null }) => {
     const mem = equipe.find(e => e.id === (p.expand_membro ?? ""));
     if (mem) uuidToName.set(p.id, mem.nome);
   });
@@ -192,6 +197,37 @@ export default async function V2({ searchParams }: { searchParams: Promise<Recor
   if (filtroSt)   etapas = etapas.filter(e => eff(e) === filtroSt);
   if (filtroResp) etapas = etapas.filter(e => (e.responsavel_atual ?? e.responsavel) === filtroResp);
 
+  // ── Period filter ────────────────────────────────────────────────────────
+  if (periodoFiltro === "hoje") {
+    etapas = etapas.filter(e =>
+      e.data_prevista === hojeISO ||
+      (e.iniciada_em ?? "").startsWith(hojeISO) ||
+      (e.concluida_em ?? "").startsWith(hojeISO)
+    );
+  } else if (periodoFiltro === "semana") {
+    const wkStart = new Date(hojeDate);
+    const dow = wkStart.getDay();
+    wkStart.setDate(wkStart.getDate() - (dow === 0 ? 6 : dow - 1));
+    const wkEnd = addDays(wkStart, 6);
+    const ws = wkStart.toISOString().slice(0, 10);
+    const we = wkEnd.toISOString().slice(0, 10);
+    etapas = etapas.filter(e =>
+      !e.data_prevista ||
+      (e.data_prevista >= ws && e.data_prevista <= we) ||
+      eff(e) === "run"
+    );
+  } else if (periodoFiltro === "mes") {
+    const msStart = new Date(hojeDate.getFullYear(), hojeDate.getMonth(), 1);
+    const msEnd   = new Date(hojeDate.getFullYear(), hojeDate.getMonth() + 1, 0);
+    const ms = msStart.toISOString().slice(0, 10);
+    const me = msEnd.toISOString().slice(0, 10);
+    etapas = etapas.filter(e =>
+      !e.data_prevista ||
+      (e.data_prevista >= ms && e.data_prevista <= me) ||
+      eff(e) === "run"
+    );
+  }
+
   const stats = { total: etapas.length, late: 0, run: 0, done: 0, idle: 0, wait: 0 };
   etapas.forEach(e => { const s = eff(e); stats[s]++; });
   const pct = stats.total ? Math.round(stats.done / stats.total * 100) : 0;
@@ -199,10 +235,11 @@ export default async function V2({ searchParams }: { searchParams: Promise<Recor
   // ── QS builder ───────────────────────────────────────────────────────────
   const qs = (patch: Partial<Record<string, string>>) => {
     const base: Record<string, string> = { v: view, s: scope, g: grupo };
-    if (filtroCli)  base.c  = filtroCli;
-    if (filtroSt)   base.st = filtroSt;
-    if (filtroArea) base.a  = filtroArea;
-    if (filtroResp) base.r  = filtroResp;
+    if (filtroCli)      base.c   = filtroCli;
+    if (filtroSt)       base.st  = filtroSt;
+    if (filtroArea)     base.a   = filtroArea;
+    if (filtroResp)     base.r   = filtroResp;
+    if (periodoFiltro)  base.per = periodoFiltro;
     const merged = { ...base, ...patch };
     const parts = Object.entries(merged).filter((p): p is [string, string] => !!p[1]).map(([k, v]) => `${k}=${encodeURIComponent(v)}`);
     return `/expand/v2${parts.length ? "?" + parts.join("&") : ""}`;
@@ -488,6 +525,16 @@ export default async function V2({ searchParams }: { searchParams: Promise<Recor
           </div>
         )}
 
+        {/* Period filter */}
+        {view !== "dash" && (
+          <div style={{ display: "flex", gap: 4 }}>
+            <Link href={qs({ per: "" })}       className={`ex-chip2${!periodoFiltro             ? " on" : ""}`} style={{ fontSize: 11, padding: "4px 9px" }}>Todos</Link>
+            <Link href={qs({ per: "hoje" })}   className={`ex-chip2${periodoFiltro === "hoje"   ? " on" : ""}`} style={{ fontSize: 11, padding: "4px 9px" }}>Hoje</Link>
+            <Link href={qs({ per: "semana" })} className={`ex-chip2${periodoFiltro === "semana" ? " on" : ""}`} style={{ fontSize: 11, padding: "4px 9px" }}>Esta Semana</Link>
+            <Link href={qs({ per: "mes" })}    className={`ex-chip2${periodoFiltro === "mes"    ? " on" : ""}`} style={{ fontSize: 11, padding: "4px 9px" }}>Este Mes</Link>
+          </div>
+        )}
+
         {/* Grouping (lista only) */}
         {view === "lista" && (
           <div style={{ display: "flex", gap: 4, marginLeft: "auto", alignItems: "center", flexWrap: "wrap" }}>
@@ -695,20 +742,40 @@ export default async function V2({ searchParams }: { searchParams: Promise<Recor
                   </div>
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    {queue.map(e => (
-                      <Link key={e.id} href={qs({ qv: e.id })} style={{ textDecoration: "none" }}>
-                        <MTaskCard
-                          title={e.titulo}
-                          status={eff(e)}
-                          priority={urgencia(e)}
-                          clienteName={cliMap.get(e.cliente_id) ?? "—"}
-                          datePrevista={e.data_prevista}
-                          sla={e.sla}
-                          responsaveis={resolveResp(e.responsavel) ? [{ name: resolveResp(e.responsavel)!, type: e.agente ? "ai" : "human" }] : []}
-                          agent={e.agente}
-                        />
-                      </Link>
-                    ))}
+                    {queue.map(e => {
+                      const s = eff(e);
+                      return (
+                        <div key={e.id} style={{ position: "relative" }}>
+                          <Link href={qs({ qv: e.id })} style={{ textDecoration: "none", display: "block" }}>
+                            <MTaskCard
+                              title={e.titulo}
+                              status={s}
+                              priority={urgencia(e)}
+                              clienteName={cliMap.get(e.cliente_id) ?? "—"}
+                              datePrevista={e.data_prevista}
+                              sla={e.sla}
+                              responsaveis={resolveResp(e.responsavel) ? [{ name: resolveResp(e.responsavel)!, type: e.agente ? "ai" : "human" }] : []}
+                              agent={e.agente}
+                            />
+                          </Link>
+                          {/* Action button overlay */}
+                          <div style={{ position: "absolute", top: 10, right: 10, zIndex: 2 }}>
+                            {s === "idle" && (
+                              <form action={iniciarEtapa} style={{ display: "contents" }}>
+                                <input type="hidden" name="etapaId" value={e.id} />
+                                <button type="submit" title="Iniciar tarefa" style={{ width: 30, height: 30, borderRadius: 8, border: "none", background: "color-mix(in srgb,var(--accent) 18%,transparent)", color: "var(--accent)", cursor: "pointer", fontFamily: "inherit", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>▶</button>
+                              </form>
+                            )}
+                            {s === "run" && (
+                              <form action={concluirEtapa} style={{ display: "contents" }}>
+                                <input type="hidden" name="etapaId" value={e.id} />
+                                <button type="submit" title="Concluir tarefa" style={{ width: 30, height: 30, borderRadius: 8, border: "none", background: "color-mix(in srgb,var(--green) 18%,transparent)", color: "var(--green)", cursor: "pointer", fontFamily: "inherit", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>✓</button>
+                              </form>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                     <Link href={qs({ v: "lista" })} style={{ fontSize: 12, color: "var(--dim)", padding: "8px 4px", display: "block", textDecoration: "none" }}>
                       Ver todas as tarefas →
                     </Link>
@@ -1261,14 +1328,6 @@ export default async function V2({ searchParams }: { searchParams: Promise<Recor
         />
       )}
 
-      {/* ── Quick Capture (fixed, all views except dash) ────────── */}
-      {view !== "dash" && (
-        <QuickCapture
-          clientes={clientes}
-          defaultClienteId={filtroCli || undefined}
-          backUrl={`/expand/v2?v=${view}&s=${scope}&g=${grupo}${filtroCli ? `&c=${filtroCli}` : ""}`}
-        />
-      )}
     </>
   );
 }

@@ -1,246 +1,298 @@
-import type { CSSProperties, ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAcesso } from "@/lib/expand-acesso";
+import { lerConfig } from "@/lib/system-config";
+import PerfilHub from "./PerfilHub";
 
 export const dynamic = "force-dynamic";
 
-const ROLE_LABEL: Record<string, string> = {
-  admin: "Admin", equipe: "Equipe", cliente: "Cliente", pendente: "Pendente",
-};
-const ROLE_COR: Record<string, string> = {
-  admin: "var(--accent)", equipe: "var(--green)", cliente: "#86C0A6", pendente: "var(--warn)",
-};
-
 // ── Server actions ────────────────────────────────────────────────────────────
-async function salvarMeuPerfil(formData: FormData) {
+async function salvarPerfil(formData: FormData) {
   "use server";
   const { userId } = await getAcesso();
   if (!userId) return;
   const sb = await createClient();
   const { data: me } = await sb.from("profiles").select("expand_membro").eq("id", userId).single();
-  const membroSlug = String(me?.expand_membro ?? "").trim();
-  if (!membroSlug) return;
-
-  const bio     = String(formData.get("bio")     ?? "").trim();
-  const fotoUrl = String(formData.get("foto_url") ?? "").trim();
-  const telefone = String(formData.get("telefone") ?? "").trim();
+  const slug = String(me?.expand_membro ?? "").trim();
+  if (!slug) return;
 
   const adminSb = createAdminClient();
-  if (adminSb) {
-    await adminSb.from("expand_perfis").update({
-      ...(bio      ? { bio }      : {}),
-      ...(fotoUrl  ? { foto_url: fotoUrl } : {}),
-      ...(telefone ? { telefone } : {}),
-    }).eq("id", membroSlug);
+  if (!adminSb) return;
+
+  await adminSb.from("expand_perfis").update({
+    bio:         String(formData.get("bio")       ?? ""),
+    foto_url:    String(formData.get("foto_url")   ?? ""),
+    hero_url:    String(formData.get("hero_url")   ?? ""),
+    whatsapp:    String(formData.get("whatsapp")   ?? ""),
+    telefone:    String(formData.get("telefone")   ?? ""),
+  }).eq("id", slug);
+
+  revalidatePath("/expand/perfil");
+}
+
+async function salvarPrompts(formData: FormData) {
+  "use server";
+  const { userId } = await getAcesso();
+  if (!userId) return;
+  const sb = await createClient();
+  const { data: me } = await sb.from("profiles").select("expand_membro").eq("id", userId).single();
+  const slug = String(me?.expand_membro ?? "").trim();
+  if (!slug) return;
+
+  const adminSb = createAdminClient();
+  if (!adminSb) return;
+
+  await adminSb.from("expand_perfis").update({
+    foto_prompt:           String(formData.get("foto_prompt")           ?? ""),
+    hero_prompt:           String(formData.get("hero_prompt")           ?? ""),
+    hero_prompt_cliente:   String(formData.get("hero_prompt_cliente")   ?? ""),
+  }).eq("id", slug);
+
+  revalidatePath("/expand/perfil");
+}
+
+async function salvarFolgas(folgas: string[]) {
+  "use server";
+  const { userId } = await getAcesso();
+  if (!userId) return;
+  const sb = await createClient();
+  const { data: me } = await sb.from("profiles").select("expand_membro").eq("id", userId).single();
+  const slug = String(me?.expand_membro ?? "").trim();
+  if (!slug) return;
+  const adminSb = createAdminClient();
+  if (!adminSb) return;
+  await adminSb.from("expand_perfis").update({ folgas }).eq("id", slug);
+  revalidatePath("/expand/perfil");
+}
+
+// ── WhatsApp actions ─────────────────────────────────────────────────────────
+async function criarEConectarInstanciaWpp(): Promise<{ qrcode?: string | null; paircode?: string | null; erro?: string }> {
+  "use server";
+  const { userId, isStaff } = await getAcesso();
+  if (!userId || !isStaff) return { erro: "Sem permissão." };
+
+  const sb = await createClient();
+  const adminSb = createAdminClient();
+  if (!adminSb) return { erro: "Service role não configurado." };
+
+  const [url, adminToken] = await Promise.all([
+    lerConfig("UAZAPI_URL"),
+    lerConfig("UAZAPI_ADMIN_TOKEN"),
+  ]);
+  if (!url || !adminToken) return { erro: "Admin Token do WhatsApp não configurado. Peça ao admin para configurar em Integrações." };
+
+  // Verificar se já existe instância para esse usuário
+  const { data: existing } = await adminSb.from("expand_whatsapp_instancias")
+    .select("id,instance_token,status").eq("user_id", userId).maybeSingle();
+
+  let instanceToken: string;
+
+  if (existing?.instance_token) {
+    instanceToken = existing.instance_token;
+    await adminSb.from("expand_whatsapp_instancias")
+      .update({ status: "connecting" }).eq("user_id", userId);
+  } else {
+    const instanceName = `exp-${userId.replace(/-/g, "").slice(0, 8)}`;
+    try {
+      const res = await fetch(`${url}/instance/init`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", admintoken: adminToken },
+        body: JSON.stringify({ name: instanceName }),
+      });
+      const j = await res.json();
+      const inst = (j.instance ?? j) as Record<string, unknown>;
+      const token = (inst.token ?? inst.instanceToken ?? inst.apikey ?? inst.hash) as string | undefined;
+      if (!token) return { erro: String(j.error ?? j.message ?? "Servidor não retornou token.") };
+      instanceToken = token;
+      await adminSb.from("expand_whatsapp_instancias").upsert({
+        user_id: userId, tipo: "colaborador",
+        nome: instanceName, server_url: url,
+        instance_token: token, status: "connecting",
+      }, { onConflict: "user_id" });
+    } catch (e) { return { erro: String((e as Error)?.message ?? e) }; }
   }
+
+  // Connect e obter QR
+  try {
+    const res = await fetch(`${url}/instance/connect`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", token: instanceToken },
+      body: JSON.stringify({}),
+    });
+    const j = await res.json();
+    const inst = j.instance ?? {};
+    if (!inst.qrcode && !inst.paircode) {
+      const errMsg = j.error ?? j.message ?? null;
+      return { erro: errMsg ? `Erro: ${errMsg}` : "Servidor não retornou QR. Tente novamente." };
+    }
+    return { qrcode: inst.qrcode ?? null, paircode: inst.paircode ?? null };
+  } catch (e) { return { erro: String((e as Error)?.message ?? e) }; }
+}
+
+async function checarInstanciaWpp(): Promise<{ status: string; number?: string; profileName?: string }> {
+  "use server";
+  const { userId } = await getAcesso();
+  if (!userId) return { status: "nao_config" };
+
+  const adminSb = createAdminClient();
+  if (!adminSb) return { status: "nao_config" };
+
+  const { data: inst } = await adminSb.from("expand_whatsapp_instancias")
+    .select("server_url,instance_token").eq("user_id", userId).maybeSingle();
+  if (!inst?.server_url || !inst?.instance_token) return { status: "nao_config" };
+
+  try {
+    const res = await fetch(`${inst.server_url}/instance/status`, {
+      headers: { token: inst.instance_token }, cache: "no-store",
+    });
+    const j = await res.json();
+    const info = j.instance ?? {};
+    const status = info.status ?? "unknown";
+    if (status === "connected") {
+      await adminSb.from("expand_whatsapp_instancias").update({
+        status: "connected",
+        numero_conectado: info.owner ?? null,
+        profile_name: info.profileName ?? null,
+      }).eq("user_id", userId);
+    }
+    return { status, number: info.owner ?? "", profileName: info.profileName ?? "" };
+  } catch { return { status: "erro" }; }
+}
+
+async function desconectarInstanciaWpp(): Promise<void> {
+  "use server";
+  const { userId } = await getAcesso();
+  if (!userId) return;
+
+  const adminSb = createAdminClient();
+  if (!adminSb) return;
+
+  const { data: inst } = await adminSb.from("expand_whatsapp_instancias")
+    .select("server_url,instance_token").eq("user_id", userId).maybeSingle();
+  if (!inst?.server_url || !inst?.instance_token) return;
+
+  try {
+    await fetch(`${inst.server_url}/instance/disconnect`, {
+      method: "POST", headers: { token: inst.instance_token },
+    });
+  } catch {}
+  await adminSb.from("expand_whatsapp_instancias")
+    .update({ status: "disconnected", numero_conectado: null, profile_name: null }).eq("user_id", userId);
   revalidatePath("/expand/perfil");
 }
 
 // ── Page ─────────────────────────────────────────────────────────────────────
-export default async function MeuPerfil() {
+export default async function PerfilPage() {
   const { userId } = await getAcesso();
   if (!userId) redirect("/login");
 
   const sb = await createClient();
 
-  // Dados do profile auth
   const { data: profile } = await sb
     .from("profiles")
     .select("id, full_name, email, role, expand_membro, expand_modulos")
     .eq("id", userId)
     .single();
 
-  const membroSlug = String(profile?.expand_membro ?? "").trim();
-  const role  = String(profile?.role ?? "pendente");
-  const roleCor   = ROLE_COR[role] ?? "var(--dim)";
-  const roleLabel = ROLE_LABEL[role] ?? role;
-  const modulos   = (profile?.expand_modulos as string[] | null) ?? [];
+  const slug = String(profile?.expand_membro ?? "").trim();
+  const role = String(profile?.role ?? "pendente");
 
-  // Perfil expand (cargo, bio, foto, ics)
-  interface ExpandPerfil {
+  type Perfil = {
     id: string; nome: string | null; cargo: string | null;
-    area: string | null; bio: string | null; foto_url: string | null;
-    ics_token: string | null; telefone: string | null;
-  }
-  let perfil: ExpandPerfil | null = null;
-  if (membroSlug) {
+    area: string | null; bio: string | null;
+    foto_url: string | null; hero_url: string | null;
+    ics_token: string | null; telefone: string | null; whatsapp: string | null;
+    foto_prompt: string | null; hero_prompt: string | null; hero_prompt_cliente: string | null;
+    folgas: string[] | null; cor: string | null;
+  };
+
+  let perfil: Perfil | null = null;
+  if (slug) {
     const { data } = await sb
       .from("expand_perfis")
-      .select("id, nome, cargo, area, bio, foto_url, ics_token, telefone")
-      .eq("id", membroSlug)
+      .select("id,nome,cargo,area,bio,foto_url,hero_url,ics_token,telefone,whatsapp,foto_prompt,hero_prompt,hero_prompt_cliente,folgas,cor")
+      .eq("id", slug)
       .single();
-    perfil = data as unknown as ExpandPerfil | null;
+    perfil = data as unknown as Perfil | null;
   }
 
-  // Tarefas ativas
-  const nomeParaBusca = perfil?.nome ?? profile?.full_name ?? "";
-  const { data: tarefasData } = nomeParaBusca
-    ? await sb
-        .from("expand_etapas")
-        .select("id, titulo, cliente_id, status, sla, data_prevista, area")
-        .or(`responsavel_atual.eq.${nomeParaBusca},responsavel.eq.${nomeParaBusca}`)
-        .in("status", ["idle", "run", "wait"])
-        .order("criado_em", { ascending: false })
-        .limit(10)
-    : { data: [] };
+  const nomeBusca = perfil?.nome ?? profile?.full_name ?? "";
+
+  // Tarefas completas para lista + gráficos (últimos 90 dias)
+  const noventa = new Date(Date.now() - 90 * 864e5).toISOString();
+  const [{ data: tarefasData }, { data: concluidasData }] = await Promise.all([
+    nomeBusca
+      ? sb.from("expand_etapas")
+          .select("id,titulo,cliente_id,status,sla,data_prevista,area,concluida_em,iniciada_em,criado_em")
+          .or(`responsavel_atual.eq.${nomeBusca},responsavel.eq.${nomeBusca}`)
+          .order("criado_em", { ascending: false })
+          .limit(200)
+      : Promise.resolve({ data: [] }),
+    // Tarefas concluídas nos últimos 90 dias para gráficos
+    nomeBusca
+      ? sb.from("expand_etapas")
+          .select("id,concluida_em,criado_em,status")
+          .or(`responsavel_atual.eq.${nomeBusca},responsavel.eq.${nomeBusca}`)
+          .eq("status", "done")
+          .gte("concluida_em", noventa)
+          .limit(500)
+      : Promise.resolve({ data: [] }),
+  ]);
+
   const tarefas = (tarefasData ?? []) as Array<{
-    id: string; titulo: string; cliente_id: string;
-    status: string; sla: string | null; data_prevista: string | null; area: string | null;
+    id: string; titulo: string; cliente_id: string; status: string;
+    sla: string | null; data_prevista: string | null; area: string | null;
+    concluida_em: string | null; iniciada_em: string | null; criado_em: string;
   }>;
 
-  // Clientes derivados das tarefas ativas
-  const clienteIds = [...new Set(tarefas.map(t => t.cliente_id))];
+  const concluidas = (concluidasData ?? []) as Array<{ id: string; concluida_em: string | null; criado_em: string; status: string }>;
+
+  // Clientes derivados
+  const clienteIds = [...new Set(tarefas.map(t => t.cliente_id).filter(Boolean))];
   const { data: clientesData } = clienteIds.length > 0
-    ? await sb.from("expand_clientes").select("id, nome").in("id", clienteIds)
+    ? await sb.from("expand_clientes").select("id,nome,status").in("id", clienteIds)
     : { data: [] };
-  const clientesMap = new Map((clientesData ?? []).map((c: { id: string; nome: string }) => [c.id, c.nome]));
-  const clientes = clienteIds.map(id => ({ id, nome: clientesMap.get(id) ?? id }));
+  const clientesMap = new Map((clientesData ?? []).map((c: { id: string; nome: string; status: string }) => [c.id, c]));
 
-  const fld: CSSProperties = {
-    background: "var(--bg)", border: "1px solid var(--line-2)", borderRadius: 8,
-    color: "var(--txt)", padding: "7px 10px", fontSize: 13, outline: "none",
-    fontFamily: "inherit", width: "100%",
+  // Dados do perfil do equipe para o chat
+  const { data: membros } = await sb
+    .from("expand_perfis")
+    .select("id,nome,cargo,tipo")
+    .eq("ativo", true)
+    .order("nome");
+
+  const adminSbWpp = createAdminClient();
+  const wppInst = adminSbWpp
+    ? await adminSbWpp
+        .from("expand_whatsapp_instancias")
+        .select("status,numero_conectado,profile_name")
+        .eq("user_id", userId)
+        .maybeSingle()
+    : { data: null };
+  const wppStatus = {
+    status: (wppInst.data as { status?: string } | null)?.status ?? "nao_config",
+    number: (wppInst.data as { numero_conectado?: string } | null)?.numero_conectado ?? undefined,
+    profileName: (wppInst.data as { profile_name?: string } | null)?.profile_name ?? undefined,
   };
-  const sec = (title: string, children: ReactNode) => (
-    <div style={{ marginBottom: 28, paddingBottom: 24, borderBottom: "1px solid var(--line-2)" }}>
-      <div style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".08em", color: "var(--dim)", marginBottom: 14 }}>{title}</div>
-      {children}
-    </div>
-  );
-
-  const ini = ((perfil?.nome ?? profile?.full_name ?? "?")[0] ?? "?").toUpperCase();
 
   return (
-    <>
-      <p className="hx-eyebrow">Configurações · conta</p>
-
-      {/* Header do perfil */}
-      <div style={{ display: "flex", alignItems: "center", gap: 18, marginBottom: 28 }}>
-        <div style={{
-          width: 64, height: 64, borderRadius: "50%", flexShrink: 0,
-          background: `color-mix(in srgb, ${roleCor} 18%, var(--panel-2))`,
-          border: `2px solid ${roleCor}`,
-          display: "grid", placeItems: "center",
-          overflow: "hidden",
-        }}>
-          {perfil?.foto_url
-            ? <img src={perfil.foto_url} alt="foto" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-            : <span style={{ fontWeight: 800, fontSize: 22, color: roleCor }}>{ini}</span>}
-        </div>
-        <div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-            <h1 className="ex-h1" style={{ margin: 0, fontSize: 22 }}>
-              {perfil?.nome ?? profile?.full_name ?? "Meu Perfil"}
-            </h1>
-            <span style={{
-              fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em",
-              padding: "3px 9px", borderRadius: 20,
-              background: `color-mix(in srgb, ${roleCor} 15%, transparent)`, color: roleCor,
-            }}>{roleLabel}</span>
-          </div>
-          {perfil?.cargo && <p style={{ fontSize: 13, color: "var(--dim)", marginTop: 3 }}>{perfil.cargo}</p>}
-          <p style={{ fontSize: 11.5, color: "var(--mut)", marginTop: 2 }}>{profile?.email}</p>
-        </div>
-      </div>
-
-      {/* Identidade editável */}
-      {sec("Identidade", (
-        <form action={salvarMeuPerfil}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".05em", color: "var(--dim)" }}>URL da foto</span>
-              <input name="foto_url" type="url" defaultValue={perfil?.foto_url ?? ""} placeholder="https://..." style={fld} />
-            </label>
-            <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".05em", color: "var(--dim)" }}>Bio</span>
-              <textarea name="bio" defaultValue={perfil?.bio ?? ""} placeholder="Conte um pouco sobre você..." rows={3}
-                style={{ ...fld, resize: "vertical", lineHeight: 1.5 }} />
-            </label>
-            <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".05em", color: "var(--dim)" }}>WhatsApp (com código do país)</span>
-              <input name="telefone" type="tel" defaultValue={perfil?.telefone ?? ""} placeholder="+5511999999999" style={{ ...fld, width: "auto", maxWidth: 240 }} />
-            </label>
-          </div>
-          {!membroSlug && (
-            <p style={{ fontSize: 11.5, color: "var(--warn)", marginTop: 10 }}>
-              Seu perfil ainda não está vinculado a um membro da equipe. Peça ao admin para vincular em Acessos.
-            </p>
-          )}
-          <button className="hx-btn hx-btn-primary" type="submit" style={{ marginTop: 14, fontSize: 13 }}>
-            Salvar alterações
-          </button>
-        </form>
-      ))}
-
-      {/* Acesso e módulos */}
-      {sec("Acesso e módulos", (
-        <div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-            {role === "admin"
-              ? <span style={{ fontSize: 12, padding: "5px 12px", borderRadius: 8, background: `color-mix(in srgb, var(--accent) 15%, transparent)`, color: "var(--accent)", fontWeight: 700 }}>Acesso total (Admin)</span>
-              : modulos.length > 0
-                ? modulos.map(m => {
-                    const label = m.split(".")[1] ?? m;
-                    return (
-                      <span key={m} style={{ fontSize: 11.5, padding: "4px 10px", borderRadius: 7, border: "1px solid var(--line-2)", color: "var(--dim)", background: "var(--panel-2)" }}>
-                        {label}
-                      </span>
-                    );
-                  })
-                : <span style={{ fontSize: 12.5, color: "var(--mut)", fontStyle: "italic" }}>Nenhum módulo ativo. Solicite acesso ao admin.</span>
-            }
-          </div>
-        </div>
-      ))}
-
-      {/* Carteira de clientes */}
-      {sec("Minha carteira de clientes", (
-        clientes.length === 0
-          ? <p style={{ fontSize: 13, color: "var(--mut)", fontStyle: "italic" }}>Nenhum cliente com tarefas ativas no momento.</p>
-          : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {clientes.map(c => (
-                <div key={c.id} className="hx-glass" style={{ borderRadius: 10, padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-                  <div style={{ fontWeight: 600, fontSize: 14 }}>{c.nome}</div>
-                  <a href={`/expand/carteira/${c.id}`} style={{ fontSize: 11.5, color: "var(--accent)", textDecoration: "none" }}>Ver dossiê →</a>
-                </div>
-              ))}
-            </div>
-          )
-      ))}
-
-      {/* Minhas tarefas ativas */}
-      {sec("Minhas tarefas ativas", (
-        tarefas.length === 0
-          ? <p style={{ fontSize: 13, color: "var(--mut)", fontStyle: "italic" }}>Nenhuma tarefa ativa no momento.</p>
-          : (
-            <>
-              <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-                {tarefas.map(t => {
-                  const statusLabel: Record<string, string> = { idle: "Aguardando", run: "Em andamento", wait: "Aguardando retorno" };
-                  const cor = t.status === "run" ? "var(--accent)" : t.status === "wait" ? "var(--warn)" : "var(--dim)";
-                  return (
-                    <div key={t.id} className="hx-glass" style={{ borderRadius: 10, padding: "10px 14px", borderLeft: `3px solid ${cor}` }}>
-                      <div style={{ fontSize: 13, fontWeight: 600 }}>{t.titulo}</div>
-                      <div style={{ display: "flex", gap: 10, marginTop: 4, flexWrap: "wrap" }}>
-                        {t.area && <span style={{ fontSize: 10.5, color: "var(--dim)" }}>{t.area}</span>}
-                        {t.sla  && <span style={{ fontSize: 10.5, color: "var(--dim)" }}>SLA: {t.sla}</span>}
-                        <span style={{ fontSize: 10.5, color: cor, fontWeight: 600 }}>{statusLabel[t.status] ?? t.status}</span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              <a href="/expand/v2" style={{ display: "inline-block", marginTop: 10, fontSize: 12.5, color: "var(--accent)", textDecoration: "none" }}>
-                Ver todas no Meu Dia →
-              </a>
-            </>
-          )
-      ))}
-
-    </>
+    <PerfilHub
+      profile={{ id: userId, email: profile?.email ?? "", role, fullName: profile?.full_name ?? "" }}
+      perfil={perfil}
+      slug={slug}
+      tarefas={tarefas}
+      concluidas={concluidas}
+      clientesMap={Object.fromEntries(clientesMap)}
+      membros={(membros ?? []) as Array<{ id: string; nome: string; cargo: string | null; tipo: string | null }>}
+      salvarPerfil={salvarPerfil}
+      salvarPrompts={salvarPrompts}
+      salvarFolgas={salvarFolgas}
+      wppStatus={wppStatus}
+      conectarWpp={criarEConectarInstanciaWpp}
+      checarWpp={checarInstanciaWpp}
+      desconectarWpp={desconectarInstanciaWpp}
+    />
   );
 }

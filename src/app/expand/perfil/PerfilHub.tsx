@@ -3,6 +3,7 @@
 import { useState, useRef, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import WhatsAppConnect from "@/components/WhatsAppConnect";
 
 /* ─── Types ─────────────────────────────────────────── */
 type Profile = { id: string; email: string; role: string; fullName: string };
@@ -187,9 +188,13 @@ function PhotoField({
 }
 
 /* ─── Main Component ─────────────────────────────────── */
+type WppStatus = { status: string; number?: string; profileName?: string };
+type WppConn = { qrcode?: string | null; paircode?: string | null; erro?: string };
+
 export default function PerfilHub({
   profile, perfil, slug, tarefas, concluidas, clientesMap, membros,
   salvarPerfil, salvarPrompts, salvarFolgas,
+  wppStatus, conectarWpp, checarWpp, desconectarWpp,
 }: {
   profile: Profile;
   perfil: Perfil;
@@ -201,6 +206,10 @@ export default function PerfilHub({
   salvarPerfil: (fd: FormData) => Promise<void>;
   salvarPrompts: (fd: FormData) => Promise<void>;
   salvarFolgas: (folgas: string[]) => Promise<void>;
+  wppStatus: WppStatus;
+  conectarWpp: () => Promise<WppConn>;
+  checarWpp: () => Promise<WppStatus>;
+  desconectarWpp: () => Promise<void>;
 }) {
   const router = useRouter();
   const [tab, setTab] = useState<TabId>("sobre");
@@ -707,6 +716,20 @@ export default function PerfilHub({
       {/* ══════════════════════════════ TAB: INTEGRAÇÃO ══════════════════════════════ */}
       {tab === "integracao" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          {/* WhatsApp */}
+          <div style={{ padding: "20px 24px", borderRadius: 14, background: "var(--panel)", border: "1px solid var(--line)" }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "var(--txt)", marginBottom: 4 }}>WhatsApp pessoal</div>
+            <p style={{ fontSize: 12, color: "var(--dim)", marginBottom: 16, lineHeight: 1.5 }}>
+              Conecte seu WhatsApp para receber notificações e interagir com os agentes diretamente pelo celular.
+            </p>
+            <WhatsAppConnect
+              inicial={wppStatus}
+              conectar={conectarWpp}
+              checar={checarWpp}
+              desconectar={desconectarWpp}
+            />
+          </div>
+
           <p style={{ fontSize: 13, color: "var(--dim)", lineHeight: 1.6 }}>
             Configure os prompts padrão para geração de imagens com IA. Eles são usados quando você clica em "Gerar com IA" nas fotos de perfil e hero.
           </p>
