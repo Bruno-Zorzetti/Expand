@@ -668,6 +668,20 @@ export default async function V2({ searchParams }: { searchParams: Promise<Recor
           .sort((a, b) => b[1].total - a[1].total)
           .slice(0, 4);
 
+        // Carteira: clients with task counts
+        const carteiraMap = new Map<string, { nome: string; open: number; late: number; done: number }>();
+        etapas.forEach(e => {
+          if (!carteiraMap.has(e.cliente_id)) carteiraMap.set(e.cliente_id, { nome: cliMap.get(e.cliente_id) ?? "—", open: 0, late: 0, done: 0 });
+          const g = carteiraMap.get(e.cliente_id)!;
+          const s = eff(e);
+          if (s === "done") g.done++;
+          else { g.open++; if (s === "late") g.late++; }
+        });
+        const carteira = [...carteiraMap.entries()]
+          .map(([id, v]) => ({ id, ...v }))
+          .sort((a, b) => b.late - a.late || b.open - a.open)
+          .slice(0, 7);
+
         // Agent roster: group open tasks by agent/responsavel
         const agMap = new Map<string, { open: number; run: number; isAi: boolean }>();
         allOpen.forEach(e => {
@@ -815,6 +829,29 @@ export default async function V2({ searchParams }: { searchParams: Promise<Recor
                     <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                       {roster.map(([name, s]) => (
                         <RosterCard key={name} id={name} nome={name} tipo={s.isAi ? "agente" : "humano"} run={s.run} open={s.open} isAi={s.isAi} />
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Carteira de clientes */}
+              {carteira.length > 0 && (
+                <>
+                  <div style={{ height: 1, background: "var(--line)", margin: "18px 0" }} />
+                  <div>
+                    <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".1em", color: "var(--dim)", fontWeight: 700, marginBottom: 10 }}>
+                      Minha Carteira
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                      {carteira.map(c => (
+                        <Link key={c.id} href={`/expand/clientes/${c.id}`} style={{ textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "7px 10px", borderRadius: 9, background: "var(--panel-2)", border: "1px solid var(--line)" }}>
+                          <span style={{ fontSize: 11.5, fontWeight: 600, color: "var(--txt)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, marginRight: 8 }}>{c.nome}</span>
+                          <div style={{ display: "flex", gap: 5, flexShrink: 0 }}>
+                            {c.late > 0 && <span style={{ fontSize: 10, color: "var(--red)", fontWeight: 700 }}>{c.late}↑</span>}
+                            <span style={{ fontSize: 10, color: "var(--dim)" }}>{c.open} ab</span>
+                          </div>
+                        </Link>
                       ))}
                     </div>
                   </div>
