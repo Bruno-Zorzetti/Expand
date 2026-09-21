@@ -28,6 +28,12 @@ export type EtapaRow = {
   responsavel_atual: string | null;
   iniciada_em: string | null;
   concluida_em: string | null;
+  portal_aprovacao: boolean;
+  portal_status: string | null;
+  portal_aprovacao_em: string | null;
+  portal_resposta_em: string | null;
+  portal_feedback: string | null;
+  portal_feedback_audio_url: string | null;
 };
 
 export type ArquivoRow = {

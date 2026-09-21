@@ -196,7 +196,7 @@ export async function abrirChamado(formData: FormData) {
   const { pessoa } = await getPessoa();
   await supabase.from("expand_etapas").update({ chamado: true, chamado_msg: msg }).eq("id", etapaId);
   await logar(supabase, "chamado", `Abriu chamado/dúvida: ${msg}`, { etapa_id: etapaId, cliente_id: await clienteDaEtapa(supabase, etapaId), autor: pessoa.nome });
-  for (const d of DIRETORIA) await notificar(supabase, d, "chamado", `${pessoa.nome} abriu um chamado: ${msg}`, `/expand/etapa/${etapaId}`);
+  for (const d of DIRETORIA) await notificar(supabase, await perfilIdPorNome(supabase, d), "chamado", `${pessoa.nome} abriu um chamado: ${msg}`, `/expand/etapa/${etapaId}`);
   revalidatePath(`/expand/etapa/${etapaId}`);
   revalidatePath("/expand");
 }
@@ -211,7 +211,7 @@ export async function alternarBloqueio(formData: FormData) {
   const bloquear = !et?.bloqueado;
   await supabase.from("expand_etapas").update({ bloqueado: bloquear, bloqueio_motivo: bloquear ? (motivo || "Sem motivo informado") : null }).eq("id", etapaId);
   await logar(supabase, "bloqueio", bloquear ? `Marcou bloqueio: ${motivo || "—"}` : "Desbloqueou a tarefa", { etapa_id: etapaId, cliente_id: (et?.cliente_id as string | null) ?? null, autor: pessoa.nome });
-  if (bloquear) for (const d of DIRETORIA) await notificar(supabase, d, "bloqueio", `${pessoa.nome} bloqueou uma tarefa: ${motivo || "—"}`, `/expand/etapa/${etapaId}`);
+  if (bloquear) for (const d of DIRETORIA) await notificar(supabase, await perfilIdPorNome(supabase, d), "bloqueio", `${pessoa.nome} bloqueou uma tarefa: ${motivo || "—"}`, `/expand/etapa/${etapaId}`);
   revalidatePath(`/expand/etapa/${etapaId}`);
   revalidatePath("/expand");
 }
@@ -663,13 +663,62 @@ export async function novaAcaoPlano(formData: FormData) {
   await exigirAdmin();
   const titulo = String(formData.get("titulo") ?? "").trim();
   if (!titulo) return;
-  const resp = String(formData.get("responsaveis") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+
+  const resp        = String(formData.get("responsaveis") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
   const data_limite = String(formData.get("data_limite") ?? "").trim() || null;
-  const prioridade = String(formData.get("prioridade") ?? "normal").trim() || "normal";
-  const detalhe    = String(formData.get("detalhe") ?? "").trim() || null;
+  const data_inicio = String(formData.get("data_inicio") ?? "").trim() || null;
+  const prioridade  = String(formData.get("prioridade") ?? "normal").trim() || "normal";
+  const detalhe     = String(formData.get("detalhe") ?? "").trim() || null;
+  const hora        = String(formData.get("hora") ?? "").trim() || null;
+  const origem      = String(formData.get("origem") ?? "interno").trim() || "interno";
+  const modo        = String(formData.get("modo") ?? "fazer").trim();
+  const clienteId   = String(formData.get("cliente_id") ?? "").trim() || null;
+  const area        = String(formData.get("area") ?? "").trim() || null;
+  const jaFeita     = modo === "feita";
+  const concluida_em = jaFeita ? (String(formData.get("concluida_em") ?? "").trim() || new Date().toISOString().slice(0, 10)) : null;
+  const status      = jaFeita ? "done" : "idle";
+
   const supabase = await createClient();
-  await supabase.from("expand_plano_acao").insert({ titulo, responsaveis: resp, data_limite, prioridade, detalhe, origem: "manual" });
-  revalidatePath("/expand/plano");
+  const { pessoa } = await getPessoa();
+
+  if (clienteId) {
+    // Tarefa de cliente → grava em expand_etapas (aparece no Kanban, dossiê, Meu Dia)
+    const responsavel = resp[0] ?? pessoa.nome;
+    const { data: max } = await supabase
+      .from("expand_etapas")
+      .select("ordem, fase")
+      .eq("cliente_id", clienteId)
+      .order("ordem", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    await supabase.from("expand_etapas").insert({
+      titulo,
+      cliente_id:        clienteId,
+      area,
+      responsavel,
+      responsavel_atual: responsavel,
+      sla:               hora,
+      data_prevista:     data_limite,
+      status:            jaFeita ? "done" : "idle",
+      fase:              (max?.fase as number | null) ?? 1,
+      ordem:             ((max?.ordem as number | null) ?? 0) + 1,
+      marco:             false,
+      bloqueado:         false,
+      visivel_cliente:   false,
+      origem,
+      ...(jaFeita && concluida_em ? { concluida_em } : {}),
+    });
+    revalidatePath("/expand/v2");
+    revalidatePath(`/expand/clientes/${clienteId}`);
+  } else {
+    // Ação interna da equipe → grava em expand_plano_acao
+    await supabase.from("expand_plano_acao").insert({
+      titulo, responsaveis: resp, data_limite, prioridade, detalhe,
+      hora, origem, status, concluida_em,
+      ...(data_inicio ? { data_inicio } : {}),
+    });
+    revalidatePath("/expand/plano");
+  }
 }
 
 export async function deletarAcaoPlano(formData: FormData) {
@@ -685,13 +734,24 @@ export async function editarAcaoPlano(formData: FormData) {
   await exigirAdmin();
   const id = String(formData.get("id") ?? "").trim();
   if (!id) return;
-  const titulo     = String(formData.get("titulo") ?? "").trim() || null;
-  const resp       = String(formData.get("responsaveis") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  const titulo      = String(formData.get("titulo") ?? "").trim() || null;
+  const resp        = String(formData.get("responsaveis") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
   const data_limite = String(formData.get("data_limite") ?? "").trim() || null;
-  const prioridade = String(formData.get("prioridade") ?? "normal").trim() || "normal";
-  const detalhe    = String(formData.get("detalhe") ?? "").trim() || null;
+  const data_inicio = String(formData.get("data_inicio") ?? "").trim() || null;
+  const prioridade  = String(formData.get("prioridade") ?? "normal").trim() || "normal";
+  const detalhe     = String(formData.get("detalhe") ?? "").trim() || null;
+  const hora        = String(formData.get("hora") ?? "").trim() || null;
+  const origem      = String(formData.get("origem") ?? "interno").trim() || "interno";
+  const modo        = String(formData.get("modo") ?? "fazer").trim();
+  const jaFeita     = modo === "feita";
+  const concluida_em = jaFeita ? (String(formData.get("concluida_em") ?? "").trim() || new Date().toISOString().slice(0, 10)) : null;
+  const status      = jaFeita ? "done" : "idle";
   const supabase = await createClient();
-  await supabase.from("expand_plano_acao").update({ titulo, responsaveis: resp, data_limite, prioridade, detalhe }).eq("id", id);
+  await supabase.from("expand_plano_acao").update({
+    titulo, responsaveis: resp, data_limite, prioridade, detalhe,
+    hora, origem, status, concluida_em,
+    ...(data_inicio !== null ? { data_inicio } : {}),
+  }).eq("id", id);
   revalidatePath("/expand/plano");
 }
 
@@ -1039,6 +1099,62 @@ export async function adicionarNotaHistorico(formData: FormData) {
   revalidatePath(`/expand/clientes/${clienteId}`);
 }
 
+// ── Resposta de aprovação do portal do cliente ────────────────────────────────
+export async function responderAprovacaoPortal(formData: FormData) {
+  const etapaId = String(formData.get("etapaId") ?? "");
+  const clienteId = String(formData.get("clienteId") ?? "");
+  const resposta = String(formData.get("resposta") ?? "");
+  if (!etapaId || !clienteId || !["aprovado", "rejeitado", "alteracoes"].includes(resposta)) return;
+
+  const supabase = await createClient();
+  const { data: et } = await supabase.from("expand_etapas")
+    .select("cliente_id, titulo, responsavel_atual, portal_aprovacao")
+    .eq("id", etapaId).eq("cliente_id", clienteId).maybeSingle();
+  if (!et || !et.portal_aprovacao) return;
+
+  const feedback = String(formData.get("feedback") ?? "").trim() || null;
+  const audioFile = formData.get("audio") as File | null;
+
+  let audioUrl: string | null = null;
+  if (audioFile && audioFile.size > 0) {
+    const admin = createAdminClient();
+    if (admin) {
+      const path = `${etapaId}/${Date.now()}.webm`;
+      const buf = Buffer.from(await audioFile.arrayBuffer());
+      const { error: upErr } = await admin.storage
+        .from("portal-feedbacks").upload(path, buf, { contentType: "audio/webm" });
+      if (!upErr) {
+        const { data: pub } = admin.storage.from("portal-feedbacks").getPublicUrl(path);
+        audioUrl = pub?.publicUrl ?? null;
+      }
+    }
+  }
+
+  await supabase.from("expand_etapas").update({
+    portal_status: resposta,
+    portal_resposta_em: new Date().toISOString(),
+    portal_feedback: feedback,
+    portal_feedback_audio_url: audioUrl,
+  }).eq("id", etapaId).eq("cliente_id", clienteId);
+
+  const titulo = et.titulo as string;
+  const verb = resposta === "aprovado" ? "aprovou" : resposta === "rejeitado" ? "rejeitou" : "pediu alterações em";
+  if (et.responsavel_atual) {
+    await notificar(supabase, await perfilIdPorNome(supabase, et.responsavel_atual as string),
+      "aprovacao", `Cliente ${verb}: "${titulo}"`, `/expand/etapa/${etapaId}`);
+  }
+  for (const d of DIRETORIA) {
+    await notificar(supabase, await perfilIdPorNome(supabase, d),
+      "aprovacao", `Portal: ${resposta} em "${titulo}"`, `/expand/etapa/${etapaId}`);
+  }
+  await logar(supabase, "portal_resposta", `${resposta}${feedback ? ` — ${feedback}` : ""}`,
+    { etapa_id: etapaId, cliente_id: clienteId });
+
+  revalidatePath(`/portal/${clienteId}/aprovacoes`);
+  revalidatePath("/expand/board");
+  revalidatePath("/expand/v2");
+}
+
 // ── Acesso ao portal do cliente ───────────────────────────────────────────────
 export async function gerarConvitePortal(formData: FormData) {
   const clienteId = String(formData.get("clienteId") ?? "");
@@ -1276,4 +1392,118 @@ export async function excluirPerfil(formData: FormData) {
   await supabase.from("expand_perfis").delete().eq("id", id);
   revalidatePath("/expand/equipe");
   redirect("/expand/equipe");
+}
+
+// ── Checklist da tarefa ───────────────────────────────────────────────────────
+// Cada item: { id: string, texto: string, feito: boolean, responsavel?: string }
+type CheckItem = { id: string; texto: string; feito: boolean; responsavel?: string | null };
+
+export async function addChecklistItem(formData: FormData) {
+  const etapaId = String(formData.get("etapaId") ?? "");
+  const texto   = String(formData.get("texto")   ?? "").trim();
+  const resp    = String(formData.get("responsavel") ?? "").trim() || null;
+  if (!etapaId || !texto) return;
+  const supabase = await createClient();
+  const { data: et } = await supabase.from("expand_etapas").select("checklist_json").eq("id", etapaId).single();
+  const lista: CheckItem[] = (et?.checklist_json as CheckItem[] | null) ?? [];
+  lista.push({ id: crypto.randomUUID(), texto, feito: false, responsavel: resp });
+  await supabase.from("expand_etapas").update({ checklist_json: lista }).eq("id", etapaId);
+  revalidatePath(`/expand/etapa/${etapaId}`);
+}
+
+export async function toggleChecklistItem(formData: FormData) {
+  const etapaId = String(formData.get("etapaId") ?? "");
+  const itemId  = String(formData.get("itemId")  ?? "");
+  if (!etapaId || !itemId) return;
+  const supabase = await createClient();
+  const { data: et } = await supabase.from("expand_etapas").select("checklist_json").eq("id", etapaId).single();
+  const lista: CheckItem[] = ((et?.checklist_json as CheckItem[] | null) ?? []).map(i =>
+    i.id === itemId ? { ...i, feito: !i.feito } : i
+  );
+  const feitos = lista.filter(i => i.feito).length;
+  const pct = lista.length ? Math.round(feitos / lista.length * 100) : 0;
+  await supabase.from("expand_etapas").update({ checklist_json: lista, progress_pct: pct }).eq("id", etapaId);
+  revalidatePath(`/expand/etapa/${etapaId}`);
+}
+
+export async function removeChecklistItem(formData: FormData) {
+  const etapaId = String(formData.get("etapaId") ?? "");
+  const itemId  = String(formData.get("itemId")  ?? "");
+  if (!etapaId || !itemId) return;
+  const supabase = await createClient();
+  const { data: et } = await supabase.from("expand_etapas").select("checklist_json").eq("id", etapaId).single();
+  const lista: CheckItem[] = ((et?.checklist_json as CheckItem[] | null) ?? []).filter(i => i.id !== itemId);
+  const feitos = lista.filter(i => i.feito).length;
+  const pct = lista.length ? Math.round(feitos / lista.length * 100) : 0;
+  await supabase.from("expand_etapas").update({ checklist_json: lista, progress_pct: pct }).eq("id", etapaId);
+  revalidatePath(`/expand/etapa/${etapaId}`);
+}
+
+// ── Subtarefas ────────────────────────────────────────────────────────────────
+export async function criarSubtarefa(formData: FormData) {
+  const parentId  = String(formData.get("parentId")    ?? "");
+  const titulo    = String(formData.get("titulo")       ?? "").trim();
+  const resp      = String(formData.get("responsavel")  ?? "").trim() || null;
+  const criterio  = String(formData.get("criterio")     ?? "").trim() || null;
+  if (!parentId || !titulo) return;
+  const supabase = await createClient();
+  const { pessoa } = await getPessoa();
+  const { data: pai } = await supabase.from("expand_etapas").select("cliente_id, fase, ordem, area").eq("id", parentId).single();
+  if (!pai) return;
+  const { data: mx } = await supabase.from("expand_etapas").select("ordem").eq("cliente_id", pai.cliente_id).order("ordem", { ascending: false }).limit(1).maybeSingle();
+  const novaOrdem = (Number(mx?.ordem) || 0) + 1;
+  const { data: nova } = await supabase.from("expand_etapas").insert({
+    cliente_id: pai.cliente_id, parent_id: parentId,
+    ordem: novaOrdem, fase: pai.fase, titulo, criterio,
+    responsavel: resp ?? "A definir", responsavel_atual: resp,
+    area: pai.area, status: "idle", origem: "subtarefa",
+    qtd_esperada: 1, aprovacao: "gestor", visivel_cliente: false,
+  }).select("id").single();
+  await logar(supabase, "subtarefa", `Criou subtarefa: "${titulo}"`, { etapa_id: parentId, cliente_id: pai.cliente_id as string, autor: pessoa.nome });
+  if (resp) await notificar(supabase, await perfilIdPorNome(supabase, resp), "tarefa", `Nova subtarefa atribuída a você: "${titulo}"`, `/expand/etapa/${nova?.id}`);
+  revalidatePath(`/expand/etapa/${parentId}`);
+  revalidatePath("/expand");
+}
+
+// ── Chamado integrado ao thread ───────────────────────────────────────────────
+export async function abrirChamadoComThread(formData: FormData) {
+  const etapaId = String(formData.get("etapaId") ?? "");
+  const msg = String(formData.get("msg") ?? "").trim();
+  if (!etapaId || !msg) return;
+  const supabase = await createClient();
+  const { pessoa } = await getPessoa();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+  // Marca o chamado na etapa
+  await supabase.from("expand_etapas").update({ chamado: true, chamado_msg: msg }).eq("id", etapaId);
+  await logar(supabase, "chamado", `Abriu chamado: ${msg}`, { etapa_id: etapaId, cliente_id: await clienteDaEtapa(supabase, etapaId), autor: pessoa.nome });
+  // Posta no thread da tarefa
+  await supabase.from("expand_chat_mensagens").insert({ etapa_id: etapaId, user_id: user.id, role: "user", content: `🆘 Chamado: ${msg}` });
+  // Notifica a diretoria com link direto para a tarefa
+  for (const d of DIRETORIA) await notificar(supabase, await perfilIdPorNome(supabase, d), "chamado", `${pessoa.nome} abriu um chamado: ${msg}`, `/expand/etapa/${etapaId}`);
+  revalidatePath(`/expand/etapa/${etapaId}`);
+  revalidatePath("/expand");
+}
+
+// ── Thread de chat por tarefa ─────────────────────────────────────────────────
+export async function postarThreadTarefa(formData: FormData) {
+  const etapaId = String(formData.get("etapaId") ?? "");
+  const texto   = String(formData.get("texto")   ?? "").trim();
+  if (!etapaId || !texto) return;
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+  // Insere na tabela de chat com etapa_id para criar a thread
+  await supabase.from("expand_chat_mensagens").insert({ etapa_id: etapaId, user_id: user.id, role: "user", content: texto });
+  // Notifica os participantes relevantes (responsável + DIRETORIA) se for a 1ª mensagem ou chamado
+  const { data: et } = await supabase.from("expand_etapas").select("titulo, responsavel_atual, responsavel, chamado").eq("id", etapaId).single();
+  const titulo = (et?.titulo as string) ?? "tarefa";
+  const respNome = (et?.responsavel_atual ?? et?.responsavel) as string | null;
+  const remetente = await perfilIdPorNome(supabase, user.email?.split("@")[0] ?? "");
+  // Notifica o responsável (se não for ele mesmo)
+  const respId = respNome ? await perfilIdPorNome(supabase, respNome) : null;
+  if (respId && respId !== remetente) await notificar(supabase, respId, "tarefa", `Nova mensagem na tarefa "${titulo}"`, `/expand/etapa/${etapaId}`);
+  // Se marcou chamado, notifica a diretoria também
+  if (et?.chamado) for (const d of DIRETORIA) await notificar(supabase, await perfilIdPorNome(supabase, d), "chamado", `Nova mensagem no chamado "${titulo}"`, `/expand/etapa/${etapaId}`);
+  revalidatePath(`/expand/etapa/${etapaId}`);
 }

@@ -163,7 +163,7 @@ function KColumn({ colId, label, cor, cards, totalTasks, draggingId, draggingFro
 
   return (
     <div
-      style={{ flex: "0 0 220px", minWidth: 200, display: "flex", flexDirection: "column" }}
+      style={{ flex: "0 0 270px", minWidth: 240, display: "flex", flexDirection: "column" }}
       onDragOver={(e) => { e.preventDefault(); if (canReceive) setHovering(true); }}
       onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setHovering(false); }}
       onDrop={(e) => {
@@ -200,7 +200,7 @@ function KColumn({ colId, label, cor, cards, totalTasks, draggingId, draggingFro
       </div>
 
       {/* Cards */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 7, flex: 1 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 7, flex: 1, minHeight: "calc(100vh - 220px)", paddingBottom: 48 }}>
         {cards.length === 0 && !hovering && (
           <div style={{
             textAlign: "center", padding: "24px 8px", color: "var(--dim)", fontSize: 11.5,
@@ -279,7 +279,7 @@ export function KanbanBoard({ etapas: serverEtapas }: { etapas: EtapaK[]; client
 
       {/* Columns */}
       <div style={{ overflowX: "auto", paddingBottom: 20 }}>
-        <div style={{ display: "flex", gap: 14, minWidth: `${COLS.length * 234}px` }}>
+        <div style={{ display: "flex", gap: 14, minWidth: `${COLS.length * 284}px` }}>
           {buckets.map((col) => (
             <KColumn
               key={col.id}

@@ -9,6 +9,7 @@ import { getAcesso } from "@/lib/expand-acesso";
 import { listarGrupos } from "@/lib/whatsapp";
 import { KanbanBoard, type EtapaK } from "./KanbanBoard";
 import { BoardSidebar, type SidebarCliente } from "./BoardSidebar";
+import { SubmitButton } from "@/components/expand/SubmitButton";
 
 export const dynamic = "force-dynamic";
 
@@ -39,7 +40,7 @@ const labelCap: CSSProperties = {
 export default async function Board({
   searchParams,
 }: {
-  searchParams: Promise<{ c?: string; v?: string }>;
+  searchParams: Promise<{ c?: string; v?: string; p?: string }>;
 }) {
   const sp = await searchParams;
   const viewMode = sp.v === "kanban" ? "kanban" : "lista";
@@ -65,6 +66,8 @@ export default async function Board({
   const grupos = isAdmin ? await listarGrupos() : [];
   const selWpp = sel as ClienteRow & { whatsapp_grupo?: string | null; whatsapp_grupo_nome?: string | null };
 
+  const { data: perfisDados } = await supabase.from("expand_perfis").select("id, nome, tipo").eq("ativo", true).order("nome");
+
   const { data: prodData } = await supabase.from("expand_prod_etapas").select("produto_slug");
   const prodSlugs = Array.from(new Set((prodData ?? []).map((p: { produto_slug: string }) => p.produto_slug)));
   const { data: prodNomes } = await supabase.from("products").select("slug, name").in("slug", prodSlugs.length ? prodSlugs : ["_"]);
@@ -72,6 +75,9 @@ export default async function Board({
   const produtos = prodSlugs
     .map((s) => ({ slug: s, nome: nomeProduto.get(s) ?? s }))
     .sort((a, b) => a.nome.localeCompare(b.nome));
+
+  const selProdutoSlug = (sel as { produto_slug?: string | null }).produto_slug ?? null;
+  const selProdutoNome = selProdutoSlug ? (nomeProduto.get(selProdutoSlug) ?? selProdutoSlug) : null;
 
   const counts = new Map<string, { total: number; aprovados: number }>();
   if (etapas.length) {
@@ -149,10 +155,23 @@ export default async function Board({
         .board-phaserow:hover { background: var(--panel-2) !important; }
       `}</style>
 
-      <p className="hx-eyebrow">Estado da conta</p>
-      <h1 className="ex-h1" style={{ marginBottom: 16 }}>
-        Board de <span className="hx-accent-text">Entrega</span>
-      </h1>
+      <div style={{ marginBottom: 16 }}>
+        <p style={{ fontSize: 11, color: "var(--dim)", marginBottom: 5, lineHeight: 1 }}>
+          <Link href="/expand/board" style={{ color: "var(--dim)", textDecoration: "none" }}>
+            ← Board de Entrega
+          </Link>
+          {" / "}
+          <Link href={`/expand/clientes/${sel.id}`} style={{ color: "var(--dim)", textDecoration: "none" }}>
+            {sel.nome}
+          </Link>
+          {selProdutoNome && (
+            <span style={{ color: "var(--accent)" }}>{" / "}{selProdutoNome}</span>
+          )}
+        </p>
+        <h1 className="ex-h1" style={{ margin: 0 }}>
+          {sel.nome}
+        </h1>
+      </div>
 
       {/* Mobile client strip — appears only below 900px */}
       <div className="board-mobile-nav" style={{
@@ -320,14 +339,19 @@ export default async function Board({
               </label>
               <label>
                 <span style={labelCap}>Responsável</span>
-                <input name="responsavel" placeholder="A definir" style={inputSt} />
+                <select name="responsavel" style={inputSt}>
+                  <option value="">A definir</option>
+                  {(perfisDados ?? []).map((p) => (
+                    <option key={p.id} value={p.nome}>{p.nome}{p.tipo === "agente" ? " (IA)" : ""}</option>
+                  ))}
+                </select>
               </label>
               <label>
                 <span style={labelCap}>SLA</span>
                 <input name="sla" placeholder="ex.: 2 dias" style={inputSt} />
               </label>
               <div style={{ gridColumn: "1 / -1" }}>
-                <button className="hx-btn hx-btn-primary" type="submit">Adicionar à esteira</button>
+                <SubmitButton loadingText="Adicionando…">Adicionar à esteira</SubmitButton>
               </div>
             </form>
           </details>

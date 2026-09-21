@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { ARQ_STATUS, type EtapaRow, type ArquivoRow } from "@/lib/expand-tarefas";
 import { decidirArquivo } from "@/app/expand/actions";
+import AprovacoesClient from "./AprovacoesClient";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +36,11 @@ export default async function Aprovacoes({ params }: { params: Promise<{ id: str
   const pendentes = arquivos.filter((a) => a.status === "pendente");
   const historico = arquivos.filter((a) => a.status !== "pendente");
 
+  // Etapas que precisam de aprovação do cliente
+  const etapasAprovacao = etapas
+    .filter((e) => e.portal_aprovacao)
+    .map((e) => ({ id: e.id, titulo: e.titulo, area: e.area, portal_status: e.portal_status }));
+
   return (
     <>
       <div className="ex-hero" style={{ padding: "24px 28px" }}>
@@ -43,8 +49,12 @@ export default async function Aprovacoes({ params }: { params: Promise<{ id: str
         <p>Aprovar por aqui evita que o feedback se perca no WhatsApp e mantém o cronograma no prazo. Junte os ajustes e responda em até 2 dias.</p>
       </div>
 
-      <div className="ex-panel hx-glass">
-        <div className="ph"><span className="pt">Aguardando seu aval</span><span className="pc">{pendentes.length}</span></div>
+      {etapasAprovacao.length > 0 && (
+        <AprovacoesClient etapas={etapasAprovacao} clienteId={id} />
+      )}
+
+      <div className="ex-panel hx-glass" style={{ marginTop: 16 }}>
+        <div className="ph"><span className="pt">Arquivos aguardando seu aval</span><span className="pc">{pendentes.length}</span></div>
         {pendentes.length === 0 ? <div className="pb"><span style={{ color: "var(--dim)", fontSize: 12 }}>Nada pendente. Você está em dia. 👍</span></div> : null}
         {pendentes.map((a) => {
           const et = etMap.get(a.etapa_id);

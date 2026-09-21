@@ -17,16 +17,38 @@ type Props = {
   onUpdate?: (id: string, fields: Partial<EtapaRow>) => Promise<void>;
 };
 
+const STATUS_APROV: Record<string, { label: string; cor: string }> = {
+  aguardando:  { label: "Aguardando aprovação", cor: "#F59E0B" },
+  aprovado:    { label: "Aprovado",              cor: "#22C55E" },
+  rejeitado:   { label: "Rejeitado",             cor: "#EF4444" },
+  alteracoes:  { label: "Alterações solicitadas",cor: "#F97316" },
+};
+
+function elapsedLabel(iso: string | null) {
+  if (!iso) return "";
+  const m = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  if (m < 60) return `${m}min`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h`;
+  return `${Math.floor(h / 24)}d`;
+}
+
 export default function TaskDrawer({ tarefa, onClose, onUpdate }: Props) {
   const [pending, startTransition] = useTransition();
   const [status, setStatus] = useState(tarefa?.status ?? "idle");
   const [visivelCliente, setVisivelCliente] = useState(tarefa?.visivel_cliente ?? false);
+  const [portalAprovacao, setPortalAprovacao] = useState(tarefa?.portal_aprovacao ?? false);
+  const [portalStatus, setPortalStatus] = useState(tarefa?.portal_status ?? null);
+  const [portalAprovacaoEm, setPortalAprovacaoEm] = useState(tarefa?.portal_aprovacao_em ?? null);
   const overlayRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!tarefa) return;
     setStatus(tarefa.status);
     setVisivelCliente(tarefa.visivel_cliente);
+    setPortalAprovacao(tarefa.portal_aprovacao ?? false);
+    setPortalStatus(tarefa.portal_status ?? null);
+    setPortalAprovacaoEm(tarefa.portal_aprovacao_em ?? null);
   }, [tarefa?.id]);
 
   useEffect(() => {
@@ -144,16 +166,80 @@ export default function TaskDrawer({ tarefa, onClose, onUpdate }: Props) {
             </div>
           )}
 
-          {/* Visível para cliente */}
-          <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", padding: "10px 12px", borderRadius: 8, background: "var(--panel)", border: "1px solid var(--line-2)" }}>
-            <input type="checkbox" checked={visivelCliente}
-              onChange={(e) => { setVisivelCliente(e.target.checked); salvar({ visivel_cliente: e.target.checked }); }}
-              style={{ width: 16, height: 16, accentColor: "var(--accent)", cursor: "pointer" }} />
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--txt)" }}>Visível no portal do cliente</div>
-              <div style={{ fontSize: 11.5, color: "var(--dim)" }}>O cliente poderá ver esta tarefa no portal</div>
-            </div>
-          </label>
+          {/* Visível para cliente + Aprovação */}
+          <div style={{ borderRadius: 8, background: "var(--panel)", border: "1px solid var(--line-2)", overflow: "hidden" }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", padding: "10px 12px" }}>
+              <input type="checkbox" checked={visivelCliente}
+                onChange={(e) => { setVisivelCliente(e.target.checked); salvar({ visivel_cliente: e.target.checked }); }}
+                style={{ width: 16, height: 16, accentColor: "var(--accent)", cursor: "pointer" }} />
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "var(--txt)" }}>Visível no portal do cliente</div>
+                <div style={{ fontSize: 11.5, color: "var(--dim)" }}>O cliente poderá ver esta tarefa no portal</div>
+              </div>
+            </label>
+
+            {visivelCliente && (
+              <div style={{ padding: "10px 12px", borderTop: "1px solid var(--line)", background: "var(--panel-2)" }}>
+                <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
+                  <input type="checkbox" checked={portalAprovacao}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setPortalAprovacao(checked);
+                      const now = checked ? new Date().toISOString() : null;
+                      setPortalAprovacaoEm(now);
+                      setPortalStatus(checked ? "aguardando" : null);
+                      salvar({
+                        portal_aprovacao: checked,
+                        portal_status: checked ? "aguardando" : null,
+                        portal_aprovacao_em: now,
+                      } as Partial<EtapaRow>);
+                    }}
+                    style={{ width: 15, height: 15, accentColor: "#F59E0B", cursor: "pointer" }} />
+                  <div style={{ fontSize: 12.5, fontWeight: 600, color: "var(--txt)" }}>
+                    Cliente precisa aprovar
+                  </div>
+                </label>
+
+                {portalAprovacao && portalStatus && (
+                  <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
+                      <span style={{
+                        fontSize: 11.5, fontWeight: 700,
+                        color: STATUS_APROV[portalStatus]?.cor ?? "var(--dim)",
+                        background: `color-mix(in srgb, ${STATUS_APROV[portalStatus]?.cor ?? "var(--dim)"} 12%, transparent)`,
+                        border: `1px solid color-mix(in srgb, ${STATUS_APROV[portalStatus]?.cor ?? "var(--dim)"} 28%, transparent)`,
+                        borderRadius: 20, padding: "2px 10px",
+                      }}>
+                        {STATUS_APROV[portalStatus]?.label ?? portalStatus}
+                      </span>
+                      {portalAprovacaoEm && (
+                        <span style={{ fontSize: 11, color: "var(--dim)" }}>
+                          · {portalStatus === "aguardando" ? "desde " : ""}{elapsedLabel(portalAprovacaoEm)}
+                        </span>
+                      )}
+                    </div>
+                    {tarefa.portal_feedback && (
+                      <div style={{
+                        fontSize: 12, color: "var(--txt)", lineHeight: 1.5,
+                        padding: "8px 10px", borderRadius: 6,
+                        background: "color-mix(in srgb, var(--warn) 8%, transparent)",
+                        border: "1px solid color-mix(in srgb, var(--warn) 22%, transparent)",
+                      }}>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: "var(--warn)", display: "block", marginBottom: 3 }}>
+                          MENSAGEM DO CLIENTE
+                        </span>
+                        {tarefa.portal_feedback}
+                      </div>
+                    )}
+                    {tarefa.portal_feedback_audio_url && (
+                      <audio controls src={tarefa.portal_feedback_audio_url}
+                        style={{ width: "100%", height: 32, marginTop: 2 }} />
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           {pending && (
             <div style={{ fontSize: 12, color: "var(--dim)", textAlign: "center" }}>Salvando...</div>
