@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -8,7 +9,7 @@ export async function GET(request: Request) {
   const q = (searchParams.get("q") ?? "").trim();
   if (q.length < 2) return NextResponse.json([]);
 
-  const supabase = await createClient();
+  const supabase = createAdminClient() ?? await createClient();
   const [{ data: cli }, { data: etapas }, { data: membros }] = await Promise.all([
     supabase.from("expand_clientes").select("id, nome").ilike("nome", `%${q}%`).limit(6),
     supabase.from("expand_etapas").select("id, titulo").ilike("titulo", `%${q}%`).limit(5),
