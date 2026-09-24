@@ -839,6 +839,366 @@ button:not(.hx-btn):not([class]) {
     @apply font-sans;
   }
 }
+/* ═══════════════════════════════════════════════════════════════
+   MICRO-ANIMAÇÕES — Efeitos interativos e feedback visual
+   Regra: cada interação retorna um sinal tátil claro.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Keyframes ────────────────────────────────────────────────── */
+@keyframes hx-fade-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes hx-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes hx-slide-down {
+  from { opacity: 0; transform: translateY(-10px) scaleY(0.96); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes hx-pop {
+  0%   { transform: scale(0.88); opacity: 0; }
+  65%  { transform: scale(1.05); }
+  100% { transform: scale(1);    opacity: 1; }
+}
+@keyframes hx-shimmer {
+  from { background-position: -600px 0; }
+  to   { background-position:  600px 0; }
+}
+@keyframes hx-badge-pop {
+  0%   { transform: scale(0.5); }
+  70%  { transform: scale(1.22); }
+  100% { transform: scale(1); }
+}
+@keyframes hx-float {
+  0%,100% { transform: translateY(0);  }
+  50%     { transform: translateY(-5px); }
+}
+@keyframes hx-ripple-out {
+  0%   { transform: scale(0); opacity: 0.45; }
+  100% { transform: scale(3.2); opacity: 0; }
+}
+@keyframes hx-bar-fill {
+  from { transform: scaleX(0); transform-origin: left; }
+  to   { transform: scaleX(1); transform-origin: left; }
+}
+@keyframes hx-glow-pulse {
+  0%,100% { opacity: 0.6; }
+  50%     { opacity: 1;   }
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Classes de entrada ───────────────────────────────────────── */
+.hx-fade-up { animation: hx-fade-up  0.34s cubic-bezier(0.22,1,0.36,1) both; }
+.hx-fade-in { animation: hx-fade-in  0.26s ease both; }
+.hx-pop     { animation: hx-pop      0.28s cubic-bezier(0.34,1.56,0.64,1) both; }
+
+/* Stagger — cards em grid */
+.hx-stagger > * { animation: hx-fade-up 0.34s cubic-bezier(0.22,1,0.36,1) both; }
+.hx-stagger > *:nth-child(1) { animation-delay:  0ms; }
+.hx-stagger > *:nth-child(2) { animation-delay: 60ms; }
+.hx-stagger > *:nth-child(3) { animation-delay:120ms; }
+.hx-stagger > *:nth-child(4) { animation-delay:180ms; }
+.hx-stagger > *:nth-child(5) { animation-delay:240ms; }
+.hx-stagger > *:nth-child(6) { animation-delay:300ms; }
+.hx-stagger > *:nth-child(n+7) { animation-delay:360ms; }
+
+/* ── Skeleton loading ─────────────────────────────────────────── */
+.hx-skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--panel-2) 25%,
+    color-mix(in srgb, var(--line-2) 70%, var(--panel-2)) 50%,
+    var(--panel-2) 75%
+  );
+  background-size: 1200px 100%;
+  animation: hx-shimmer 1.8s ease-in-out infinite;
+  border-radius: 6px;
+  color: transparent !important;
+  user-select: none;
+}
+.hx-skeleton * { visibility: hidden; }
+
+/* ── Details / Dropdown ───────────────────────────────────────── */
+details[open] > *:not(summary) {
+  animation: hx-slide-down 0.24s cubic-bezier(0.22,1,0.36,1);
+}
+details summary {
+  transition: color 0.15s, background 0.15s;
+  user-select: none;
+}
+details summary::-webkit-details-marker { display: none; }
+
+/* ── Inputs — focus glow ─────────────────────────────────────── */
+input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=range]),
+textarea,
+select {
+  transition: border-color 0.16s, box-shadow 0.16s;
+}
+input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=range]):focus,
+textarea:focus,
+select:focus {
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent) !important;
+  outline: none;
+}
+
+/* ── ex-arqbtn — feedback completo ───────────────────────────── */
+.ex-arqbtn {
+  transition:
+    background     0.14s,
+    border-color   0.14s,
+    color          0.14s,
+    transform      0.13s cubic-bezier(0.34,1.56,0.64,1),
+    box-shadow     0.14s;
+  position: relative;
+  overflow: hidden;
+}
+.ex-arqbtn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 16%, transparent);
+}
+.ex-arqbtn:active {
+  transform: translateY(1px) scale(0.96);
+  box-shadow: none;
+}
+.ex-arqbtn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+/* ripple no click */
+.ex-arqbtn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, rgba(255,255,255,0.22) 0%, transparent 70%);
+  opacity: 0;
+  transition: opacity 0.35s;
+  pointer-events: none;
+  border-radius: inherit;
+}
+.ex-arqbtn:active::after { opacity: 1; }
+
+/* Estado loading no arqbtn */
+.ex-arqbtn[aria-busy="true"],
+.ex-arqbtn.loading {
+  pointer-events: none;
+  opacity: 0.72;
+}
+.ex-arqbtn[aria-busy="true"]::before,
+.ex-arqbtn.loading::before {
+  content: "";
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border: 1.8px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: hx-spin 0.55s linear infinite;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+/* ── hx-btn — ripple aprimorado ──────────────────────────────── */
+.hx-btn {
+  position: relative;
+  overflow: hidden;
+}
+.hx-btn::before {
+  content: "";
+  position: absolute;
+  width: 200%;
+  height: 200%;
+  top: -50%;
+  left: -50%;
+  background: radial-gradient(circle at center, rgba(255,255,255,0.18) 0%, transparent 60%);
+  opacity: 0;
+  transform: scale(0.3);
+  transition: opacity 0.4s, transform 0.5s;
+  pointer-events: none;
+}
+.hx-btn:active::before {
+  opacity: 1;
+  transform: scale(1);
+  transition: opacity 0.05s, transform 0.05s;
+}
+/* Glow no hover do primary */
+.hx-btn-primary:hover {
+  box-shadow:
+    0 6px 22px color-mix(in srgb, var(--accent) 38%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent) inset;
+}
+
+/* ── Cards da Expand — hover lift ────────────────────────────── */
+.etapa-card {
+  transition: box-shadow 0.2s, border-color 0.2s;
+}
+.etapa-card:hover {
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--line));
+  box-shadow: 0 8px 28px -8px color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.ex-kpi {
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.ex-kpi:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 32px -8px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.ex-cc {
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+}
+.ex-cc:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 32px -10px rgba(0,0,0,0.45);
+  border-color: var(--line-2);
+}
+
+/* ── Nav items ── */
+.ex-navi {
+  transition: background 0.14s, color 0.14s, transform 0.14s;
+}
+.ex-navi:hover  { transform: translateX(3px); }
+.ex-navi.on     { transform: translateX(4px); }
+
+/* ── Fab ── */
+.ex-fab {
+  transition: transform 0.22s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.2s, filter 0.2s;
+}
+.ex-fab:hover {
+  transform: scale(1.1) rotate(90deg);
+  filter: brightness(1.14) saturate(1.1);
+  box-shadow:
+    0 16px 40px -10px color-mix(in srgb, var(--accent) 70%, transparent),
+    0 0 50px color-mix(in srgb, var(--accent) 38%, transparent);
+}
+.ex-fab:active { transform: scale(0.92) rotate(90deg); }
+
+/* ── Chip2 (abas cliente) ── */
+.ex-chip2 {
+  transition: border-color 0.15s, color 0.15s, background 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+.ex-chip2:hover { transform: translateY(-1px); }
+.ex-chip2.on {
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+/* ── Notificação badge ── */
+.ex-badge {
+  animation: hx-badge-pop 0.3s cubic-bezier(0.34,1.56,0.64,1);
+  transition: background 0.15s, transform 0.15s;
+}
+.ex-badge:not(:empty) { animation: hx-badge-pop 0.3s cubic-bezier(0.34,1.56,0.64,1); }
+
+/* ── Icon buttons (topbar) ── */
+.ex-iconbtn {
+  transition: color 0.14s, border-color 0.14s, background 0.14s, transform 0.14s, box-shadow 0.14s;
+}
+.ex-iconbtn:hover {
+  transform: scale(1.07);
+  box-shadow: 0 3px 10px color-mix(in srgb, var(--accent) 16%, transparent);
+}
+.ex-iconbtn:active { transform: scale(0.93); }
+
+/* ── Organograma vcard ── */
+.ex-vcard {
+  transition: border-color 0.18s, transform 0.18s, box-shadow 0.18s;
+}
+.ex-vcard:hover {
+  box-shadow: 0 8px 24px -6px color-mix(in srgb, var(--oc, var(--accent)) 22%, transparent);
+}
+
+/* ── Squad cards ── */
+.ex-squadcard {
+  transition: transform 0.18s, box-shadow 0.18s, border-color 0.18s;
+}
+.ex-squadcard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px -6px color-mix(in srgb, var(--sc, var(--accent)) 22%, transparent);
+}
+
+/* ── Missão CG ── */
+.cg-mis {
+  transition: background 0.15s, border-color 0.15s, transform 0.15s;
+}
+.cg-mis:hover { transform: translateX(3px); }
+
+/* ── XP bar ── */
+.cg-xpbar i {
+  transition: width 0.7s cubic-bezier(0.34,1.56,0.64,1);
+}
+
+/* ── Table rows ── */
+.ex-tbl tr {
+  transition: background 0.12s;
+}
+.ex-tbl tr:hover td {
+  background: color-mix(in srgb, var(--accent) 4%, transparent);
+}
+
+/* ── Task rows ── */
+.ex-taskrow {
+  transition: background 0.13s;
+}
+.ex-taskrow:hover {
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+}
+
+/* ── Etapa row (fluxo) ── */
+.ex-etrow {
+  transition: background 0.14s;
+}
+
+/* ── Back link ── */
+.ex-back {
+  transition: color 0.14s, transform 0.14s;
+}
+.ex-back:hover { transform: translateX(-3px); }
+
+/* ── Ctab (portal do cliente) ── */
+.ex-ctab {
+  transition: color 0.14s, border-bottom-color 0.14s;
+}
+
+/* ── Gestão card ── */
+.ex-gcard {
+  transition: transform 0.16s, box-shadow 0.16s, border-color 0.16s, background 0.16s;
+}
+
+/* ── hx-glass hover ── */
+.hx-glass-hover:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    var(--glass-shadow),
+    0 14px 44px -12px color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+/* ── Chip (agentes / skills) ── */
+.ex-chip {
+  transition: background 0.14s, border-color 0.14s, transform 0.14s;
+}
+.ex-chip:hover { transform: scale(1.06); }
+
+/* ── Barra de progresso (checklist) ── */
+div[style*="progress_pct"] {
+  transition: width 0.5s cubic-bezier(0.34,1.56,0.64,1);
+}
+
+/* ── hx-glass details — borda suave ao abrir ── */
+details.hx-glass[open] {
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--glass-border));
+  transition: border-color 0.2s;
+}
+
+/* ── Glow animado no FAB icon ── */
+.ex-fab svg, .ex-fab span {
+  animation: hx-glow-pulse 2.5s ease-in-out infinite;
+}
+
 /* ── Print / PDF export ──────────────────────────────────── */
 @media print {
   /* Hide shell navigation, sidebars, and buttons */

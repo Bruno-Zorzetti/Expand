@@ -4,6 +4,13 @@ export const dynamic = "force-dynamic";
 
 const TOOLS = [
   {
+    href: "/expand/ferramentas/capas",
+    icon: "🖼",
+    title: "Editor de Capas",
+    desc: "Crie e edite capas de ebooks, banners e artes. Controle textos, fontes, imagens e exporte em múltiplos formatos (Kindle, Instagram, WhatsApp...).",
+    badge: "design",
+  },
+  {
     href: "/expand/ferramentas/grupo",
     icon: "💬",
     title: "Criar grupo WhatsApp",

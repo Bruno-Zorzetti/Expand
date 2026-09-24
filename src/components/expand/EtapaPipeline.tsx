@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useId } from "react";
+import React, { useState, useId } from "react";
 
 /* ══════════════════════════════════════════════════════════════════
    EtapaPipeline — Rota visual de uma tarefa
@@ -354,107 +354,94 @@ export default function EtapaPipeline(props: EtapaPipelineProps) {
         </svg>
       </div>
 
-      {/* ── Custo real — somente admin ────────────────────────── */}
+      {/* ── Cupons fiscais de custo — somente admin ────────────── */}
       {isAdmin && dur > 0 && (
-        <div style={{
-          marginTop: 16, borderTop: "1px solid var(--line, #1e3a5f)",
-          paddingTop: 14, display: "grid",
-          gridTemplateColumns: "1fr auto", gap: 16, alignItems: "end",
-        }}>
-          <div>
-            <div style={{
-              fontSize: 10, textTransform: "uppercase", letterSpacing: ".08em",
-              color: "var(--dim)", fontWeight: 700, marginBottom: 8,
-              display: "flex", alignItems: "center", gap: 6,
-            }}>
-              Custo real da tarefa
-              <span style={{
-                fontSize: 9, padding: "1px 5px", borderRadius: 4,
-                background: "color-mix(in srgb,var(--warn) 14%,transparent)",
-                color: "var(--warn)", fontWeight: 700, letterSpacing: 0,
-              }}>ADMIN</span>
-            </div>
+        <div style={{ marginTop: 16, borderTop: "1px solid var(--line, #1e3a5f)", paddingTop: 14 }}>
+          <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".08em", color: "var(--dim)", fontWeight: 700, marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
+            Custo detalhado da tarefa
+            <span style={{ fontSize: 9, padding: "1px 5px", borderRadius: 4, background: "color-mix(in srgb,var(--warn) 14%,transparent)", color: "var(--warn)", fontWeight: 700, letterSpacing: 0 }}>ADMIN</span>
+          </div>
 
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 24px" }}>
-              {/* Responsável */}
-              {taxaResp > 0 ? (
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ width: 8, height: 8, borderRadius: 2, background: corBase, display: "inline-block", flexShrink: 0 }} />
-                  <span style={{ fontSize: 11.5, color: "var(--txt)" }}>
-                    {responsavel ?? "—"} · {fmtDur(dur)} × {brl(taxaResp)}/h
-                  </span>
-                  <span style={{ fontSize: 12.5, fontWeight: 700, color: corBase }}>
-                    = {brl(custoResp)}
-                  </span>
-                </div>
-              ) : (
-                <div style={{ fontSize: 11.5, color: "var(--dim)", display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ width: 8, height: 8, borderRadius: 2, background: "var(--line)", display: "inline-block" }} />
-                  {responsavel ?? "—"} · {fmtDur(dur)}
-                  <span style={{ fontStyle: "italic" }}>taxa não configurada</span>
-                </div>
-              )}
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {/* CUPOM 001 — Responsável humano */}
+            {taxaResp > 0 ? (
+              <CupomFiscal num="001" titulo="Tempo do responsável" cor={corBase}>
+                <CupomLinha desc={`${responsavel ?? "—"}`} obs={`${fmtDur(dur)} × ${brl(taxaResp)}/h`} valor={brl(custoResp)} cor={corBase} />
+              </CupomFiscal>
+            ) : responsavel ? (
+              <CupomFiscal num="001" titulo="Tempo do responsável" cor="#64748b">
+                <CupomLinha desc={`${responsavel}`} obs={`${fmtDur(dur)} · taxa não configurada`} valor="—" cor="#64748b" />
+                <div style={{ fontSize: 9.5, color: "var(--warn)", marginTop: 4, fontStyle: "italic" }}>Configure em /expand/equipe</div>
+              </CupomFiscal>
+            ) : null}
 
-              {/* Agente IA */}
-              {agente && taxaAg > 0 && (
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ fontSize: 11, color: "var(--dim)" }}>
-                    ⚡ {agente} · {fmtDur(dur)} × {brl(taxaAg)}/h
-                  </span>
-                  <span style={{ fontSize: 12.5, fontWeight: 700, color: "var(--green)" }}>
-                    = {brl(custoAg)}
-                  </span>
-                </div>
-              )}
-            </div>
+            {/* CUPOM 002 — Assinatura Claude (proporcional) */}
+            {agente && (() => {
+              const mensalidade = 900; // R$
+              const horasMes = 730;
+              const custoHora = mensalidade / horasMes;
+              const custoAssinatura = Math.round((dur / 60) * custoHora * 100) / 100;
+              return (
+                <CupomFiscal num="002" titulo="Assinatura Claude" cor="#7C3AED">
+                  <CupomLinha desc="Plano mensal Claude" obs={`R$${mensalidade}/mês ÷ ${horasMes}h × ${fmtDur(dur)}`} valor={brl(custoAssinatura)} cor="#7C3AED" />
+                </CupomFiscal>
+              );
+            })()}
 
-            {/* Total */}
-            <div style={{
-              marginTop: 8, paddingTop: 8, borderTop: "1px solid var(--line)",
-              display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap",
-            }}>
-              <span style={{ fontSize: 11, color: "var(--dim)", textTransform: "uppercase", letterSpacing: ".06em" }}>
-                Total
-              </span>
-              <span style={{ fontSize: 18, fontWeight: 800, color: "var(--txt)" }}>
-                {custoTotal > 0 ? brl(custoTotal) : "—"}
-              </span>
-              {!isDone && dur > 0 && (
-                <span style={{ fontSize: 10, color: "var(--dim)" }}>· em andamento</span>
-              )}
-              {taxaResp === 0 && (
-                <span style={{ fontSize: 10, color: "var(--warn)", fontStyle: "italic" }}>
-                  · configure a taxa do membro em /expand/equipe
-                </span>
-              )}
+            {/* CUPOM 003 — Tokens API Anthropic (estimativa) */}
+            {agente && (() => {
+              // Estimativa: ~50 tokens/min de trabalho (input+output combinados)
+              // Claude Sonnet: $3/1M input, $15/1M output → média ~$6/1M tokens
+              // Câmbio estimado: R$5.50/USD
+              const tokensEstimados = dur * 50;
+              const custoPorMilhao = 6 * 5.50; // R$33/1M tokens
+              const custoTokens = Math.round((tokensEstimados / 1_000_000) * custoPorMilhao * 100) / 100;
+              return (
+                <CupomFiscal num="003" titulo="API Anthropic (tokens)" cor="#7C3AED">
+                  <CupomLinha
+                    desc="Tokens estimados (input+output)"
+                    obs={`~${tokensEstimados.toLocaleString("pt-BR")} tokens · $6/1M avg × R$5,50`}
+                    valor={brl(custoTokens)}
+                    cor="#7C3AED"
+                  />
+                  <div style={{ fontSize: 9, color: "var(--dim)", marginTop: 3, fontStyle: "italic" }}>Estimativa: ~50 tokens/min de execução</div>
+                </CupomFiscal>
+              );
+            })()}
+
+            {/* CUPOM 004 — Agente Apify/outros (estimativa por hora de uso) */}
+            {agente === "lara" && (() => {
+              const custoApify = Math.round((dur / 60) * 3 * 100) / 100; // ~R$3/h estimado
+              return (
+                <CupomFiscal num="004" titulo="Apify (scraping/leads)" cor="#FF7C00">
+                  <CupomLinha desc="Créditos Apify estimados" obs={`~R$3/h × ${fmtDur(dur)}`} valor={brl(custoApify)} cor="#FF7C00" />
+                </CupomFiscal>
+              );
+            })()}
+          </div>
+
+          {/* Total geral */}
+          <div style={{ marginTop: 10, paddingTop: 10, borderTop: "2px solid var(--line)", display: "flex", alignItems: "baseline", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+              <span style={{ fontSize: 10, color: "var(--dim)", textTransform: "uppercase", letterSpacing: ".06em", fontWeight: 700 }}>Total estimado</span>
+              {!isDone && <span style={{ fontSize: 10, color: "var(--dim)" }}>· em andamento</span>}
             </div>
+            <span style={{ fontSize: 20, fontWeight: 800, color: "var(--txt)" }}>{custoTotal > 0 ? brl(custoTotal) : "—"}</span>
           </div>
 
           {/* Botão enviar ao Financeiro */}
           {onEnviarFinanceiro && (
-            <div style={{ textAlign: "right" }}>
+            <div style={{ textAlign: "right", marginTop: 10 }}>
               {sent ? (
-                <div style={{
-                  fontSize: 11, color: "var(--green)", padding: "8px 14px",
-                  border: "1px solid var(--green)", borderRadius: 8,
-                  background: "color-mix(in srgb, var(--green) 8%, transparent)",
-                }}>
+                <div style={{ fontSize: 11, color: "var(--green)", padding: "8px 14px", border: "1px solid var(--green)", borderRadius: 8, background: "color-mix(in srgb, var(--green) 8%, transparent)" }}>
                   ✓ Enviado ao Financeiro
                 </div>
               ) : (
-                <button onClick={handleEnviar} disabled={sending} style={{
-                  background: "none", border: `1px solid ${corBase}`, color: corBase,
-                  borderRadius: 8, padding: "8px 16px", fontSize: 11.5, fontWeight: 700,
-                  cursor: sending ? "wait" : "pointer", opacity: sending ? 0.6 : 1,
-                  fontFamily: "inherit", letterSpacing: ".02em", transition: "background 0.15s",
-                  whiteSpace: "nowrap",
-                }}>
+                <button onClick={handleEnviar} disabled={sending} style={{ background: "none", border: `1px solid ${corBase}`, color: corBase, borderRadius: 8, padding: "8px 16px", fontSize: 11.5, fontWeight: 700, cursor: sending ? "wait" : "pointer", opacity: sending ? 0.6 : 1, fontFamily: "inherit", letterSpacing: ".02em", transition: "background 0.15s", whiteSpace: "nowrap" }}>
                   {sending ? "Enviando…" : "↗ Gerar custo · PMO → Financeiro"}
                 </button>
               )}
-              <div style={{ fontSize: 9.5, color: "var(--dim)", marginTop: 5, lineHeight: 1.4 }}>
-                Registra no log financeiro<br />com rota e breakdown por pessoa
-              </div>
+              <div style={{ fontSize: 9.5, color: "var(--dim)", marginTop: 5, lineHeight: 1.4 }}>Registra no log financeiro com breakdown detalhado</div>
             </div>
           )}
         </div>
@@ -467,6 +454,42 @@ export default function EtapaPipeline(props: EtapaPipelineProps) {
           {!isDone && <span style={{ marginLeft: 6, fontSize: 11 }}>· em andamento</span>}
         </div>
       )}
+    </div>
+  );
+}
+
+/* ── Componentes auxiliares — cupom fiscal ─────────────────────── */
+
+function CupomFiscal({ num, titulo, cor, children }: {
+  num: string; titulo: string; cor: string; children: React.ReactNode;
+}) {
+  return (
+    <div style={{
+      border: `1px dashed ${cor}60`, borderRadius: 8,
+      padding: "8px 11px", fontFamily: "ui-monospace,monospace",
+      background: `color-mix(in srgb, ${cor} 5%, var(--panel-2))`,
+    }}>
+      <div style={{ display: "flex", gap: 7, alignItems: "center", marginBottom: 6 }}>
+        <span style={{ fontSize: 8, fontWeight: 700, color: cor, letterSpacing: ".06em", textTransform: "uppercase" }}>
+          CUPOM {num}
+        </span>
+        <span style={{ fontSize: 9.5, color: "var(--dim)", letterSpacing: ".03em" }}>{titulo}</span>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function CupomLinha({ desc, obs, valor, cor }: {
+  desc: string; obs: string; valor: string; cor: string;
+}) {
+  return (
+    <div style={{ display: "flex", alignItems: "flex-start", gap: 8, justifyContent: "space-between" }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 11, color: "var(--txt)", fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{desc}</div>
+        <div style={{ fontSize: 9.5, color: "var(--dim)", marginTop: 1, lineHeight: 1.3 }}>{obs}</div>
+      </div>
+      <div style={{ fontSize: 13, fontWeight: 800, color: cor, whiteSpace: "nowrap", flexShrink: 0 }}>{valor}</div>
     </div>
   );
 }

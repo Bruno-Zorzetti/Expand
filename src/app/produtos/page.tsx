@@ -48,6 +48,24 @@ export default async function Catalogo() {
             ))}
           </div>
         </section>
+        {/* Ferramentas — produtos adicionados via plataforma, não pelo banco */}
+        <div style={{ marginTop: 40 }}>
+          <p className="hx-eyebrow" style={{ marginBottom: 12 }}>Ferramentas & Criação</p>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 16 }}>
+            <article className="hx-glass hx-glass-hover" style={{ padding: 20, display: "flex", flexDirection: "column" }}>
+              <div style={{ display: "flex", gap: 8, marginBottom: 10, alignItems: "center" }}>
+                <span style={{ borderRadius: 6, border: "1px solid var(--line-2)", background: "var(--panel-2)", padding: "3px 8px", fontFamily: "monospace", fontSize: 10, textTransform: "uppercase", color: "var(--mut)" }}>design</span>
+                <span style={{ borderRadius: 6, background: "color-mix(in srgb, var(--accent) 15%, transparent)", padding: "3px 8px", fontSize: 10, fontWeight: 700, color: "var(--accent)" }}>Novo</span>
+              </div>
+              <h3 style={{ fontSize: 18, fontWeight: 700 }}>Ebook Studio</h3>
+              <p style={{ marginTop: 4, flex: 1, fontSize: 13, color: "var(--mut)" }}>Criador completo de ebooks — capa, contra capa e miolo diagramado. Exportação pronta para Amazon KDP e publicação física.</p>
+              <div style={{ marginTop: 16, display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
+                <div><p style={{ fontFamily: "monospace", fontSize: 10, textTransform: "uppercase", color: "var(--dim)" }}>Acesso</p><p style={{ fontSize: 19, fontWeight: 800, color: "var(--accent)" }}>Incluso</p></div>
+                <Link href="/expand/ferramentas/capas" className="hx-btn hx-btn-primary" style={{ fontSize: 13 }}>Abrir studio</Link>
+              </div>
+            </article>
+          </div>
+        </div>
         <footer style={{ padding: "20px 26px", borderTop: "1px solid var(--line)", fontSize: 11, color: "var(--dim)", textAlign: "center", fontFamily: "var(--font-cinzel), serif", letterSpacing: 2 }}>EXPAND</footer>
       </main>
     </div>

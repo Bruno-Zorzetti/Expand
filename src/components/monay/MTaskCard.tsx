@@ -33,13 +33,17 @@ export default function MTaskCard({
 }) {
   const today = new Date().toISOString().slice(0, 10);
   const isLate = status !== 'done' && datePrevista != null && datePrevista < today;
-  const borderColor = status === 'run'
-    ? 'var(--accent)'
-    : status === 'done'
-    ? 'var(--green)'
-    : isLate
-    ? 'var(--red)'
-    : 'var(--line)';
+
+  const statusEff = status === 'late' || isLate ? 'late' : status;
+
+  const cardTheme: Record<string, { bg: string; border: string; accent: string }> = {
+    late: { bg: 'color-mix(in srgb,var(--red) 12%,var(--panel))',    border: 'var(--red)',    accent: 'var(--red)'    },
+    run:  { bg: 'color-mix(in srgb,var(--warn) 12%,var(--panel))',   border: 'var(--warn)',   accent: 'var(--warn)'   },
+    wait: { bg: 'color-mix(in srgb,#d97706 10%,var(--panel))',        border: '#d97706',       accent: '#d97706'       },
+    done: { bg: 'color-mix(in srgb,var(--green) 18%,var(--panel))',  border: 'var(--green)',  accent: 'var(--green)'  },
+    idle: { bg: 'var(--panel)',                                         border: 'var(--line)',   accent: 'var(--dim)'    },
+  };
+  const { bg: cardBg, border: borderColor } = cardTheme[statusEff] ?? cardTheme.idle;
 
   const fmt = (d: string) =>
     new Date(d + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
@@ -48,7 +52,7 @@ export default function MTaskCard({
     <div
       onClick={onClick}
       style={{
-        background: 'var(--panel)',
+        background: cardBg,
         border: `1px solid ${borderColor}`,
         borderLeft: `3px solid ${borderColor}`,
         borderRadius: 10,

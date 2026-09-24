@@ -5,9 +5,42 @@ import "./globals.css";
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
+const BASE_URL = "https://expand.hshs.com.br";
+
 export const metadata: Metadata = {
-  title: "Expand — Plataforma",
+  title: {
+    default: "Expand — Plataforma",
+    template: "%s · Expand",
+  },
   description: "Operação inteligente. Equipe humana + IA executando para os seus clientes.",
+  metadataBase: new URL(BASE_URL),
+  openGraph: {
+    type: "website",
+    url: BASE_URL,
+    siteName: "Expand",
+    title: "Expand — Motor de Trabalho",
+    description: "Tarefas, pipeline, portal do cliente e agentes de IA — integrados e organizados.",
+    images: [
+      {
+        url: "/opengraph-image",
+        width: 1200,
+        height: 630,
+        alt: "Expand — Motor de Trabalho",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Expand — Motor de Trabalho",
+    description: "Tarefas, pipeline, portal do cliente e agentes de IA — integrados e organizados.",
+    images: ["/opengraph-image"],
+  },
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+    ],
+    apple: "/midia/expand-icone-gold.png",
+  },
 };
 
 export const viewport: Viewport = {

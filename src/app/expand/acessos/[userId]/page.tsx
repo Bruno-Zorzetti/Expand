@@ -79,7 +79,10 @@ async function gerarLinkConvite(formData: FormData) {
   if (!email || !userId) redirect(`/expand/acessos/${userId}`);
   const adminSb = createAdminClient();
   if (!adminSb) redirect(`/expand/acessos/${userId}?err=1`);
-  const { data } = await adminSb!.auth.admin.generateLink({ type: "invite", email });
+  const { data } = await adminSb!.auth.admin.generateLink({
+    type: "invite", email,
+    options: { redirectTo: `${siteUrl()}/definir-senha` },
+  });
   const link = data?.properties?.action_link ?? null;
   if (link) redirect(`/expand/acessos/${userId}?lk=${encodeURIComponent(link)}&lt=convite`);
   redirect(`/expand/acessos/${userId}?err=1`);
@@ -93,7 +96,10 @@ async function gerarLinkSenha(formData: FormData) {
   if (!email || !userId) redirect(`/expand/acessos/${userId}`);
   const adminSb = createAdminClient();
   if (!adminSb) redirect(`/expand/acessos/${userId}?err=1`);
-  const { data } = await adminSb!.auth.admin.generateLink({ type: "recovery", email });
+  const { data } = await adminSb!.auth.admin.generateLink({
+    type: "recovery", email,
+    options: { redirectTo: `${siteUrl()}/auth/callback?next=/auth/reset-password` },
+  });
   const link = data?.properties?.action_link ?? null;
   if (link) redirect(`/expand/acessos/${userId}?lk=${encodeURIComponent(link)}&lt=senha`);
   redirect(`/expand/acessos/${userId}?err=1`);

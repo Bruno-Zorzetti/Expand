@@ -1243,7 +1243,21 @@ export default async function PerfilPage({ params, searchParams }: { params: Pro
       {tab === "chat" ? (
         <>
           {!ehAgente ? <p className="ex-sub" style={{ marginTop: -4 }}>Este é o <b>assistente de IA de {p.nome}</b> — ajuda com as atividades dela usando o RAG e o trabalho atual. Para falar com a pessoa, use o botão flutuante.</p> : null}
-          <AgenteChat id={p.id} nome={p.nome} cor={cor} tipo={p.tipo} memoriaHref={`/expand/equipe/${p.id}/conhecimento`} />
+          <AgenteChat
+            id={p.id} nome={p.nome} cor={cor} tipo={p.tipo}
+            memoriaHref={`/expand/equipe/${p.id}/conhecimento`}
+            {...(id === "daniel" ? {
+              estilosPicker: [
+                { id: "3d",          emoji: "🔮", label: "3D Realista",         desc: "Objeto tridimensional renderizado, profundidade e luz dramáticos" },
+                { id: "foto",        emoji: "📷", label: "Fotografia",           desc: "Foto profissional de estúdio, editorial, HDR realista" },
+                { id: "dark",        emoji: "🌑", label: "Dark Premium",         desc: "Fundo preto, tipografia dourada, atmosfera de luxo" },
+                { id: "minimalista", emoji: "◻️", label: "Minimalista",          desc: "Muito espaço negativo, 1-2 cores, tipografia forte" },
+                { id: "aquarela",    emoji: "🎨", label: "Aquarela / Ilustrado", desc: "Pintura digital, traços orgânicos, textura de papel" },
+                { id: "rabisco",     emoji: "✏️", label: "Sketch / Rabisco",     desc: "Linhas manuais, estilo croqui, fundo kraft ou branco" },
+                { id: "popart",      emoji: "💥", label: "Pop Art",              desc: "Cores saturadas, contornos grossos, estética Warhol/Lichtenstein" },
+              ],
+            } : {})}
+          />
         </>
       ) : null}
 

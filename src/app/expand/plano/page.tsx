@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { getAcesso } from "@/lib/expand-acesso";
-import { type AcaoFull, type Membro, PlanoAcaoClient } from "./PlanoClient";
+import { type AcaoFull, type Membro, type ClienteSimples, PlanoAcaoClient } from "./PlanoClient";
 
 export const dynamic = "force-dynamic";
 
@@ -8,23 +8,36 @@ export default async function PlanoAcao() {
   const supabase = await createClient();
   const { isAdmin } = await getAcesso();
 
-  const { data } = await supabase
-    .from("expand_plano_acao")
-    .select("id, titulo, detalhe, responsaveis, data_limite, hora, status, origem, prioridade, concluida_em")
-    .order("data_limite", { nullsFirst: false });
+  const [{ data }, { data: ps }, { data: clis }] = await Promise.all([
+    supabase
+      .from("expand_plano_acao")
+      .select("id, titulo, detalhe, responsaveis, data_limite, data_inicio, hora, status, origem, prioridade, concluida_em, cliente_id")
+      .order("data_limite", { nullsFirst: false }),
+    supabase
+      .from("expand_perfis")
+      .select("id, nome, cor, cargo")
+      .eq("tipo", "humano")
+      .order("nome"),
+    supabase
+      .from("expand_clientes")
+      .select("id, nome")
+      .eq("ativo", true)
+      .order("nome"),
+  ]);
+
   const acoes = (data ?? []) as AcaoFull[];
 
-  // Fetch human members (equipe + color from perfis)
-  const { data: ps } = await supabase
-    .from("expand_perfis")
-    .select("id, nome, cor")
-    .eq("tipo", "humano")
-    .order("nome");
   const membros: Membro[] = (ps ?? []).map((p) => ({
-    id:   p.id as string,
-    nome: p.nome as string,
-    cor:  (p.cor as string) ?? "var(--accent)",
-    ini:  (p.nome as string).slice(0, 2).toUpperCase(),
+    id:    p.id as string,
+    nome:  p.nome as string,
+    cor:   (p.cor as string) ?? "var(--accent)",
+    ini:   (p.nome as string).slice(0, 2).toUpperCase(),
+    cargo: (p.cargo as string | null) ?? null,
+  }));
+
+  const clientes: ClienteSimples[] = (clis ?? []).map((c) => ({
+    id:   c.id as string,
+    nome: c.nome as string,
   }));
 
   const feitas    = acoes.filter((a) => a.status === "done").length;
@@ -71,7 +84,7 @@ export default async function PlanoAcao() {
         </div>
       </div>
 
-      <PlanoAcaoClient acoes={acoes} membros={membros} isAdmin={isAdmin} />
+      <PlanoAcaoClient acoes={acoes} membros={membros} clientes={clientes} isAdmin={isAdmin} />
     </>
   );
 }

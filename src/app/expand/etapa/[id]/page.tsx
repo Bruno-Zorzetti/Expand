@@ -5,17 +5,23 @@ import { AREAS, AG_COR, AG_NOME, AG_APROVA } from "@/lib/expand-esteira";
 import { APROVACAO_ROTULO, ARQ_STATUS, ETAPA_STATUS, type EtapaRow, type ArquivoRow } from "@/lib/expand-tarefas";
 import {
   subirArquivo, decidirArquivo, iniciarEtapa, concluirEtapa, transferirEtapa,
-  abrirChamado, alternarBloqueio, adicionarLink, editarArquivo, removerArquivo, agendarEtapa,
+  alternarBloqueio, adicionarLink, editarArquivo, removerArquivo, agendarEtapa,
   editarEtapa, addModeloEtapa, removeModeloEtapa, promoverParaProcesso, comentarEtapa,
-  gerarCustoFinanceiro,
+  gerarCustoFinanceiro, addChecklistItem, toggleChecklistItem, removeChecklistItem,
+  criarSubtarefa, abrirChamadoComThread,
 } from "@/app/expand/actions";
+import TarefaThread from "@/components/expand/TarefaThread";
 import EtapaPipeline from "@/components/expand/EtapaPipeline";
+import { SubmitButton } from "@/components/expand/SubmitButton";
 import { getAcesso } from "@/lib/expand-acesso";
 
 export const dynamic = "force-dynamic";
 
 type LogRow = { id: string; tipo: string; autor: string | null; detalhe: string | null; criado_em: string };
 type ModeloRow = { id: string; titulo: string; conteudo: string | null; url: string | null; criado_por: string | null };
+type CheckItem = { id: string; texto: string; feito: boolean; responsavel?: string | null };
+type SubEtapa = { id: string; titulo: string; status: string; responsavel_atual: string | null; responsavel: string | null };
+type ThreadMsg = { id: string; user_id: string; content: string; criado_em: string };
 
 function fmt(d: string | null) { return d ? new Date(d).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }) : "—"; }
 function fmtHora(d: string) { return new Date(d).toLocaleString("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }); }
@@ -63,6 +69,28 @@ export default async function EtapaDetalhe({ params }: { params: Promise<{ id: s
   const logs = (logData ?? []) as LogRow[];
   const { data: modData } = await supabase.from("expand_etapa_modelos").select("id, titulo, conteudo, url, criado_por").eq("etapa_id", id).order("criado_em");
   const modelos = (modData ?? []) as ModeloRow[];
+
+  // Thread de chat da tarefa
+  const { data: threadData } = await supabase.from("expand_chat_mensagens").select("id, user_id, content, criado_em").eq("etapa_id", id).order("criado_em").limit(200);
+  const threadMsgs = (threadData ?? []) as ThreadMsg[];
+
+  // Subtarefas
+  const { data: subData } = await supabase.from("expand_etapas").select("id, titulo, status, responsavel_atual, responsavel").eq("parent_id", id).order("criado_em");
+  const subtarefas = (subData ?? []) as SubEtapa[];
+
+  // Checklist
+  const checklist = ((etapa as unknown as Record<string, unknown>).checklist_json as CheckItem[] | null) ?? [];
+
+  // Mapa userId → perfil para o thread
+  const { data: { user: authUser } } = await supabase.auth.getUser();
+  const { data: userProfiles } = await supabase.from("profiles").select("id, expand_membro").not("expand_membro", "is", null);
+  const { data: allPerfis } = await supabase.from("expand_perfis").select("id, nome, cargo, cor, foto_url, tipo");
+  const perfilById = Object.fromEntries((allPerfis ?? []).map(p => [p.id, p]));
+  const userMap: Record<string, { nome: string; cor: string | null; foto_url: string | null }> = {};
+  for (const up of userProfiles ?? []) {
+    const pf = perfilById[up.expand_membro as string];
+    if (pf) userMap[up.id] = { nome: pf.nome, cor: pf.cor ?? null, foto_url: pf.foto_url ?? null };
+  }
 
   const comentarios = logs.filter(l => l.tipo === "comentario");
   const historico   = logs.filter(l => l.tipo !== "comentario");
@@ -352,11 +380,124 @@ export default async function EtapaDetalhe({ params }: { params: Promise<{ id: s
             </div>
           </div>
 
-          {/* Comentários */}
+          {/* Thread / Chat da tarefa */}
           <div className="etapa-card">
             <div className="etapa-card-head">
-              <span style={{ fontSize: 13, fontWeight: 700 }}>Comentários</span>
+              <span style={{ fontSize: 13, fontWeight: 700 }}>💬 Thread da tarefa</span>
+              <span style={{ fontSize: 11, background: "var(--panel-2)", padding: "2px 8px", borderRadius: 20, color: "var(--dim)" }}>{threadMsgs.length}</span>
+              <span style={{ fontSize: 11, color: "var(--dim)", marginLeft: "auto" }}>realtime · histórico salvo</span>
+            </div>
+            <div className="etapa-card-body">
+              <TarefaThread
+                etapaId={etapa.id}
+                userId={authUser?.id ?? ""}
+                userMap={userMap}
+                initialMsgs={threadMsgs}
+              />
+            </div>
+          </div>
+
+          {/* Checklist */}
+          <div className="etapa-card">
+            <div className="etapa-card-head">
+              <span style={{ fontSize: 13, fontWeight: 700 }}>☑ Checklist</span>
+              <span style={{ fontSize: 11, background: "var(--panel-2)", padding: "2px 8px", borderRadius: 20, color: "var(--dim)" }}>
+                {checklist.filter(i => i.feito).length}/{checklist.length}
+              </span>
+              {checklist.length > 0 && (
+                <div style={{ marginLeft: "auto", width: 80, height: 5, borderRadius: 3, background: "var(--line)", overflow: "hidden" }}>
+                  <div style={{ height: "100%", borderRadius: 3, background: "var(--accent)", width: `${checklist.length ? Math.round(checklist.filter(i => i.feito).length / checklist.length * 100) : 0}%`, transition: "width .3s" }} />
+                </div>
+              )}
+            </div>
+            <div className="etapa-card-body">
+              {checklist.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 14 }}>
+                  {checklist.map(item => (
+                    <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <form action={toggleChecklistItem} style={{ display: "contents" }}>
+                        <input type="hidden" name="etapaId" value={etapa.id} />
+                        <input type="hidden" name="itemId" value={item.id} />
+                        <button type="submit" style={{
+                          width: 18, height: 18, borderRadius: 5, flexShrink: 0, cursor: "pointer",
+                          background: item.feito ? "var(--accent)" : "transparent",
+                          border: `2px solid ${item.feito ? "var(--accent)" : "var(--line-2)"}`,
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                        }}>
+                          {item.feito && <svg viewBox="0 0 10 10" style={{ width: 10, height: 10 }}><path d="M2 5l2.5 2.5L8 3" stroke="#fff" strokeWidth="1.5" fill="none" strokeLinecap="round" /></svg>}
+                        </button>
+                      </form>
+                      <span style={{ flex: 1, fontSize: 13, color: item.feito ? "var(--dim)" : "var(--txt)", textDecoration: item.feito ? "line-through" : "none" }}>
+                        {item.texto}
+                        {item.responsavel && <span style={{ fontSize: 10.5, color: "var(--dim)", marginLeft: 6 }}>@{item.responsavel}</span>}
+                      </span>
+                      <form action={removeChecklistItem}>
+                        <input type="hidden" name="etapaId" value={etapa.id} />
+                        <input type="hidden" name="itemId" value={item.id} />
+                        <button type="submit" className="ex-arqbtn no" style={{ padding: "2px 7px", fontSize: 10.5 }}>×</button>
+                      </form>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <form action={addChecklistItem} style={{ display: "flex", gap: 6 }}>
+                <input type="hidden" name="etapaId" value={etapa.id} />
+                <input name="texto" required placeholder="Novo item do checklist…" style={{ ...inp, flex: 1, fontSize: 12.5 }} />
+                <select name="responsavel" style={{ ...inp, width: 120 }}>
+                  <option value="">@responsável</option>
+                  {perfis.filter(p => p.tipo !== "agente").map(p => <option key={p.nome} value={p.nome}>{p.nome}</option>)}
+                </select>
+                <button className="hx-btn hx-btn-ghost" type="submit" style={{ padding: "6px 12px", fontSize: 12 }}>+ Add</button>
+              </form>
+            </div>
+          </div>
+
+          {/* Subtarefas */}
+          <div className="etapa-card">
+            <div className="etapa-card-head">
+              <span style={{ fontSize: 13, fontWeight: 700 }}>⤷ Subtarefas</span>
+              <span style={{ fontSize: 11, background: "var(--panel-2)", padding: "2px 8px", borderRadius: 20, color: "var(--dim)" }}>{subtarefas.length}</span>
+            </div>
+            <div className="etapa-card-body">
+              {subtarefas.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 14 }}>
+                  {subtarefas.map(sub => {
+                    const sst = ETAPA_STATUS[sub.status] ?? ETAPA_STATUS.idle;
+                    return (
+                      <a key={sub.id} href={`/expand/etapa/${sub.id}`} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 9, background: "var(--panel-2)", textDecoration: "none", border: "1px solid var(--line)" }}>
+                        <span style={{ width: 8, height: 8, borderRadius: "50%", background: sst.c, flexShrink: 0 }} />
+                        <span style={{ flex: 1, fontSize: 12.5, color: "var(--txt)", fontWeight: 500 }}>{sub.titulo}</span>
+                        <span style={{ fontSize: 10.5, color: "var(--dim)" }}>{sub.responsavel_atual ?? sub.responsavel ?? "—"}</span>
+                        <span style={{ fontSize: 10, color: sst.c, fontWeight: 700 }}>{sst.l}</span>
+                      </a>
+                    );
+                  })}
+                </div>
+              )}
+              <details>
+                <summary style={{ cursor: "pointer", fontSize: 12, color: "var(--accent)", fontWeight: 700, listStyle: "none" }}>+ Criar subtarefa</summary>
+                <form action={criarSubtarefa} style={{ display: "grid", gap: 8, marginTop: 10 }}>
+                  <input type="hidden" name="parentId" value={etapa.id} />
+                  <label><span style={lbl}>Título</span><input name="titulo" required placeholder="ex.: Criar arte para o post" style={inp} /></label>
+                  <label><span style={lbl}>Critério</span><textarea name="criterio" rows={2} placeholder="O que precisa ser entregue…" style={{ ...inp, resize: "vertical" }} /></label>
+                  <label><span style={lbl}>Responsável</span>
+                    <select name="responsavel" style={inp}>
+                      <option value="">—</option>
+                      {perfis.map(p => <option key={p.nome} value={p.nome}>{p.nome}{p.tipo === "agente" ? " (IA)" : ""}</option>)}
+                    </select>
+                  </label>
+                  <button className="hx-btn hx-btn-primary" type="submit" style={{ fontSize: 12.5 }}>Criar subtarefa</button>
+                </form>
+              </details>
+            </div>
+          </div>
+
+          {/* Comentários (log interno) */}
+          <div className="etapa-card">
+            <div className="etapa-card-head">
+              <span style={{ fontSize: 13, fontWeight: 700 }}>Anotações internas</span>
               <span style={{ fontSize: 11, background: "var(--panel-2)", padding: "2px 8px", borderRadius: 20, color: "var(--dim)" }}>{comentarios.length}</span>
+              <span style={{ fontSize: 11, color: "var(--dim)", marginLeft: "auto" }}>ficam no log, não no thread</span>
             </div>
             <div className="etapa-card-body">
               {comentarios.length > 0 ? (
@@ -375,12 +516,12 @@ export default async function EtapaDetalhe({ params }: { params: Promise<{ id: s
                   ))}
                 </div>
               ) : (
-                <p style={{ fontSize: 12.5, color: "var(--dim)", marginBottom: 14 }}>Nenhum comentário ainda. Deixe um abaixo.</p>
+                <p style={{ fontSize: 12.5, color: "var(--dim)", marginBottom: 14 }}>Nenhuma anotação ainda.</p>
               )}
               <form action={comentarEtapa} style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
                 <input type="hidden" name="etapaId" value={etapa.id} />
-                <textarea name="texto" required placeholder="Deixe um comentário, anotação ou observação…" rows={2} style={{ ...inp, resize: "vertical", flex: 1 }} />
-                <button className="hx-btn hx-btn-primary" type="submit" style={{ padding: "9px 16px", fontSize: 12.5, flexShrink: 0 }}>Comentar</button>
+                <textarea name="texto" required placeholder="Anotação interna (não notifica ninguém)…" rows={2} style={{ ...inp, resize: "vertical", flex: 1 }} />
+                <button className="hx-btn hx-btn-primary" type="submit" style={{ padding: "9px 16px", fontSize: 12.5, flexShrink: 0 }}>Salvar</button>
               </form>
             </div>
           </div>
@@ -388,6 +529,37 @@ export default async function EtapaDetalhe({ params }: { params: Promise<{ id: s
 
         {/* ── RIGHT: Sidebar ── */}
         <div className="etapa-sidebar">
+
+          {/* Photo box — responsável ou agente */}
+          {(() => {
+            const respNome = (etapa.responsavel_atual ?? etapa.responsavel ?? "").toLowerCase();
+            const perfil = (allPerfis ?? []).find(p => p.nome.toLowerCase() === respNome);
+            if (!perfil) return null;
+            const ini = perfil.nome.split(" ").map((w: string) => w[0]).slice(0, 2).join("").toUpperCase();
+            const isAi = perfil.tipo === "agente";
+            const agCor = isAi ? (AG_COR[etapa.agente ?? ""] ?? "var(--accent)") : (perfil.cor ?? "var(--accent)");
+            return (
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, padding: "20px 16px 16px", background: "var(--panel-2)", border: "1px solid var(--line)", borderRadius: 14 }}>
+                <div style={{ width: 76, height: 76, borderRadius: "50%", background: agCor, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, fontWeight: 800, color: "#fff", overflow: "hidden", flexShrink: 0, boxShadow: `0 0 0 3px var(--panel-2), 0 0 0 5px ${agCor}40` }}>
+                  {perfil.foto_url
+                    ? <img src={perfil.foto_url} alt={perfil.nome} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    : ini}
+                </div>
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: "var(--txt)", marginBottom: 2 }}>{perfil.nome}</div>
+                  {perfil.cargo && <div style={{ fontSize: 11.5, color: "var(--dim)" }}>{perfil.cargo}</div>}
+                  {isAi && (
+                    <div style={{ fontSize: 10.5, color: agCor, marginTop: 4, fontWeight: 600 }}>⚡ Agente de IA</div>
+                  )}
+                </div>
+                {isAi && etapa.agente && (
+                  <a href={`/expand/equipe/${etapa.agente}`} className="ex-arqbtn" style={{ fontSize: 11, padding: "5px 12px" }}>
+                    Ver perfil
+                  </a>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Info card */}
           <div className="etapa-card">
@@ -429,7 +601,7 @@ export default async function EtapaDetalhe({ params }: { params: Promise<{ id: s
                   <select name="para" required style={{ ...inp, flex: 1 }}>
                     {perfis.map((p) => <option key={p.nome} value={p.nome}>{p.nome}{p.tipo === "agente" ? " (IA)" : ""}</option>)}
                   </select>
-                  <button className="ex-arqbtn" type="submit" style={{ flexShrink: 0 }}>Ir</button>
+                  <SubmitButton variant="arq" style={{ flexShrink: 0 }} loadingText="…">Ir</SubmitButton>
                 </div>
               </form>
 
@@ -441,7 +613,7 @@ export default async function EtapaDetalhe({ params }: { params: Promise<{ id: s
                 <div className="acao-label">Data prevista</div>
                 <div style={{ display: "flex", gap: 6 }}>
                   <input type="date" name="data" defaultValue={etapa.data_prevista ?? ""} style={{ ...inp, flex: 1 }} />
-                  <button className="ex-arqbtn" type="submit" style={{ flexShrink: 0 }}>OK</button>
+                  <SubmitButton variant="arq" style={{ flexShrink: 0 }} loadingText="…">OK</SubmitButton>
                 </div>
                 {etapa.data_prevista && (
                   <button name="data" value="" className="ex-arqbtn no" type="submit" style={{ marginTop: 5, fontSize: 10.5 }}>Limpar data</button>
@@ -459,56 +631,59 @@ export default async function EtapaDetalhe({ params }: { params: Promise<{ id: s
                     <input name="motivo" placeholder="Descreva o impedimento…" style={inp} />
                   </div>
                 )}
-                <button className="ex-arqbtn no" type="submit" style={{ width: "100%", textAlign: "center" }}>
+                <SubmitButton variant="arq" className="no" style={{ width: "100%", textAlign: "center" }} loadingText="Processando…">
                   {etapa.bloqueado ? "✓ Desbloquear tarefa" : "🔒 Bloquear tarefa"}
-                </button>
+                </SubmitButton>
               </form>
 
               <div style={sep} />
 
-              {/* Chamado */}
-              <form action={abrirChamado}>
+              {/* Chamado → posta no thread + notifica PMO */}
+              <form action={abrirChamadoComThread}>
                 <input type="hidden" name="etapaId" value={etapa.id} />
-                <div className="acao-label">Chamado / dúvida para o gestor</div>
-                <textarea name="msg" required placeholder="Descreva a dúvida ou impedimento…" rows={2} style={{ ...inp, resize: "none", marginBottom: 6 }} />
-                <button className="ex-arqbtn" type="submit" style={{ width: "100%", textAlign: "center" }}>Enviar chamado</button>
+                <div className="acao-label">Abrir chamado para o PMO</div>
+                <p style={{ fontSize: 11, color: "var(--dim)", marginBottom: 6, lineHeight: 1.4 }}>A mensagem vai para a thread acima e notifica a diretoria.</p>
+                <textarea name="msg" required placeholder="Descreva a dúvida, falta de info ou impedimento…" rows={2} style={{ ...inp, resize: "none", marginBottom: 6 }} />
+                <SubmitButton variant="arq" style={{ width: "100%", textAlign: "center" }} loadingText="Enviando…">🆘 Enviar chamado</SubmitButton>
               </form>
             </div>
           </div>
 
-          {/* Admin: Editar */}
-          <details className="etapa-card">
-            <summary style={{ listStyle: "none", cursor: "pointer", padding: "12px 16px", display: "flex", alignItems: "center", gap: 8, fontWeight: 700, fontSize: 13 }}>
-              ✎ Editar tarefa
-              <span style={{ fontSize: 10.5, fontWeight: 400, color: "var(--dim)", marginLeft: 4 }}>ajustes desta conta</span>
-            </summary>
-            <form action={editarEtapa} style={{ padding: "0 16px 16px", display: "grid", gap: 10, borderTop: "1px solid var(--line)", paddingTop: 14 }}>
-              <input type="hidden" name="etapaId" value={etapa.id} />
-              <label><span style={lbl}>Título</span><input name="titulo" defaultValue={etapa.titulo} style={inp} /></label>
-              <label><span style={lbl}>Critério de conclusão</span><textarea name="criterio" defaultValue={etapa.criterio ?? ""} rows={2} style={{ ...inp, resize: "vertical" }} /></label>
-              <label><span style={lbl}>Gatilho</span><input name="gatilho" defaultValue={etapa.gatilho ?? ""} style={inp} /></label>
-              <label><span style={lbl}>SLA</span><input name="sla" defaultValue={etapa.sla ?? ""} placeholder="ex.: 2 dias" style={inp} /></label>
-              <label><span style={lbl}>Responsável</span>
-                <select name="responsavel" defaultValue={etapa.responsavel ?? ""} style={inp}>
-                  <option value="">—</option>
-                  {perfis.map((p) => <option key={p.nome} value={p.nome}>{p.nome}{p.tipo === "agente" ? " (IA)" : ""}</option>)}
-                </select>
-              </label>
-              <label><span style={lbl}>Agente que rascunha</span>
-                <select name="agente" defaultValue={etapa.agente ?? ""} style={inp}>
-                  <option value="">nenhum</option>
-                  {agentes.map((a) => <option key={a.id} value={a.id}>{a.nome}</option>)}
-                </select>
-              </label>
-              <label><span style={lbl}>Qtd. esperada de arquivos</span><input name="qtd_esperada" type="number" min={1} defaultValue={etapa.qtd_esperada} style={inp} /></label>
-              <label><span style={lbl}>Depende da etapa nº</span><input name="depende_de" type="number" min={1} defaultValue={etapa.depende_de ?? ""} placeholder="—" style={inp} /></label>
-              <div style={{ display: "flex", gap: 16 }}>
-                <label style={{ display: "flex", alignItems: "center", gap: 6 }}><input type="checkbox" name="marco" defaultChecked={etapa.marco} /> <span style={{ fontSize: 12 }}>Marco ◆</span></label>
-                <label style={{ display: "flex", alignItems: "center", gap: 6 }}><input type="checkbox" name="visivel_cliente" defaultChecked={etapa.visivel_cliente} /> <span style={{ fontSize: 12 }}>Visível ao cliente</span></label>
+          {/* Editar tarefa — visível para admin/PMO */}
+          {isAdmin && (
+            <div className="etapa-card">
+              <div className="etapa-card-head">
+                <span style={{ fontSize: 13, fontWeight: 700 }}>✎ Editar tarefa</span>
+                <span style={{ fontSize: 10.5, color: "var(--dim)", marginLeft: 4 }}>PMO / Admin</span>
               </div>
-              <button className="hx-btn hx-btn-primary" type="submit" style={{ fontSize: 12.5 }}>Salvar alterações</button>
-            </form>
-          </details>
+              <form action={editarEtapa} style={{ padding: "14px 16px", display: "grid", gap: 10 }}>
+                <input type="hidden" name="etapaId" value={etapa.id} />
+                <label><span style={lbl}>Título</span><input name="titulo" defaultValue={etapa.titulo} style={inp} /></label>
+                <label><span style={lbl}>Critério de conclusão</span><textarea name="criterio" defaultValue={etapa.criterio ?? ""} rows={3} style={{ ...inp, resize: "vertical" }} /></label>
+                <label><span style={lbl}>Gatilho</span><input name="gatilho" defaultValue={etapa.gatilho ?? ""} style={inp} /></label>
+                <label><span style={lbl}>SLA</span><input name="sla" defaultValue={etapa.sla ?? ""} placeholder="ex.: 2 dias" style={inp} /></label>
+                <label><span style={lbl}>Responsável padrão</span>
+                  <select name="responsavel" defaultValue={etapa.responsavel ?? ""} style={inp}>
+                    <option value="">—</option>
+                    {perfis.map((p) => <option key={p.nome} value={p.nome}>{p.nome}{p.tipo === "agente" ? " (IA)" : ""}</option>)}
+                  </select>
+                </label>
+                <label><span style={lbl}>Agente que rascunha</span>
+                  <select name="agente" defaultValue={etapa.agente ?? ""} style={inp}>
+                    <option value="">nenhum</option>
+                    {agentes.map((a) => <option key={a.id} value={a.id}>{a.nome}</option>)}
+                  </select>
+                </label>
+                <label><span style={lbl}>Qtd. esperada de arquivos</span><input name="qtd_esperada" type="number" min={1} defaultValue={etapa.qtd_esperada} style={inp} /></label>
+                <label><span style={lbl}>Depende da etapa nº</span><input name="depende_de" type="number" min={1} defaultValue={etapa.depende_de ?? ""} placeholder="—" style={inp} /></label>
+                <div style={{ display: "flex", gap: 16 }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 6 }}><input type="checkbox" name="marco" defaultChecked={etapa.marco} /> <span style={{ fontSize: 12 }}>Marco ◆</span></label>
+                  <label style={{ display: "flex", alignItems: "center", gap: 6 }}><input type="checkbox" name="visivel_cliente" defaultChecked={etapa.visivel_cliente} /> <span style={{ fontSize: 12 }}>Visível ao cliente</span></label>
+                </div>
+                <SubmitButton style={{ fontSize: 12.5 }} loadingText="Salvando…">Salvar alterações</SubmitButton>
+              </form>
+            </div>
+          )}
 
           {/* Admin: Promover */}
           {isAdmin && (

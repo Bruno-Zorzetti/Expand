@@ -40,6 +40,12 @@ export const MODULOS: Modulo[] = [
   { gate: "financeiro.realizado", label: "Realizado",            secao: "Financeiro", descricao: "Resultados realizados" },
   { gate: "financeiro.pagar",     label: "A Pagar",              secao: "Financeiro", descricao: "Contas a pagar" },
   { gate: "financeiro.receber",   label: "A Receber",            secao: "Financeiro", descricao: "Contas a receber" },
+
+  // ── CRM de Disparos WhatsApp ──────────────────────────────
+  { gate: "crm.instancias",  label: "Instâncias WA",     secao: "CRM",        descricao: "Números WhatsApp conectados" },
+  { gate: "crm.campanhas",   label: "Campanhas",         secao: "CRM",        descricao: "Disparos em massa" },
+  { gate: "crm.leads",       label: "Leads",             secao: "CRM",        descricao: "Base de leads com lead score" },
+  { gate: "crm.mensagens",   label: "Pool de Mensagens", secao: "CRM",        descricao: "Templates para reescrita IA" },
 ];
 
 export const MODULOS_BY_GATE = new Map(MODULOS.map((m) => [m.gate, m]));

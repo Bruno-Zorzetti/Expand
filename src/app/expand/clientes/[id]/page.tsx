@@ -678,7 +678,7 @@ export default async function ClienteHub({ params, searchParams }: { params: Pro
 
       {/* ══════════ CONFIGURAÇÕES / EDITAR ══════════ */}
       {aba === "editar" && isAdmin && (
-        <div style={{ maxWidth: 720, display: "flex", flexDirection: "column", gap: 20 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
           {ok === "1" && (
             <div style={{ padding: "10px 14px", borderRadius: 10, background: "color-mix(in srgb, var(--green) 12%, transparent)", border: "1px solid color-mix(in srgb, var(--green) 30%, transparent)", color: "var(--green)", fontSize: 13 }}>
               Dados salvos com sucesso.
@@ -686,65 +686,97 @@ export default async function ClienteHub({ params, searchParams }: { params: Pro
           )}
 
           {/* Dados básicos */}
-          <div className="hx-glass" style={{ borderRadius: 14, padding: 18 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 14 }}>Dados do cliente</div>
-            <form action={atualizarCliente} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div className="hx-glass" style={{ borderRadius: 14, padding: "20px 24px" }}>
+            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 18, display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 16 }}>🏢</span> Dados do cliente
+            </div>
+            <form action={atualizarCliente} style={{ display: "flex", flexDirection: "column", gap: 18 }}>
               <input type="hidden" name="id" value={id} />
 
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
-                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              {/* Logo */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label style={{ fontSize: 11, color: "var(--dim)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em" }}>Logo / Foto do cliente</label>
+                <LogoUpload clienteId={id} logoAtual={cli.imagem_url ?? null} />
+              </div>
+
+              {/* Nome + Segmento */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
                   <label style={{ fontSize: 11, color: "var(--dim)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em" }}>Nome *</label>
                   <input name="nome" defaultValue={cli.nome} required style={fld} />
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  <label style={{ fontSize: 11, color: "var(--dim)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em" }}>Segmento</label>
+                <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                  <label style={{ fontSize: 11, color: "var(--dim)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em" }}>Segmento / Nicho</label>
                   <input name="segmento" defaultValue={(cli.segmento as string | null) ?? ""} style={fld} placeholder="ex: Marketing Digital" />
                 </div>
               </div>
 
-              {/* Logo */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                <label style={{ fontSize: 11, color: "var(--dim)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em" }}>Logo</label>
-                <LogoUpload clienteId={id} logoAtual={cli.imagem_url ?? null} />
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12 }}>
-                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  <label style={{ fontSize: 11, color: "var(--dim)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em" }}>Maturidade</label>
-                  <select name="maturidade" defaultValue={(cli.maturidade as string | null) ?? ""} style={fld}>
-                    <option value="">—</option>
-                    {["iniciante", "intermediario", "avancado", "especialista"].map(m => <option key={m} value={m}>{m}</option>)}
-                  </select>
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              {/* Contrato + Produto + Meta */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
                   <label style={{ fontSize: 11, color: "var(--dim)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em" }}>Contrato</label>
                   <select name="contrato_tipo" defaultValue={(cli.contrato_tipo as string | null) ?? ""} style={fld}>
                     <option value="">—</option>
                     {["mensal", "trimestral", "semestral", "anual"].map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                  <label style={{ fontSize: 11, color: "var(--dim)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em" }}>Produto (slug)</label>
+                  <input name="produto_slug" defaultValue={(cli.produto_slug as string | null) ?? ""} style={fld} placeholder="ex: pide" />
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                  <label style={{ fontSize: 11, color: "var(--dim)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em" }}>Meta de receita (R$)</label>
+                  <input type="number" name="meta_receita" defaultValue={(cli.meta_receita as number | null) ?? ""} style={fld} placeholder="0" min={0} />
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                  <label style={{ fontSize: 11, color: "var(--dim)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em" }}>Maturidade</label>
+                  <select name="maturidade" defaultValue={(cli.maturidade as string | null) ?? ""} style={fld}>
+                    <option value="">—</option>
+                    {["iniciante", "intermediario", "avancado", "especialista"].map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              {/* Status */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
                   <label style={{ fontSize: 11, color: "var(--dim)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em" }}>Ativo</label>
                   <select name="ativo_str" defaultValue={cli.ativo === false ? "false" : "true"} style={fld}>
                     <option value="true">Sim</option>
                     <option value="false">Não</option>
                   </select>
                 </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                  <label style={{ fontSize: 11, color: "var(--dim)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em" }}>Responsável WhatsApp</label>
+                  <input name="whatsapp_responsavel" defaultValue={(cli as Record<string, unknown>).whatsapp_responsavel as string ?? ""} style={fld} placeholder="+55 11 99999-0000" />
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                  <label style={{ fontSize: 11, color: "var(--dim)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em" }}>Website</label>
+                  <input name="website" defaultValue={(cli as Record<string, unknown>).website as string ?? ""} style={fld} placeholder="https://..." />
+                </div>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
-                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  <label style={{ fontSize: 11, color: "var(--dim)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em" }}>Produto (slug)</label>
-                  <input name="produto_slug" defaultValue={(cli.produto_slug as string | null) ?? ""} style={fld} placeholder="ex: pide" />
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  <label style={{ fontSize: 11, color: "var(--dim)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em" }}>Meta de receita (R$)</label>
-                  <input type="number" name="meta_receita" defaultValue={(cli.meta_receita as number | null) ?? ""} style={fld} placeholder="0" min={0} />
+              {/* Endereço */}
+              <div style={{ borderTop: "1px solid var(--line)", paddingTop: 16 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", color: "var(--dim)", marginBottom: 12 }}>Endereço</div>
+                <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: 14 }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                    <label style={{ fontSize: 11, color: "var(--dim)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em" }}>Logradouro</label>
+                    <input name="endereco_rua" defaultValue={(cli as Record<string, unknown>).endereco_rua as string ?? ""} style={fld} placeholder="Rua, Av..." />
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                    <label style={{ fontSize: 11, color: "var(--dim)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em" }}>Cidade</label>
+                    <input name="endereco_cidade" defaultValue={(cli as Record<string, unknown>).endereco_cidade as string ?? ""} style={fld} placeholder="São Paulo" />
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                    <label style={{ fontSize: 11, color: "var(--dim)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em" }}>Estado</label>
+                    <input name="endereco_estado" defaultValue={(cli as Record<string, unknown>).endereco_estado as string ?? ""} style={fld} placeholder="SP" />
+                  </div>
                 </div>
               </div>
 
               <div style={{ display: "flex", gap: 10, paddingTop: 4 }}>
-                <button type="submit" className="hx-btn hx-btn-primary" style={{ padding: "10px 24px" }}>Salvar dados</button>
+                <button type="submit" className="hx-btn hx-btn-primary" style={{ padding: "10px 28px" }}>Salvar dados</button>
               </div>
             </form>
           </div>

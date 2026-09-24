@@ -1,5 +1,6 @@
 import { Cinzel } from "next/font/google";
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { getPessoa } from "@/lib/expand-user";
 import ExpandShell from "@/components/expand/ExpandShell";
