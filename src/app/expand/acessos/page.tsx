@@ -85,6 +85,22 @@ async function criarComSenha(formData: FormData) {
   redirect(`/expand/acessos?tab=convidar&ok=criado&criado_email=${encodeURIComponent(email)}`);
 }
 
+async function aprovarOrfao(formData: FormData) {
+  "use server";
+  await exigirAdmin();
+  const sb = createAdminClient();
+  if (!sb) redirect("/expand/acessos?erro=sem_chave");
+  const userId    = formData.get("userId")?.toString() ?? "";
+  const email     = formData.get("email")?.toString() ?? "";
+  const full_name = formData.get("full_name")?.toString() ?? "";
+  const role      = formData.get("role")?.toString() ?? "equipe";
+  if (!userId) return;
+  await sb.from("profiles").upsert({
+    id: userId, email, full_name: full_name || email.split("@")[0], role,
+  }, { onConflict: "id" });
+  revalidatePath("/expand/acessos");
+}
+
 async function gerarLink(formData: FormData) {
   "use server";
   await exigirAdmin();
@@ -205,6 +221,23 @@ export default async function Acessos({
   const clientes  = (cliData     ?? []) as { id: string; nome: string }[];
   const perfis    = (perfisData  ?? []) as Perfil[];
 
+  // Usuários em auth.users mas sem profile (orfãos — como Gabriel)
+  const adminSb = createAdminClient();
+  type OrphanUser = { id: string; email: string; full_name: string; created_at: string };
+  let orphanUsers: OrphanUser[] = [];
+  if (adminSb) {
+    const { data: { users } } = await adminSb.auth.admin.listUsers({ perPage: 1000 });
+    const profileIds = new Set(profiles.map(p => p.id));
+    orphanUsers = users
+      .filter(u => !profileIds.has(u.id))
+      .map(u => ({
+        id: u.id,
+        email: u.email ?? "",
+        full_name: (u.user_metadata as { full_name?: string } | null)?.full_name ?? u.email?.split("@")[0] ?? "",
+        created_at: u.created_at,
+      }));
+  }
+
   const pendentes    = profiles.filter(p => p.role === "pendente");
   const equipe       = profiles.filter(p => p.role === "admin" || p.role === "equipe");
   const clienteUsers = profiles.filter(p => p.role === "cliente");
@@ -265,8 +298,8 @@ export default async function Acessos({
 
       {/* ── KPIs ── */}
       <div className="ex-kpis" style={{ marginBottom: 28 }}>
-        {pendentes.length > 0 && (
-          <div className="ex-kpi hx-glass"><div className="lab">Pendentes</div><div className="val" style={{ color: "var(--warn)" }}>{pendentes.length}</div><div className="foot">Aguardando</div></div>
+        {(pendentes.length + orphanUsers.length) > 0 && (
+          <div className="ex-kpi hx-glass"><div className="lab">Pendentes</div><div className="val" style={{ color: "var(--warn)" }}>{pendentes.length + orphanUsers.length}</div><div className="foot">Aguardando</div></div>
         )}
         <div className="ex-kpi hx-glass"><div className="lab">Admin</div><div className="val hx-accent-text">{equipe.filter(p => p.role === "admin").length}</div><div className="foot">Diretoria</div></div>
         <div className="ex-kpi hx-glass"><div className="lab">Equipe</div><div className="val">{equipe.filter(p => p.role === "equipe").length}</div><div className="foot">Operacional</div></div>
@@ -274,10 +307,40 @@ export default async function Acessos({
       </div>
 
       {/* ── Pendentes ── */}
-      {pendentes.length > 0 && (
+      {(pendentes.length > 0 || orphanUsers.length > 0) && (
         <div style={{ marginBottom: 32 }}>
-          <div className="ex-grph"><span className="gt" style={{ color: "var(--warn)" }}>Aguardando aprovação</span><span className="gc">{pendentes.length}</span><span className="gl" /></div>
+          <div className="ex-grph"><span className="gt" style={{ color: "var(--warn)" }}>Aguardando aprovação</span><span className="gc">{pendentes.length + orphanUsers.length}</span><span className="gl" /></div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {/* Usuários orfãos — em auth mas sem profile */}
+            {orphanUsers.map(u => (
+              <div key={u.id} className="hx-glass" style={{ borderRadius: 12, borderLeft: "3px solid #f59e0b", padding: "14px 18px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                <Avatar nome={u.full_name} email={u.email} cor="#f59e0b" />
+                <div style={{ flex: 1, minWidth: 160 }}>
+                  <div style={{ fontWeight: 700, fontSize: 14 }}>{u.full_name || "—"}</div>
+                  <div style={{ fontSize: 11.5, color: "var(--dim)" }}>{u.email} · {new Date(u.created_at).toLocaleDateString("pt-BR")}</div>
+                  <div style={{ fontSize: 11, color: "#f59e0b", marginTop: 2 }}>⚠ Cadastrado sem perfil — sem acesso ainda</div>
+                </div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {(["equipe", "cliente", "admin"] as const).map(r => (
+                    <form key={r} action={aprovarOrfao}>
+                      <input type="hidden" name="userId"    value={u.id}        />
+                      <input type="hidden" name="email"     value={u.email}     />
+                      <input type="hidden" name="full_name" value={u.full_name} />
+                      <input type="hidden" name="role"      value={r}           />
+                      <button type="submit" className="hx-btn hx-btn-primary" style={{ fontSize: 12, padding: "5px 14px" }}>
+                        → {ROLE_LABEL[r]}
+                      </button>
+                    </form>
+                  ))}
+                  <form action={excluirUsuario}>
+                    <input type="hidden" name="userId" value={u.id} />
+                    <button type="submit" style={{ fontSize: 11, padding: "5px 12px", borderRadius: 8, border: "1px solid color-mix(in srgb, var(--red) 30%, transparent)", background: "color-mix(in srgb, var(--red) 8%, transparent)", color: "var(--red)", cursor: "pointer" }}>
+                      Excluir
+                    </button>
+                  </form>
+                </div>
+              </div>
+            ))}
             {pendentes.map(p => (
               <div key={p.id} className="hx-glass" style={{ borderRadius: 12, borderLeft: "3px solid var(--warn)", padding: "14px 18px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
                 <Avatar nome={p.full_name} email={p.email} cor="var(--warn)" />

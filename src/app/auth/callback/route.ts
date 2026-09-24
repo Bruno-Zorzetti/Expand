@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -36,6 +37,18 @@ export async function GET(request: Request) {
           .select("role")
           .eq("id", user.id)
           .maybeSingle();
+
+        if (!profile) {
+          const adminClient = createAdminClient();
+          if (adminClient) {
+            await adminClient.from("profiles").upsert({
+              id: user.id,
+              email: user.email ?? "",
+              full_name: (user.user_metadata?.full_name as string) ?? user.email?.split("@")[0] ?? "",
+              role: "pendente",
+            }, { onConflict: "id" });
+          }
+        }
 
         const role = (profile?.role as string) ?? "pendente";
         if (role === "admin" || role === "equipe") {

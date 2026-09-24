@@ -125,7 +125,10 @@ async function desconectarGoogle() {
 async function statusWpp(url: string | null, token: string | null) {
   if (!url || !token) return { status: "nao_config" as const };
   try {
-    const res = await fetch(`${url}/instance/status`, { headers: { token }, cache: "no-store" });
+    const controller = new AbortController();
+    const tid = setTimeout(() => controller.abort(), 5000);
+    const res = await fetch(`${url}/instance/status`, { headers: { token }, cache: "no-store", signal: controller.signal });
+    clearTimeout(tid);
     const j   = await res.json();
     const inst = j.instance ?? {};
     return { status: inst.status ?? "unknown", number: inst.owner ?? "", profileName: inst.profileName ?? "" };
@@ -144,9 +147,17 @@ export default async function Integracoes({ searchParams }: { searchParams: Prom
     process.env[key] || dbConfigs[key] || "";
 
   // WhatsApp status
-  const wppUrl   = resolve("UAZAPI_URL") || null;
+  const wppUrl   = resolve("UAZAPI_URL") || "https://hashescombr.uazapi.com";
   const wppToken = resolve("UAZAPI_TOKEN") || null;
   const wpp = await statusWpp(wppUrl, wppToken);
+
+  // Colaboradores e seus tokens uazapi
+  const supabaseAuth = await createAuth();
+  const { data: perfisData } = await supabaseAuth.from("expand_perfis")
+    .select("id, nome, cargo, cor, uazapi_token")
+    .eq("tipo", "humano")
+    .order("nome");
+  const perfisColabs = (perfisData ?? []) as { id: string; nome: string; cargo: string | null; cor: string | null; uazapi_token: string | null }[];
 
   // Google OAuth status
   const googleEmail       = dbConfigs["GOOGLE_USER_EMAIL"] || "";
@@ -211,6 +222,41 @@ export default async function Integracoes({ searchParams }: { searchParams: Prom
     const t   = process.env.UAZAPI_TOKEN || dbC["UAZAPI_TOKEN"] || "";
     if (!u || !t) return;
     try { await fetch(`${u}/instance/disconnect`, { method: "POST", headers: { token: t } }); } catch {}
+  }
+
+  async function ativarWhatsAppColaborador(formData: FormData): Promise<void> {
+    "use server";
+    await exigirAdmin();
+    const dbC    = await lerTodasConfigs();
+    const u      = process.env.UAZAPI_URL         || dbC["UAZAPI_URL"]         || "";
+    const admin  = process.env.UAZAPI_ADMIN_TOKEN || dbC["UAZAPI_ADMIN_TOKEN"] || "0CUIiNNgYXNDj7ITHOyHDAD3b92RNELObOriKAs7GWH97gyQGp";
+    const url    = u || "https://hashescombr.uazapi.com";
+    const perfilId = String(formData.get("perfilId") ?? "").trim();
+    const nome     = String(formData.get("nome") ?? "").trim();
+    if (!perfilId || !nome) return;
+
+    const nomeInstancia = `${nome} Expand`;
+    try {
+      const controller = new AbortController();
+      const tid = setTimeout(() => controller.abort(), 10000);
+      const res = await fetch(`${url}/instance/init`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", admintoken: admin },
+        body: JSON.stringify({ name: nomeInstancia }),
+        signal: controller.signal,
+      });
+      clearTimeout(tid);
+      const j    = await res.json();
+      const inst = (j.instance ?? j) as Record<string, unknown>;
+      const token = (inst.token ?? inst.instanceToken ?? inst.apikey ?? inst.hash) as string | undefined;
+      if (!token) return;
+
+      const sb = createAdminClient();
+      if (sb) {
+        await sb.from("expand_perfis").update({ uazapi_token: token }).eq("id", perfilId);
+      }
+    } catch { /* silently fail */ }
+    revalidatePath("/expand/integracoes");
   }
 
   async function criarInstancia(_prev: { token?: string; nome?: string; erro?: string } | null, formData: FormData) {
@@ -322,6 +368,54 @@ export default async function Integracoes({ searchParams }: { searchParams: Prom
           </div>
         </details>
       </details>
+
+      {/* WhatsApp por Colaborador */}
+      {perfisColabs.length > 0 && (
+        <div style={{ marginBottom: 28 }}>
+          <div className="ex-grph">
+            <span className="gt">WhatsApp por Colaborador</span>
+            <span className="gc">{perfisColabs.filter(p => p.uazapi_token).length}/{perfisColabs.length} com instância</span>
+            <span className="gl" />
+          </div>
+          <p style={{ fontSize: 12, color: "var(--mut)", marginBottom: 12, lineHeight: 1.55 }}>
+            Cada colaborador tem sua própria instância no servidor uazapi. Clique em <b>Ativar</b> para criar automaticamente; depois escaneie o QR no celular do colaborador.
+          </p>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 10 }}>
+            {perfisColabs.map(p => (
+              <div key={p.id} className="hx-glass" style={{ borderRadius: 13, padding: "14px 16px", borderLeft: `3px solid ${p.cor ?? "#25D366"}` }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+                  <div style={{ width: 34, height: 34, borderRadius: "50%", background: `color-mix(in srgb, ${p.cor ?? "#25D366"} 18%, var(--panel-2))`, display: "grid", placeItems: "center", fontWeight: 800, fontSize: 14, color: p.cor ?? "#25D366", flexShrink: 0 }}>
+                    {p.nome[0].toUpperCase()}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, fontSize: 13.5, lineHeight: 1.2 }}>{p.nome}</div>
+                    {p.cargo && <div style={{ fontSize: 11, color: "var(--dim)" }}>{p.cargo}</div>}
+                  </div>
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: p.uazapi_token ? "#22c55e" : "#ef4444", flexShrink: 0 }} />
+                </div>
+                {p.uazapi_token ? (
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    <span style={{ fontSize: 11, padding: "3px 9px", borderRadius: 20, background: "color-mix(in srgb,#22c55e 12%,transparent)", color: "#22c55e", fontWeight: 700 }}>
+                      Instância ativa
+                    </span>
+                    <form action={async () => { "use server"; }} style={{ display: "contents" }}>
+                      <input type="hidden" name="perfilId" value={p.id} />
+                    </form>
+                  </div>
+                ) : (
+                  <form action={ativarWhatsAppColaborador}>
+                    <input type="hidden" name="perfilId" value={p.id} />
+                    <input type="hidden" name="nome" value={p.nome} />
+                    <button type="submit" style={{ fontSize: 12, padding: "6px 14px", borderRadius: 8, background: "color-mix(in srgb,#25D366 15%,transparent)", color: "#25D366", border: "1px solid color-mix(in srgb,#25D366 35%,transparent)", cursor: "pointer", fontWeight: 700, width: "100%" }}>
+                      ⚡ Ativar WhatsApp
+                    </button>
+                  </form>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Google — Drive & Calendar */}
       <details open={!googleConnected} style={{ marginBottom: 28 }}>

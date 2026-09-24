@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useRef, type ReactNode } from "react";
 import Notificacoes, { type Notif } from "@/components/expand/Notificacoes";
 import OnboardingTour from "@/components/expand/OnboardingTour";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/client"; // used for auth (sair, trocarPessoa, agentes)
 
 type Pessoa = { id: string; nome: string; papel: string; ini: string };
 type Sub = { href: string; label: string; external?: boolean; indent?: boolean };
@@ -46,6 +46,14 @@ const NAV: NavSec[] = [
       { href: "/expand/comercial/placar",   label: "Placar",          icon: "target", eyebrow: "Gamificação diária",     gate: "comercial.placar" },
       { href: "/expand/comercial/meta",     label: "Meta",            icon: "coin",   eyebrow: "Calculadora de vendas",  gate: "comercial.meta" },
       { href: "/expand/comercial/guia",     label: "Guia",            icon: "book",   eyebrow: "Como usar o sistema",    gate: "comercial.guia" },
+    ],
+  },
+  {
+    id: "ferramentas",
+    sec: "Ferramentas",
+    items: [
+      { href: "/expand/ferramentas/capas", label: "Ebook Studio", icon: "brush", eyebrow: "Capa · Contra Capa · Miolo" },
+      { href: "/expand/ferramentas",       label: "Ver todas",       icon: "tool",  eyebrow: "Hub de utilitários",  gate: "admin" },
     ],
   },
   {
@@ -181,17 +189,10 @@ export default function ExpandShell({
   useEffect(() => {
     if (q.length < 2) { setHits([]); return; }
     const t = setTimeout(async () => {
-      const sb = createClient();
-      const [{ data: cli }, { data: etapas }, { data: membros }] = await Promise.all([
-        sb.from("expand_clientes").select("id, nome").ilike("nome", `%${q}%`).limit(6),
-        sb.from("expand_etapas").select("id, titulo").ilike("titulo", `%${q}%`).limit(5),
-        sb.from("expand_perfis").select("id, nome, cargo").ilike("nome", `%${q}%`).limit(4),
-      ]);
-      setHits([
-        ...(cli ?? []).map((c: { id: string; nome: string }) => ({ label: c.nome, sub: "Cliente", href: `/expand/clientes/${c.id}` })),
-        ...(etapas ?? []).map((e: { id: string; titulo: string }) => ({ label: e.titulo, sub: "Tarefa", href: `/expand/etapa/${e.id}` })),
-        ...(membros ?? []).map((m: { id: string; nome: string; cargo?: string }) => ({ label: m.nome, sub: m.cargo ?? "Equipe", href: `/expand/equipe/${m.id}` })),
-      ]);
+      try {
+        const res = await fetch(`/api/expand/search?q=${encodeURIComponent(q)}`);
+        if (res.ok) setHits(await res.json());
+      } catch { setHits([]); }
     }, 280);
     return () => clearTimeout(t);
   }, [q]);
