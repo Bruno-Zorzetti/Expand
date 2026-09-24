@@ -104,6 +104,12 @@ export function instanciasParaCliente(clienteId: string, maturidade: string | nu
         responsavel_atual: status === "idle" ? null : t.o,
         iniciada_em: status === "done" ? new Date(now - 18 * 864e5).toISOString() : status === "run" ? new Date(now - 2 * 864e5).toISOString() : null,
         concluida_em: status === "done" ? new Date(now - 15 * 864e5).toISOString() : null,
+        portal_aprovacao: false,
+        portal_status: null,
+        portal_aprovacao_em: null,
+        portal_resposta_em: null,
+        portal_feedback: null,
+        portal_feedback_audio_url: null,
       });
     }
   }
@@ -168,6 +174,12 @@ export function instanciasDeProduto(
         responsavel_atual: status === "idle" ? null : t.responsavel,
         iniciada_em: status === "done" ? new Date(now - 18 * 864e5).toISOString() : status === "run" ? new Date(now - 2 * 864e5).toISOString() : null,
         concluida_em: status === "done" ? new Date(now - 15 * 864e5).toISOString() : null,
+        portal_aprovacao: false,
+        portal_status: null,
+        portal_aprovacao_em: null,
+        portal_resposta_em: null,
+        portal_feedback: null,
+        portal_feedback_audio_url: null,
       };
     });
 }
